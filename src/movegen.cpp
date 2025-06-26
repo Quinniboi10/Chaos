@@ -510,13 +510,13 @@ void generateStandard(const Board& board, MoveList& moves, const auto& movegenFu
         pieceBB |= board.pieces(board.stm, QUEEN);
 
     const Square kingSq = getLSB(board.pieces(board.stm, KING));
-    u64 freeBB = pieceBB & ~board.pinned;
     u64 pinnedBB = pieceBB & board.pinned;
+    u64 freeBB = pieceBB ^ pinnedBB;
 
     while (freeBB) {
-        Square from = popLSB(freeBB);
+        const Square from = popLSB(freeBB);
 
-        u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask;
+        const u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask;
 
         if constexpr (pt == PAWN)
             deserializePromo(moves, from, toBB);
@@ -525,9 +525,9 @@ void generateStandard(const Board& board, MoveList& moves, const auto& movegenFu
     }
 
     while (pinnedBB) {
-        Square from = popLSB(pinnedBB);
+        const Square from = popLSB(pinnedBB);
 
-        u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask & LINE[kingSq][from];
+        const u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask & LINE[kingSq][from];
 
         if constexpr (pt == PAWN)
             deserializePromo(moves, from, toBB);
@@ -538,8 +538,17 @@ void generateStandard(const Board& board, MoveList& moves, const auto& movegenFu
 
 void Movegen::pawnMoves(const Board& board, MoveList& moves) {
     const u64 enemy = board.pieces(~board.stm);
+    const u64 empty = ~board.pieces();
 
     const Direction pushDir = board.stm == WHITE ? NORTH : SOUTH;
+
+    const u64 pawns = board.pieces(board.stm, PAWN);
+
+    const u64 singlePush = shift(pushDir, pawns) & empty;
+    const u64 doublePush = shift(pushDir, singlePush) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]) & empty;
+    
+    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[HFILE]) & enemy;
+    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[AFILE]) & enemy;
 
     const auto getMoves = [&](Square from) {
         u64 res = 0;
@@ -547,16 +556,16 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
         const int doublePushSq = from + 2 * pushDir;
 
         // Single push
-        if (board.getPiece(from + pushDir) == NO_PIECE_TYPE)
+        if (readBit(singlePush, from + pushDir))
             res |= 1ULL << (from + pushDir);
         // Double push
-        if (res > 0 && doublePushSq >= 0 && doublePushSq < 64 && board.getPiece(doublePushSq) == NO_PIECE_TYPE)
-            res |= (1ULL << doublePushSq) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]);
+        if (res > 0 && doublePushSq >= 0 && doublePushSq < 64 && readBit(doublePush, doublePushSq))
+            res |= (1ULL << doublePushSq);
         // Capture east
-        if (fileOf(from) != HFILE && ((1ULL << (from + pushDir + EAST)) & enemy))
+        if (fileOf(from) != HFILE && readBit(captureEast, from + pushDir + EAST))
             res |= 1ULL << (from + pushDir + EAST);
         // Capture west
-        if (fileOf(from) != AFILE && ((1ULL << (from + pushDir + WEST)) & enemy))
+        if (fileOf(from) != AFILE && readBit(captureWest, from + pushDir + WEST))
             res |= 1ULL << (from + pushDir + WEST);
 
         return res;
@@ -569,7 +578,7 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
         u64 epMoves = pawnAttackBB(~board.stm, board.epSquare) & board.pieces(board.stm, PAWN);
 
         while (epMoves) {
-            Square from = popLSB(epMoves);
+            const Square from = popLSB(epMoves);
 
             Board testBoard = board;
             testBoard.move(Move(from, board.epSquare, EN_PASSANT));
@@ -617,10 +626,8 @@ void Movegen::kingMoves(const Board& board, MoveList& moves) {
             kingMoves &= ~(LINE[kingSq][checker] ^ (1ULL << checker));
     }
 
-    while (kingMoves > 0) {
-        Square to = popLSB(kingMoves);
-        moves.add(kingSq, to);
-    }
+    while (kingMoves > 0)
+        moves.add(kingSq, popLSB(kingMoves));
 
     const auto legalCastle = [&](bool kingside) {
         const Square from = kingSq;

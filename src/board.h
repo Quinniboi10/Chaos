@@ -19,9 +19,6 @@ struct Board {
     // Board zobrist hash
     u64 zobrist;
 
-    // History of positions
-    std::vector<u64> posHistory;
-
     bool          doubleCheck;
     u64           checkMask;
     u64           pinned;

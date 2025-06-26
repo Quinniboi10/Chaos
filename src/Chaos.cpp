@@ -3,7 +3,7 @@
 
 bool chess960 = false;
 
-int main() {
+int main(int argc, char* argv[]) {
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
 
@@ -12,6 +12,19 @@ int main() {
     std::vector<string> tokens;
 
     board.reset();
+
+    // *********** ./Prelude <ARGS> ************
+    if (argc > 1) {
+        // Convert args into strings
+        std::vector<string> args;
+        args.resize(argc);
+        for (int i = 0; i < argc; i++)
+            args[i] = argv[i];
+
+        if (args[1] == "bench")
+            Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
+        return 0;
+    }
 
     cout << "Chaos ready and awaiting commands" << endl;
     while (true) {

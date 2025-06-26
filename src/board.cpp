@@ -385,7 +385,6 @@ void Board::move(Move m) {
     if (isCapture(m)) {
         toPT          = getPiece(to);
         halfMoveClock = 0;
-        posHistory.clear();
         if (mt != EN_PASSANT) {
             removePiece(~stm, toPT, to);
         }
@@ -458,8 +457,6 @@ void Board::move(Move m) {
     zobrist ^= hashCastling();
     zobrist ^= EP_ZTABLE[epSquare];
     zobrist ^= STM_ZHASH;
-
-    posHistory.push_back(zobrist);
 
     fullMoveClock += stm == WHITE;
 
