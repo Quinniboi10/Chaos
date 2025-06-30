@@ -57,11 +57,13 @@ enum Color : int {
 };
 
 enum GameState : i8 {
-    LOSS = -2,
-    DRAW = -1,
-    ONGOING = 0,
-    WIN = 1
+    ONGOING,
+    LOSS,
+    DRAW,
+    WIN
 };
+
+constexpr array<string, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW", "WIN" };
 
 constexpr auto operator<=>(const GameState a, const GameState b) { return static_cast<int>(a) <=> static_cast<int>(b); }
 

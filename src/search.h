@@ -4,21 +4,20 @@
 #include "move.h"
 #include "tunable.h"
 
-constexpr usize SCORE_QUANTIZATION = 1024;
-
 constexpr i32 MATE_SCORE = 32767;
 
 inline double cpToWDL(int cp) { return sigmoid((static_cast<double>(cp) / EVAL_DIVISOR)); }
 inline i32 wdlToCP(double wdl) {
-    assert(wdl > 0);
+    assert(wdl > -1);
     assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
 }
 
 struct Node {
-    atomic<i64> totalScore;
+    atomic<double> totalScore;
     atomic<u64> visits;
     atomic<u64> firstChild;
+    atomic<double> policy;
     atomic<GameState> state;
     atomic<Move> move;
     atomic<u8> numChildren;
@@ -28,6 +27,7 @@ struct Node {
         totalScore = 0;
         visits = 0;
         firstChild = 0;
+        policy = 0;
         state = ONGOING;
         move = Move::null();
         numChildren = 0;
@@ -38,6 +38,7 @@ struct Node {
         totalScore = other.totalScore.load();
         visits = other.visits.load();
         firstChild = other.firstChild.load();
+        policy = other.policy.load();
         state = other.state.load();
         move = other.move.load();
         numChildren = other.numChildren.load();
@@ -58,13 +59,15 @@ struct Node {
     }
 
     double getScore() const {
-        if (state == ONGOING)
-            return static_cast<double>(totalScore) / SCORE_QUANTIZATION / (visits + 1);
         if (state == DRAW)
             return 0;
         if (state == WIN)
             return 1;
-        return -1;
+        if (state == LOSS)
+            return -1;
+        if (visits == 0)
+            return FPU;
+        return static_cast<double>(totalScore.load()) / visits.load();
     }
 };
 
