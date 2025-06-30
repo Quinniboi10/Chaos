@@ -6,4 +6,4 @@
 
 # Engine build
 *.o
-Chaos.*
+Chaos*

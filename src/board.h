@@ -81,6 +81,7 @@ struct Board {
     bool canCastle(Color c, bool kingside) const;
 
     bool inCheck() const;
+    bool inCheck(Color c) const;
     bool isUnderAttack(Color c, Square square) const;
 
     bool isDraw();

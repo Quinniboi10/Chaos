@@ -16,7 +16,6 @@ class Move {
     constexpr Move(u8 startSquare, u8 endSquare, MoveType flags = STANDARD_MOVE) {
         move = startSquare | flags;
         move |= endSquare << 6;
-        move |= flags << 12;
     }
 
     constexpr Move(u8 startSquare, u8 endSquare, PieceType promo) {

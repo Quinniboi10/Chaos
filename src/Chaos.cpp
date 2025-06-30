@@ -1,5 +1,12 @@
 #include "board.h"
+#include "eval.h"
 #include "movegen.h"
+#include "searcher.h"
+#include "tunable.h"
+#include "constants.h"
+
+// ****** UCI OPTIONS ******
+usize hash = DEFAULT_HASH;
 
 bool chess960 = false;
 
@@ -7,11 +14,17 @@ int main(int argc, char* argv[]) {
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
 
-    Board               board;
+    Board    board;
+    Searcher searcher{};
+
     string              command;
     std::vector<string> tokens;
 
     board.reset();
+
+    const auto exists            = [&](const string& sub) { return command.find(" " + sub + " ") != string::npos; };
+    const auto index             = [&](const string& sub, int offset = 0) { return findIndexOf(tokens, sub) + offset; };
+    const auto getValueFollowing = [&](const string& value, int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
 
     // *********** ./Prelude <ARGS> ************
     if (argc > 1) {
@@ -22,7 +35,7 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 5);
         return 0;
     }
 
@@ -42,7 +55,8 @@ int main(int argc, char* argv[]) {
 #endif
                  << endl;
             cout << "id author Quinniboi10" << endl;
-            cout << "option name Threads type spin default 1 min 1 max 512" << endl;
+            cout << "option name Threads type spin default 1 min 1 max 1" << endl;
+            cout << "option name Hash type spin default " << DEFAULT_HASH << " min 1 max 1048576" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "uciok" << endl;
         }
@@ -66,13 +80,29 @@ int main(int argc, char* argv[]) {
                         board.move(tokens[i]);
             }
         }
+        else if (tokens[0] == "go") {
+            const usize depth = getValueFollowing("depth", 0);
+            const u64 nodes = getValueFollowing("nodes", 0);
+
+            const SearchParameters params(CPUCT, true);
+            const SearchLimits limits(hash, depth, nodes);
+            searcher.start(board, params, limits);
+        }
+        else if (tokens[0] == "setoption") {
+            if (tokens[2] == "Hash")
+                searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
+        }
 
         // ************ NON-UCI ************
 
         else if (command == "d")
             cout << board << endl;
+        else if (command == "tree")
+            searcher.displayRootTree();
         else if (tokens[0] == "move")
             board.move(tokens[1]);
+        else if (command == "eval")
+            cout << materialEval(board) << endl;
         else if (tokens[0] == "perft")
             Movegen::perft(board, std::stoi(tokens[1]), false);
         else if (tokens[0] == "bulk")
