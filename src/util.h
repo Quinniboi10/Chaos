@@ -1,9 +1,11 @@
 #pragma once
 
 #include <bit>
+#include <math.h>
 #include <vector>
 #include <sstream>
 #include <cstring>
+#include <algorithm>
 #include <string_view>
 
 #include "types.h"
@@ -40,6 +42,9 @@ inline u64 shift(u64 bb) {
 }
 
 inline u64 shift(int dir, u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
+
+inline double sigmoid(double x) { return 2 / (1 + std::pow(M_E, -x)) - 1; }
+inline double inverseSigmoid(double x) { return std::log((1 + x) / (1 - x)); }
 
 inline std::vector<string> split(const string& str, char delim) {
     std::vector<std::string> result;

@@ -8,3 +8,6 @@ constexpr int INF_I16 = std::numeric_limits<i16>::max();
 
 constexpr u64 LIGHT_SQ_BB = 0x55AA55AA55AA55AA;
 constexpr u64 DARK_SQ_BB  = 0xAA55AA55AA55AA55;
+
+// ************ DEFAULT UCI OPTIONS ************
+constexpr usize DEFAULT_HASH = 16;

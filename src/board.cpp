@@ -466,7 +466,8 @@ void Board::move(Move m) {
 bool Board::canCastle(Color c) const { return castleSq(c, true) != NO_SQUARE || castleSq(c, false) != NO_SQUARE; }
 bool Board::canCastle(Color c, bool kingside) const { return castleSq(c, kingside) != NO_SQUARE; }
 
-bool Board::inCheck() const { return ~checkMask; }
+bool Board::inCheck() const { return checkers == 0; }
+bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
 

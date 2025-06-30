@@ -3,17 +3,20 @@
 #include <cstdlib>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 #include <string>
 #include <limits>
+#include <atomic>
 #include <array>
 #include <bit>
 
 #undef assert
 #ifndef NDEBUG
-    #include <stacktrace>
+    #include <boost/stacktrace.hpp>
+    #undef assert
     #define assert(x) \
         if (!(x)) { \
-            std::cout << std::stacktrace::current() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
+            std::cout << std::endl << std::endl << boost::stacktrace::stacktrace() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
             std::terminate(); \
         }
 #else
@@ -28,6 +31,7 @@ using u8  = uint8_t;
 using i64 = int64_t;
 using i32 = int32_t;
 using i16 = int16_t;
+using i8  = int8_t;
 
 #ifdef _MSC_VER
     #include <__msvc_int128.hpp>
@@ -40,6 +44,8 @@ using usize = size_t;
 
 using std::popcount;
 using std::string;
+using std::atomic;
+using std::vector;
 using std::array;
 using std::cerr;
 using std::cout;
@@ -49,6 +55,15 @@ enum Color : int {
     WHITE = 1,
     BLACK = 0,
 };
+
+enum GameState : i8 {
+    LOSS = -2,
+    DRAW = -1,
+    ONGOING = 0,
+    WIN = 1
+};
+
+constexpr auto operator<=>(const GameState a, const GameState b) { return static_cast<int>(a) <=> static_cast<int>(b); }
 
 //Inverts the color (WHITE -> BLACK) and (BLACK -> WHITE)
 constexpr Color operator~(Color c) { return Color(c ^ 1); }
@@ -62,8 +77,6 @@ enum PieceType : int {
     KING,
     NO_PIECE_TYPE
 };
-
-inline array<int, 7> PIECE_VALUES = {100, 316, 328, 493, 982, 0, 0};
 
 // clang-format off
 enum Square : int {
