@@ -38,13 +38,13 @@ struct Searcher {
     void displayRootTree() {
         const auto asString = [&](const Node& node) {
             return fmt::format(
-                fmt::runtime("{:>10}>  {:<6} {:>+7} {:>10} visits {:>7.3f} policy  {}"),
+                fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"),
                 node.firstChild.load(),
                 node.move.load().toString(),
-                node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore()) / 100 : node.state == WIN ? MATE_SCORE : -MATE_SCORE,
+                static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore()) : node.state == WIN ? MATE_SCORE : -MATE_SCORE) / 100),
                 node.visits.load(),
-                1.0 / (node.numChildren.load() + 1),
-                static_cast<int>(node.state)
+                node.policy.load(),
+                GAME_STATE_STR[node.state]
             );
         };
 
@@ -53,7 +53,7 @@ struct Searcher {
         for (usize idx = 1; idx < nodes[0].numChildren; idx++)
             cout << "├─> " << asString(nodes[idx]) << endl;
 
-        const Node& child = nodes[nodes[0].numChildren + 1];
+        const Node& child = nodes[nodes[0].numChildren];
         cout << "└─> " << asString(child) << endl;
     }
 

@@ -4,6 +4,7 @@
 #include "eval.h"
 
 #include <cmath>
+#include <numeric>
 #include <functional>
 
 void Worker::search(const Board& board, vector<Node>& nodes, const SearchParameters params, const SearchLimits limits) {
@@ -39,25 +40,23 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
     // Return if a node is terminal
     const auto isTerminal = [&](const Node& node) { return node.state != ONGOING && isLeaf(node); };
 
-    // Expand a node
-    const auto expandNode = [&](const Board& board, Node& node) {
-        MoveList moves = Movegen::generateMoves(board);
+    // Performs a softmax on the given vector
+    const auto softmax = [](vector<double>& scores) {
+        assert(!scores.empty());
 
-        if (currentIndex + moves.length > limits.maxNodes)
-            return false;
+        // Find the max value
+        double maxIn = scores[0];
+        for (usize idx = 1; idx < scores.size(); idx++)
+            maxIn = std::max(maxIn, scores[idx]);
 
-        node.firstChild = currentIndex;
-        node.numChildren = moves.length;
+        // Compute exponentials
+        for (double& score : scores)
+            score = std::exp(score - maxIn);
 
-        this->nodes += moves.length;
-
-        for (const Move move : moves) {
-            Node& child = nodes[currentIndex++];
-            child.move = move;
-            child.parent = &node;
-        }
-
-        return true;
+        const double sum = std::reduce(scores.begin(), scores.end());
+        // Scale down by sum of exponents
+        for (double& score : scores)
+            score /= sum;
     };
 
     // PUCT formula
@@ -68,12 +67,50 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         // P = move policy score
         // N = parent visits
         // n = child visits
-        return parent.getScore() + params.cpuct * 1 / (parent.numChildren + 1) * (std::sqrt(std::max<u64>(parent.visits, 1)) / child.visits + 1);
+        return parent.getScore() + params.cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1) + 1);
+    };
+
+    // Expand a node
+    const auto expandNode = [&](const Board& board, Node& node) {
+        MoveList moves = Movegen::generateMoves(board);
+
+        if (currentIndex + moves.length > limits.maxNodes)
+            return false;
+
+        // Mates aren't handled until the simulation/rollout stage
+        if (moves.length == 0)
+            return true;
+
+        node.firstChild = currentIndex;
+        node.numChildren = moves.length;
+
+        this->nodes += moves.length;
+
+        vector<double> policyScores;
+        policyScores.reserve(moves.length);
+
+        // In future, this would be replaced by a policy NN
+        // Loop runs backwards so pop_back can be used
+        for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--)
+            policyScores.push_back(1.0 / node.numChildren);
+
+        softmax(policyScores);
+
+        for (const Move& move : moves) {
+            Node& child = nodes[currentIndex++];
+            child.move = move;
+            child.parent = &node;
+            child.policy = policyScores.back();
+
+            policyScores.pop_back();
+        }
+
+        return true;
     };
 
     // Find the best child node from a parent
     const auto findBestChild = [&](const Node& node) {
-        double bestScore = puct(node, nodes[node.firstChild]);
+        double bestScore = nodes[node.firstChild].policy;
         usize bestIdx = node.firstChild;
         for (usize idx = node.firstChild + 1; idx < node.firstChild + node.numChildren; idx++) {
             const double score = puct(node, nodes[idx]);
@@ -135,18 +172,24 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     // Backprop of game state
     const std::function<void(Node&)> backpropState = [&](Node& node) {
-        GameState state = LOSS;
-        for (usize idx = node.firstChild; idx < node.firstChild + node.numChildren; idx++)
-            state = std::max<GameState>(state, nodes[idx].state);
+        GameState state = ONGOING;
 
-        // Flip for stm
-        if (state == LOSS)
-            state = WIN;
-        else if (state == WIN)
+        bool isLoss = true;
+
+        for (usize idx = node.firstChild; idx < node.firstChild + node.numChildren; idx++) {
+            const Node& child = nodes[idx];
+            if (child.state == LOSS) {
+                state = WIN;
+                break;
+            }
+            if (child.state != WIN)
+                isLoss = false;
+        }
+
+        if (isLoss)
             state = LOSS;
 
-        // Don't backprop draw scores
-        node.state = static_cast<GameState>(state * state != DRAW);
+        node.state = state;
 
         if (node.parent != nullptr)
             backpropState(*node.parent);
@@ -172,7 +215,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     // Backprop a score until root
     const std::function<void(Node&, double)> backprop = [&](Node& node, double score) {
-        node.totalScore += score * SCORE_QUANTIZATION;
+        node.totalScore += score;
         node.visits++;
 
         if (node.parent != nullptr)
@@ -217,6 +260,6 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             cout << " " << m;
         cout << endl;
 
-        cout << "bestmove " << pv.moves[0] << endl;
+        cout << "bestmove " << pv[0] << endl;
     }
 }
