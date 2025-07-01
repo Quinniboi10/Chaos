@@ -35,13 +35,14 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 5);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 7);
         return 0;
     }
 
     cout << "Chaos ready and awaiting commands" << endl;
     while (true) {
         std::getline(std::cin, command);
+        Stopwatch<std::chrono::milliseconds> commandTime;
         if (command == "")
             continue;
         tokens = split(command, ' ');
@@ -84,8 +85,17 @@ int main(int argc, char* argv[]) {
             const usize depth = getValueFollowing("depth", 0);
             const u64 nodes = getValueFollowing("nodes", 0);
 
+            const usize wtime = getValueFollowing("wtime", 0);
+            const usize btime = getValueFollowing("btime", 0);
+
+            const usize winc = getValueFollowing("winc", 0);
+            const usize binc = getValueFollowing("binc", 0);
+
+            const i64 time = board.stm == WHITE ? wtime : btime;
+            const i64 inc = board.stm == WHITE ? winc : binc;
+
             const SearchParameters params(CPUCT, true);
-            const SearchLimits limits(hash, depth, nodes);
+            const SearchLimits limits(commandTime, hash, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {

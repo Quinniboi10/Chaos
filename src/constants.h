@@ -2,6 +2,10 @@
 
 #include "types.h"
 
+// Using ms
+constexpr usize UCI_REPORTING_FREQUENCY = 1000;
+constexpr usize MOVE_OVERHEAD = 20;
+
 constexpr u64 INF_U64 = std::numeric_limits<u64>::max();
 constexpr int INF_INT = std::numeric_limits<int>::max();
 constexpr int INF_I16 = std::numeric_limits<i16>::max();

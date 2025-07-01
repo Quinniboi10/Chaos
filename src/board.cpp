@@ -20,7 +20,7 @@ array<u64, 16> CASTLING_ZTABLE;
 char Board::getPieceAt(int sq) const {
     assert(sq >= 0);
     assert(sq < 64);
-    if (((1ULL << sq) & pieces()) == 0)
+    if (getPiece(sq) == NO_PIECE_TYPE)
         return ' ';
     constexpr char whiteSymbols[] = {'P', 'N', 'B', 'R', 'Q', 'K'};
     constexpr char blackSymbols[] = {'p', 'n', 'b', 'r', 'q', 'k'};
@@ -466,7 +466,7 @@ void Board::move(Move m) {
 bool Board::canCastle(Color c) const { return castleSq(c, true) != NO_SQUARE || castleSq(c, false) != NO_SQUARE; }
 bool Board::canCastle(Color c, bool kingside) const { return castleSq(c, kingside) != NO_SQUARE; }
 
-bool Board::inCheck() const { return checkers == 0; }
+bool Board::inCheck() const { return checkers != 0; }
 bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }

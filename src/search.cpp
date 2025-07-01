@@ -18,15 +18,20 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     usize seldepth = 0;
 
+    // Time management
+    i64 timeToSpend = limits.time / 20 + limits.inc / 2;
+
+    if (timeToSpend)
+        timeToSpend -= MOVE_OVERHEAD;
+
     if (nodes.size() < limits.maxNodes)
         nodes.resize(limits.maxNodes);
-    for (Node& n : nodes)
-        n = Node();
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
         return currentIndex >= limits.maxNodes
-            || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
+            || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
+            || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
     };
 
     // Board at the leaf node, updated when a new leaf node is found to search
@@ -61,13 +66,13 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     // PUCT formula
     const auto puct = [&](const Node& parent, const Node& child) {
-        // V + C * P * (N.max(1).sqrt()/n + 1)
+        // V + C * P * (N.max(1).sqrt() / (n + 1))
         // V = Q = total score / visits
         // C = CPUCT
         // P = move policy score
         // N = parent visits
         // n = child visits
-        return parent.getScore() + params.cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1) + 1);
+        return -child.getScore() + params.cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
     };
 
     // Expand a node
@@ -98,9 +103,14 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
         for (const Move& move : moves) {
             Node& child = nodes[currentIndex++];
-            child.move = move;
-            child.parent = &node;
+            child.totalScore = 0;
+            child.visits = 0;
+            child.firstChild = 0;
             child.policy = policyScores.back();
+            child.state = ONGOING;
+            child.move = move;
+            child.numChildren = 0;
+            child.parent = &node;
 
             policyScores.pop_back();
         }
@@ -110,7 +120,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     // Find the best child node from a parent
     const auto findBestChild = [&](const Node& node) {
-        double bestScore = nodes[node.firstChild].policy;
+        double bestScore = puct(node, nodes[node.firstChild]);
         usize bestIdx = node.firstChild;
         for (usize idx = node.firstChild + 1; idx < node.firstChild + node.numChildren; idx++) {
             const double score = puct(node, nodes[idx]);
@@ -130,10 +140,10 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         Node* node = &nodes[0];
 
         while (!isLeaf(*node)) {
-            double bestScore = nodes[node->firstChild].getScore();
+            double bestScore = -nodes[node->firstChild].getScore();
             usize bestIdx = node->firstChild;
             for (usize idx = node->firstChild + 1; idx < node->firstChild + node->numChildren; idx++) {
-                const double score = nodes[idx].getScore();
+                const double score = -nodes[idx].getScore();
                 if (score > bestScore) {
                     bestScore = score;
                     bestIdx = idx;
@@ -153,17 +163,17 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
         Node* node = &nodes[0];
 
-        usize depth = 0;
+        usize ply = 0;
 
         while (!isLeaf(*node)) {
             const usize bestIdx = findBestChild(*node);
             node = &nodes[bestIdx];
             boardAtLeaf.move(node->move);
-            depth++;
+            ply++;
         }
 
-        cumulativeDepth += depth;
-        seldepth = std::max(seldepth, depth);
+        cumulativeDepth += ply;
+        seldepth = std::max(seldepth, ply);
 
         // At this point, board is at the state of the best node,
         // and node points to that node
@@ -222,8 +232,31 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             backprop(*node.parent, -score);
     };
 
+    const auto printUCI = [&]() {
+        MoveList pv = findPV();
+        cout << "info depth " << cumulativeDepth / iterations;
+        cout << " seldepth " << seldepth;
+        cout << " time " << limits.commandTime.elapsed();
+        cout << " nodes " << this->nodes.load();
+        if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
+            cout << " score cp " << wdlToCP(nodes[0].getScore());
+        else
+            cout << " score mate " << (pv.length + 1) / 2 * (nodes[0].state == WIN ? 1 : -1);
+        cout << " pv";
+        for (Move m : pv)
+            cout << " " << m;
+        cout << endl;
+
+        return pv;
+    };
+
     // Expand root
     expandNode(board, nodes[0]);
+
+    // Intervals to report on
+    Stopwatch<std::chrono::milliseconds> stopwatch;
+    usize lastDepth = 0;
+    usize lastSeldepth = 0;
 
     // Main search loop
     do {
@@ -245,20 +278,18 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         backprop(*next, score);
 
         iterations++;
+
+        // Check if UCI should be printed
+        if ((lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY) && params.doReporting) {
+            printUCI();
+            lastDepth = cumulativeDepth / iterations;
+            lastSeldepth = seldepth;
+            stopwatch.reset();
+        }
     } while (!stopSearching());
 
-    MoveList pv = findPV();
-
     if (params.doReporting) {
-        cout << "info nodes " << this->nodes;
-        cout << " depth " << cumulativeDepth / iterations;
-        cout << " seldepth " << seldepth;
-        if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
-            cout << " score cp " << wdlToCP(nodes[0].getScore());
-        cout << " pv";
-        for (Move m : pv)
-            cout << " " << m;
-        cout << endl;
+        MoveList pv = printUCI();
 
         cout << "bestmove " << pv[0] << endl;
     }
