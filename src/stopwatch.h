@@ -24,7 +24,7 @@ class Stopwatch {
 
     void reset() { start(); }
 
-    u64 elapsed() {
+    u64 elapsed() const {
         u64 pausedTime = this->pausedTime;
         if (paused)
             pausedTime += std::chrono::duration_cast<Precision>(std::chrono::high_resolution_clock::now() - pauseTime).count();

@@ -30,6 +30,7 @@ struct Searcher {
         assert(!isSearching);
         if (nodes.size() == 0)
             setHash(DEFAULT_HASH);
+        nodes[0] = Node();
         isSearching = true;
         worker.search(board, nodes, params, limits);
         isSearching = false;
@@ -111,17 +112,17 @@ struct Searcher {
 
         Board board;
         u64 totalNodes = 0;
-        const SearchParameters params(CPUCT, false);
-        const SearchLimits limits(256, depth, 0);
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
+        const SearchParameters params(CPUCT, false);
+        const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
 
         for (auto fen : fens) {
             board.loadFromFEN(fen);
             worker.search(board, nodes, params, limits);
             totalNodes += worker.nodes.load();
             cout << "Pos: " << fen << endl;
-            cout << worker.nodes.load() << " nodes " << worker.nodes.load() * 1000 / stopwatch.elapsed() << " nps" << endl;
+            cout << worker.nodes.load() << " nodes " << endl;
         }
 
         cout << totalNodes << " nodes " << totalNodes * 1000 / stopwatch.elapsed() << " nps" << endl;

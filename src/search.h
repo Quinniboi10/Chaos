@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "move.h"
+#include "stopwatch.h"
 #include "tunable.h"
 
 constexpr i32 MATE_SCORE = 32767;
@@ -80,12 +81,20 @@ struct SearchParameters {
 };
 
 struct SearchLimits {
+    Stopwatch<std::chrono::milliseconds> commandTime;
     u64 maxNodes;
     usize depth;
+    i64 time;
+    i64 inc;
 
-    SearchLimits(const u64 hash, const usize depth, const u64 nodes) : depth(depth) {
+    SearchLimits(const Stopwatch<std::chrono::milliseconds>& commandTime, const u64 hash, const usize depth, const u64 nodes, const i64 time, const i64 inc) {
+        this->commandTime = commandTime;
+        this->depth = depth;
+        this->time = time;
+        this->inc = inc;
+
         maxNodes = hash * 1024 * 1024 / sizeof(Node);
         if (nodes)
-            maxNodes = std::max(maxNodes, nodes);
+            maxNodes = std::min(maxNodes, nodes);
     }
 };

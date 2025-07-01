@@ -9,5 +9,5 @@ static i32 materialEval(const Board& board) {
          + (popcount(board.pieces(WHITE, BISHOP)) - popcount(board.pieces(BLACK, BISHOP))) * PIECE_VALUES[BISHOP]
          + (popcount(board.pieces(WHITE, ROOK)) - popcount(board.pieces(BLACK, ROOK))) * PIECE_VALUES[ROOK]
          + (popcount(board.pieces(WHITE, QUEEN)) - popcount(board.pieces(BLACK, QUEEN))) * PIECE_VALUES[QUEEN])
-         * (1 - 2 * (board.stm == WHITE));
+         * (1 - 2 * (board.stm == BLACK));
 };
