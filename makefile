@@ -1,3 +1,5 @@
+DEFAULT_NETWORK = Prelude_08.value
+
 # Detect Operating System
 ifeq ($(OS),Windows_NT)
     # Windows settings
@@ -42,11 +44,26 @@ SRCS     := $(wildcard ./src/*.cpp)
 OBJS     := $(SRCS:.cpp=.o)
 
 # Default target
+all: download
 all: $(EXE)
 
 # Link the executable
 $(EXE): $(SRCS)
-	$(CXX) $(CXXFLAGS) $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+	$(CXX) $(CXXFLAGS) -DEVALFILE="\"$(EVALFILE)\"" $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+
+# Download the net from the repository
+EVALFILE ?= $(DEFAULT_NETWORK)
+
+download:
+ifeq ($(EVALFILE),$(DEFAULT_NETWORK))
+	@if [ ! -f "$(DEFAULT_NETWORK)" ]; then \
+		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_NETWORK); \
+	else \
+		echo "$(DEFAULT_NETWORK) already exists, skipping download."; \
+	fi
+else
+	@echo "EVALFILE is set to '$(EVALFILE)', skipping download."
+endif
 
 # Debug build
 .PHONY: debug

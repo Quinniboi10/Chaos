@@ -1,16 +1,52 @@
 #include "board.h"
-#include "eval.h"
 #include "movegen.h"
 #include "searcher.h"
 #include "tunable.h"
 #include "constants.h"
+#include "nn.h"
+
+// Embed of NNs
+#ifdef _MSC_VER
+    #define MSVC
+    #pragma push_macro("_MSC_VER")
+    #undef _MSC_VER
+#endif
+
+#include "../external/incbin.h"
+
+#ifdef MSVC
+    #pragma pop_macro("_MSC_VER")
+    #undef MSVC
+#endif
+
+#if !defined(_MSC_VER) || defined(__clang__)
+INCBIN(EVAL, EVALFILE);
+#endif
 
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
 
 bool chess960 = false;
 
+ValueNetwork valueNetwork;
+
 int main(int argc, char* argv[]) {
+    auto loadDefaultNet = [&]([[maybe_unused]] bool verbose = false) {
+        if (verbose) {
+            cout << "Loading network " << EVALFILE << endl;
+            cout << "Network size: " << gEVALSize << endl;
+        }
+        #if defined(_MSC_VER) && !defined(__clang__)
+        valueNetwork.loadNetwork(EVALFILE);
+        if (warnMSVC)
+            cerr << "WARNING: This file was compiled with MSVC, this means that an network(s) have NOT been embedded into the exe." << endl;
+        #else
+        valueNetwork = *reinterpret_cast<const ValueNetwork*>(gEVALData);
+        #endif
+    };
+
+    loadDefaultNet(true);
+
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
 
@@ -112,7 +148,7 @@ int main(int argc, char* argv[]) {
         else if (tokens[0] == "move")
             board.move(tokens[1]);
         else if (command == "eval")
-            cout << materialEval(board) << endl;
+            cout << "WDL score: " << valueNetwork.evaluate(board) << endl;
         else if (tokens[0] == "perft")
             Movegen::perft(board, std::stoi(tokens[1]), false);
         else if (tokens[0] == "bulk")

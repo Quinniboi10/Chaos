@@ -1,7 +1,7 @@
 #include "worker.h"
 #include "searcher.h"
 #include "movegen.h"
-#include "eval.h"
+#include "nn.h"
 
 #include <cmath>
 #include <numeric>
@@ -220,7 +220,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             return node.getScore();
         }
 
-        return cpToWDL(materialEval(boardAtLeaf));
+        return valueNetwork.evaluate(board);
     };
 
     // Backprop a score until root

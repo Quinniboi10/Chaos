@@ -15,3 +15,16 @@ constexpr u64 DARK_SQ_BB  = 0xAA55AA55AA55AA55;
 
 // ************ DEFAULT UCI OPTIONS ************
 constexpr usize DEFAULT_HASH = 16;
+
+// ************      NN CONFIG      ************
+constexpr i16   QA             = 255;
+constexpr i16   QB             = 64;
+constexpr i16   EVAL_SCALE     = 400;
+constexpr usize HL_SIZE        = 1024;
+constexpr usize OUTPUT_BUCKETS = 8;
+
+constexpr int ReLU   = 0;
+constexpr int CReLU  = 1;
+constexpr int SCReLU = 2;
+
+constexpr int ACTIVATION = SCReLU;
