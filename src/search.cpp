@@ -121,7 +121,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         // In future, this would be replaced by a policy NN
         // Loop runs backwards so pop_back can be used
         for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--)
-            policyScores.push_back(1.0 / node.numChildren);
+            policyScores.push_back(PIECE_VALUES[boardAtLeaf.getPiece(moves[idx].to())]);
 
         softmax(policyScores);
 

@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 7);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 8);
         return 0;
     }
 
