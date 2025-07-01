@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, CPUCT, true);
+            const SearchParameters params(positionHistory, true);
             const SearchLimits limits(commandTime, hash, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }

@@ -96,7 +96,8 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         // P = move policy score
         // N = parent visits
         // n = child visits
-        return -child.getScore() + params.cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
+        const double cpuct = parent.parent == nullptr ? ROOT_CPUCT : CPUCT;
+        return -child.getScore() + cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
     };
 
     // Expand a node

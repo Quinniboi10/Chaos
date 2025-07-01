@@ -2,6 +2,7 @@
 
 #include "types.h"
 
+constexpr double ROOT_CPUCT = 3.6;
 constexpr double CPUCT = 2.4;
 constexpr double FPU = 0.5;
 constexpr double EVAL_DIVISOR = 400;
