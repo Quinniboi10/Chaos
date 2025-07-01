@@ -57,6 +57,8 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
                 requiredReps = 2;
                 reps++;
             }
+            if (reps >= requiredReps)
+                return true;
         }
 
         for (const u64 hash : posHistory) {
