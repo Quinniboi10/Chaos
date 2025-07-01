@@ -73,11 +73,12 @@ struct Node {
 };
 
 struct SearchParameters {
+    const vector<u64>& positionHistory;
     double cpuct;
 
     bool doReporting;
 
-    SearchParameters(double cpuct, bool doReporting) : cpuct(cpuct), doReporting(doReporting) {}
+    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const bool doReporting) : positionHistory(positionHistory), cpuct(cpuct), doReporting(doReporting) {}
 };
 
 struct SearchLimits {
