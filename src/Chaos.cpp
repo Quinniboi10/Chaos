@@ -17,8 +17,10 @@ int main(int argc, char* argv[]) {
     Board    board;
     Searcher searcher{};
 
-    string              command;
-    std::vector<string> tokens;
+    vector<u64> positionHistory;
+
+    string         command;
+    vector<string> tokens;
 
     board.reset();
 
@@ -29,7 +31,7 @@ int main(int argc, char* argv[]) {
     // *********** ./Prelude <ARGS> ************
     if (argc > 1) {
         // Convert args into strings
-        std::vector<string> args;
+        vector<string> args;
         args.resize(argc);
         for (int i = 0; i < argc; i++)
             args[i] = argv[i];
@@ -69,16 +71,20 @@ int main(int argc, char* argv[]) {
             if (tokens[1] == "startpos") {
                 board.reset();
                 if (tokens.size() > 2 && tokens[2] == "moves")
-                    for (usize i = 3; i < tokens.size(); i++)
+                    for (usize i = 3; i < tokens.size(); i++) {
+                        positionHistory.push_back(board.zobrist);
                         board.move(tokens[i]);
+                    }
             }
             else if (tokens[1] == "kiwipete")
                 board.loadFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
             else if (tokens[1] == "fen") {
                 board.loadFromFEN(command.substr(13));
                 if (tokens.size() > 8 && tokens[8] == "moves")
-                    for (usize i = 9; i < tokens.size(); i++)
+                    for (usize i = 9; i < tokens.size(); i++) {
+                        positionHistory.push_back(board.zobrist);
                         board.move(tokens[i]);
+                    }
             }
         }
         else if (tokens[0] == "go") {
@@ -94,7 +100,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(CPUCT, true);
+            const SearchParameters params(positionHistory, CPUCT, true);
             const SearchLimits limits(commandTime, hash, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }

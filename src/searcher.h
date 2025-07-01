@@ -114,7 +114,8 @@ struct Searcher {
         u64 totalNodes = 0;
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
-        const SearchParameters params(CPUCT, false);
+        vector<u64> posHistory;
+        const SearchParameters params(posHistory, CPUCT, false);
         const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
 
         for (auto fen : fens) {

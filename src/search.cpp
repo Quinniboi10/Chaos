@@ -36,14 +36,38 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
     // Board at the leaf node, updated when a new leaf node is found to search
     Board boardAtLeaf = board;
+    // Positions from root to the leaf
+    vector<u64> posHistory;
 
     // ****** Define lambdas for node operations ******
 
     // Return if a node is an unexplored or terminal node
     const auto isLeaf = [](const Node& node) { return node.numChildren == 0; };
 
-    // Return if a node is terminal
-    const auto isTerminal = [&](const Node& node) { return node.state != ONGOING && isLeaf(node); };
+    // Return if a node is threefold (or twofold if all positions are past root)
+    const auto isThreefold = [&](const Node& node) {
+        const u64 leafHash = boardAtLeaf.zobrist;
+
+        usize reps = 0;
+
+        for (const u64 hash : params.positionHistory) {
+            if (hash == leafHash) {
+                reps++;
+                if (reps >= 2)
+                    return true;
+            }
+        }
+
+        for (const u64 hash : posHistory) {
+            if (hash == leafHash) {
+                reps++;
+                if (reps >= 2)
+                    return true;
+            }
+        }
+
+        return false;
+    };
 
     // Performs a softmax on the given vector
     const auto softmax = [](vector<double>& scores) {
@@ -160,6 +184,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
     // Search the tree to find the next node to expand
     const auto findNextNode = [&]() {
         boardAtLeaf = board;
+        posHistory.clear();
 
         Node* node = &nodes[0];
 
@@ -168,6 +193,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         while (!isLeaf(*node)) {
             const usize bestIdx = findBestChild(*node);
             node = &nodes[bestIdx];
+            posHistory.push_back(boardAtLeaf.zobrist);
             boardAtLeaf.move(node->move);
             ply++;
         }
@@ -265,7 +291,12 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         // If node is terminal, instantly backprop it
         double score;
 
-        if (next->state == ONGOING) {
+        if (boardAtLeaf.isDraw() || isThreefold(*next)) {
+            next->state = DRAW;
+            score = 0;
+        }
+        else if (next->state == ONGOING) {
+
             // If expand node failed, hash limit has been hit
             if (!expandNode(boardAtLeaf, *next))
                 break;
