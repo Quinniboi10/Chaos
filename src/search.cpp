@@ -48,24 +48,22 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
     const auto isThreefold = [&](const Node& node) {
         const u64 leafHash = boardAtLeaf.zobrist;
 
-        // Require 2 repetitions (including leaf) unless move is found before root
-        usize requiredReps = 1;
         usize reps = 0;
 
         for (const u64 hash : params.positionHistory) {
             if (hash == leafHash) {
-                requiredReps = 2;
                 reps++;
+                if (reps >= 2)
+                    return true;
             }
-            if (reps >= requiredReps)
-                return true;
         }
 
         for (const u64 hash : posHistory) {
-            if (hash == leafHash)
+            if (hash == leafHash) {
                 reps++;
-            if (reps >= requiredReps)
-                return true;
+                if (reps >= 2)
+                    return true;
+            }
         }
 
         return false;
