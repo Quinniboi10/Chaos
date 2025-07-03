@@ -100,26 +100,33 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
     };
 
     // Expand a node
-    const auto expandNode = [&](const Board& board, Node& node) {
-        MoveList moves = Movegen::generateMoves(board);
+    const auto expandNode =
+      [&](const Board& board, Node& node) {
+          MoveList moves = Movegen::generateMoves(board);
 
-        if (currentIndex + moves.length > limits.maxNodes)
-            return false;
+          if (currentIndex + moves.length > limits.maxNodes)
+              return false;
 
-        // Mates aren't handled until the simulation/rollout stage
-        if (moves.length == 0)
-            return true;
+          // Mates aren't handled until the simulation/rollout stage
+          if (moves.length == 0)
+              return true;
 
-        node.firstChild = currentIndex;
-        node.numChildren = moves.length;
+          node.firstChild  = currentIndex;
+          node.numChildren = moves.length;
 
-        vector<double> policyScores;
-        policyScores.reserve(moves.length);
+          vector<double> policyScores;
+          policyScores.reserve(moves.length);
 
-        // In future, this would be replaced by a policy NN
-        // Loop runs backwards so pop_back can be used
-        for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--)
-            policyScores.push_back(1.0 / node.numChildren);
+          // In future, this would be replaced by a policy NN
+          // Loop runs backwards so pop_back can be used
+          for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--) {
+              const Move m = moves[idx];
+              const PieceType capturedPiece = board.getPiece(m.to());
+
+              const double policyScore = array<double, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
+
+              policyScores.push_back(policyScore);
+        }
 
         softmax(policyScores);
 
