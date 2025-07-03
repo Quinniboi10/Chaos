@@ -19,8 +19,8 @@ struct Node {
     atomic<u64> visits;
     atomic<u64> firstChild;
     atomic<double> policy;
-    atomic<GameState> state;
     atomic<Move> move;
+    atomic<GameState> state;
     atomic<u8> numChildren;
     Node* parent;
 
