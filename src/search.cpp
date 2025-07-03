@@ -9,11 +9,11 @@
 
 void Worker::search(const Board& board, vector<Node>& nodes, const SearchParameters params, const SearchLimits limits) {
     // Reset worker
-    this->nodes = 1;
+    this->nodes = 0;
 
     u64 currentIndex = 1;
 
-    u64 iterations = 0;
+    auto& iterations = this->nodes;
     u64 cumulativeDepth = 0;
 
     usize seldepth = 0;
@@ -112,8 +112,6 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
         node.firstChild = currentIndex;
         node.numChildren = moves.length;
-
-        this->nodes += moves.length;
 
         vector<double> policyScores;
         policyScores.reserve(moves.length);
@@ -264,6 +262,8 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         cout << " seldepth " << seldepth;
         cout << " time " << limits.commandTime.elapsed();
         cout << " nodes " << this->nodes.load();
+        if (limits.commandTime.elapsed() > 0)
+            cout << " nps " << this->nodes.load() * 1000 / limits.commandTime.elapsed();
         if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
             cout << " score cp " << wdlToCP(nodes[0].getScore());
         else
