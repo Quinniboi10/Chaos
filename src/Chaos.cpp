@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
         else if (tokens[0] == "move")
             board.move(tokens[1]);
         else if (command == "eval")
-            cout << materialEval(board) << endl;
+            cout << evaluate(board) << endl;
         else if (tokens[0] == "perft")
             Movegen::perft(board, std::stoi(tokens[1]), false);
         else if (tokens[0] == "bulk")
