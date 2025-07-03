@@ -244,7 +244,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             return node.getScore();
         }
 
-        return cpToWDL(materialEval(boardAtLeaf));
+        return cpToWDL(evaluate(boardAtLeaf));
     };
 
     // Backprop a score until root

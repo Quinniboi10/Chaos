@@ -97,7 +97,7 @@ inline void deepFill(std::array<T, N>& arr, const U& value) {
 constexpr Rank rankOf(Square s) { return Rank(s >> 3); }
 constexpr File fileOf(Square s) { return File(s & 0b111); }
 
-constexpr Rank flipRank(Square s) { return Rank(s ^ 0b111000); }
+constexpr Square flipRank(Square s) { return Square(s ^ 0b111000); }
 
 constexpr Square toSquare(Rank rank, File file) { return static_cast<Square>((static_cast<int>(rank) << 3) | file); }
 
