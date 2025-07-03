@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     while (true) {
         std::getline(std::cin, command);
         Stopwatch<std::chrono::milliseconds> commandTime;
-        if (command == "")
+        if (command.empty())
             continue;
         tokens = split(command, ' ');
 
@@ -108,13 +108,15 @@ int main(int argc, char* argv[]) {
             if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
         }
+        else if (command == "quit")
+            break;
 
         // ************ NON-UCI ************
 
         else if (command == "d")
             cout << board << endl;
         else if (command == "tree")
-            searcher.displayRootTree();
+            searcher.launchInteractiveTree();
         else if (tokens[0] == "move")
             board.move(tokens[1]);
         else if (command == "eval")
