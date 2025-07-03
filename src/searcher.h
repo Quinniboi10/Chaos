@@ -9,8 +9,10 @@
 #include "../external/fmt/fmt/format.h"
 
 #include <atomic>
+#include <cstdlib>
 
 struct Searcher {
+    Board rootPos;
     vector<Node> nodes;
     atomic<bool> isSearching;
 
@@ -32,12 +34,38 @@ struct Searcher {
             setHash(DEFAULT_HASH);
         nodes[0] = Node();
         isSearching = true;
+        rootPos = board;
         worker.search(board, nodes, params, limits);
         isSearching = false;
     }
 
-    void displayRootTree() {
-        const auto asString = [&](const Node& node) {
+    void launchInteractiveTree() {
+        const auto clear = []() {
+            #ifdef _WIN32
+            system("cls");
+            #else
+            system("clear");
+            #endif
+        };
+
+        usize ply = 0;
+        Node parent = nodes[0];
+        vector<string> parents;
+
+        const auto rootString = [&](const Node& node) {
+            const string plyStr = fmt::format(
+                fmt::runtime("({} ply)"),
+                ply
+            );
+            return fmt::format(
+                fmt::runtime("{:>11} {:>+7.2f} {:>10} visits"),
+                plyStr,
+                static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore()) : node.state == WIN ? MATE_SCORE : -MATE_SCORE) / 100),
+                node.visits.load()
+            );
+        };
+
+        const auto childString = [&](const Node& node) {
             return fmt::format(
                 fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"),
                 node.firstChild.load(),
@@ -49,13 +77,81 @@ struct Searcher {
             );
         };
 
-        cout << "root" << asString(nodes[0]) << endl;
+        const auto printParents = [&]() {
+            for (usize idx = 0; idx < parents.size(); idx++) {
+                for (usize i = 0; i < std::max<usize>(idx, 1); i++)
+                    cout << "    ";
+                if (idx > 0)
+                    cout << "└─> ";
+                cout << "parent      " << parents[idx] << endl;
+            }
+        };
 
-        for (usize idx = 1; idx < nodes[0].numChildren; idx++)
-            cout << "├─> " << asString(nodes[idx]) << endl;
+        const auto printChildren = [&](const Node& node) {
+            if (node.numChildren == 0) {
+                cout << "Current move has no children." << endl;
+                return;
+            }
 
-        const Node& child = nodes[nodes[0].numChildren];
-        cout << "└─> " << asString(child) << endl;
+            for (usize i = 0; i < std::max<usize>(parents.size(), 1); i++)
+                cout << "    ";
+
+            if (ply > 0)
+                cout << "└─> ";
+            cout << "parent      " << rootString(node) << endl;
+
+            for (u64 idx = node.firstChild; idx < node.firstChild + node.numChildren - 1; idx++) {
+                for (usize i = 0; i < parents.size() + 1; i++)
+                    cout << "    ";
+                cout << "├─> " << childString(nodes[idx]) << endl;
+                assert(*nodes[idx].parent == node);
+            }
+
+            for (usize i = 0; i < parents.size() + 1; i++)
+                cout << "    ";
+            const Node& child = nodes[node.firstChild + node.numChildren - 1];
+            cout << "└─> " << childString(child) << endl;
+            assert(*nodes[node.firstChild + node.numChildren - 1].parent == node);
+        };
+
+        while (true) {
+            clear();
+
+            printParents();
+            printChildren(parent);
+            cout << endl;
+            cout << "Enter move to switch to (.. to move up) > ";
+
+            string command;
+            vector<string> tokens;
+
+            std::getline(std::cin, command);
+            Stopwatch<std::chrono::milliseconds> commandTime;
+            if (command.empty())
+                continue;
+            tokens = split(command, ' ');
+
+            if (command == "..") {
+                if (ply == 0)
+                    break;
+                parents.pop_back();
+                parent = *parent.parent;
+                ply--;
+            }
+            else if (command == "quit")
+                break;
+            else {
+                for (u64 idx = parent.firstChild; idx < parent.firstChild + parent.numChildren; idx++) {
+                    if (nodes[idx].move.load().toString() == tokens[0]) {
+                        parents.push_back(rootString(parent));
+                        parent = nodes[idx];
+                        ply++;
+                        break;
+                    }
+                }
+            }
+        }
+        cout << "Returning to UCI loop" << endl;
     }
 
     void bench(usize depth) {

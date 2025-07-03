@@ -59,6 +59,16 @@ struct Node {
         return *this;
     }
 
+    bool operator==(const Node& other) const {
+        return totalScore == other.totalScore.load()
+            && visits == other.visits.load()
+            && firstChild == other.firstChild.load()
+            && state == other.state.load()
+            && move == other.move.load()
+            && numChildren == other.numChildren.load()
+            && parent == other.parent;
+    }
+
     double getScore() const {
         if (state == DRAW)
             return 0;
