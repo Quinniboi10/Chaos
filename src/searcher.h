@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <functional>
 
 struct Searcher {
     Board rootPos;
@@ -32,8 +33,8 @@ struct Searcher {
         assert(!isSearching);
         if (nodes.size() == 0)
             setHash(DEFAULT_HASH);
-        nodes[0] = Node();
         isSearching = true;
+        reuseTree(board);
         rootPos = board;
         worker.search(board, nodes, params, limits);
         isSearching = false;
@@ -152,6 +153,73 @@ struct Searcher {
             }
         }
         cout << "Returning to UCI loop" << endl;
+    }
+
+    // Attempts to reuse the tree if the position exists in the first 2 ply
+    void reuseTree(const Board& board) {
+        const auto findNodeIdx = [&]() {
+            const Node& root = nodes[0];
+
+            for (u64 idx1 = 1; idx1 <= root.numChildren; idx1++) {
+                const Node& child1 = nodes[idx1];
+                Board       b1     = rootPos;
+                b1.move(child1.move.load());
+                if (b1 == board)
+                    return idx1;
+                for (u64 idx2 = child1.firstChild; idx2 < child1.firstChild + child1.numChildren; idx2++) {
+                    const Node& child2 = nodes[idx2];
+                    Board       b2     = b1;
+                    b2.move(child2.move.load());
+                    cout << b2.zobrist << "   " << board.zobrist << "  " << (b2 == board) << endl;
+                    if (b2 == board)
+                        return idx2;
+                }
+            }
+
+            return static_cast<u64>(0);
+        };
+
+        // New index should be the first index in nodes that has yet to be filled
+        // Source index should be the ORIGINAL source of the root node
+        const std::function<void(u64&, const u64)> rebuildTree = [&](u64& newIdx, const u64 sourceIdx) {
+            const Node& source = nodes[sourceIdx];
+
+            // Get the parent
+            const u64 parentIdx = newIdx;
+            Node&     parent    = nodes[newIdx];
+
+            // Copy the children
+            for (u64 idx = 0; idx < parent.numChildren; idx++) {
+                nodes[newIdx]        = nodes[source.firstChild + idx];
+                nodes[newIdx].parent = &parent;
+
+                newIdx++;
+            }
+
+            // Update the parent
+            if (parent.numChildren > 0)
+                parent.firstChild = parentIdx + 1;
+
+
+            for (u64 idx = source.firstChild; idx < source.firstChild + source.numChildren; idx++)
+                rebuildTree(newIdx, idx);
+        };
+
+        const u64 idx = findNodeIdx();
+        if (idx == 0) {
+            cout << "info string Tree reuse failed. Tree will be rebuilt from scratch." << endl;
+            nodes[0] = Node();
+            return;
+        }
+
+        // Copy root, then recursively copy children
+        nodes[0]            = nodes[idx];
+        nodes[0].firstChild = 1;
+        nodes[0].parent     = nullptr;
+
+        u64 rebuildIdx = 1;
+        rebuildTree(rebuildIdx, idx);
+        cout << "info string Tree has been restored from previous search. " << rebuildIdx << " nodes have been added back to the tree." << endl;
     }
 
     void bench(usize depth) {

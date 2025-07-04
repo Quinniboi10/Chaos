@@ -518,3 +518,8 @@ std::ostream& operator<<(std::ostream& os, const Board& board) {
     os << "Board hash: 0x" << std::hex << std::uppercase << board.zobrist << std::dec << endl;
     return os;
 }
+
+bool Board::operator==(const Board& other) const {
+    return zobrist == other.zobrist
+        && mailbox == other.mailbox;
+}

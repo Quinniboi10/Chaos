@@ -88,4 +88,5 @@ struct Board {
     bool isGameOver();
 
     friend std::ostream& operator<<(std::ostream& os, const Board& board);
+    bool operator==(const Board& other) const;
 };

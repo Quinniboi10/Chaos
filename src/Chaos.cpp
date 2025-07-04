@@ -130,6 +130,14 @@ int main(int argc, char* argv[]) {
 
         //************  DEBUG  ************
 
+        else if (command == "debug.loadroot") {
+            cout << "Loading root position from last search" << endl;
+            board = searcher.rootPos;
+        }
+        else if (command == "debug.loadpos") {
+            cout << "Attempting to load tree on the current position. Tree will be reused if possible." << endl;
+            searcher.reuseTree(board);
+        }
         else if (command == "debug.attacks") {
             cout << "STM attacks" << endl;
             printBitboard(board.attacking[board.stm]);
