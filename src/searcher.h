@@ -23,10 +23,16 @@ struct Searcher {
         isSearching = false;
     }
 
+    void reset() {
+        rootPos.reset();
+        nodes[0]    = Node();
+        isSearching = false;
+    }
+
     void setHash(const u64 hash) {
         assert(!isSearching);
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        nodes.resize(maxNodes);
+        nodes.reserve(maxNodes);
     }
 
     void start(const Board& board, const SearchParameters params, const SearchLimits limits) {
@@ -157,6 +163,8 @@ struct Searcher {
 
     // Attempts to reuse the tree if the position exists in the first 2 ply
     void reuseTree(const Board& board) {
+        vector<Node> newTree;
+
         const auto findNodeIdx = [&]() {
             const Node& root = nodes[0];
 
@@ -170,7 +178,6 @@ struct Searcher {
                     const Node& child2 = nodes[idx2];
                     Board       b2     = b1;
                     b2.move(child2.move.load());
-                    cout << b2.zobrist << "   " << board.zobrist << "  " << (b2 == board) << endl;
                     if (b2 == board)
                         return idx2;
                 }
@@ -181,28 +188,27 @@ struct Searcher {
 
         // New index should be the first index in nodes that has yet to be filled
         // Source index should be the ORIGINAL source of the root node
-        const std::function<void(u64&, const u64)> rebuildTree = [&](u64& newIdx, const u64 sourceIdx) {
+        const std::function<void(const u64)> rebuildTree = [&](const u64 sourceIdx) {
             const Node& source = nodes[sourceIdx];
 
             // Get the parent
-            const u64 parentIdx = newIdx;
-            Node&     parent    = nodes[newIdx];
+            const u64 parentIdx = newTree.size();
+            Node&     parent    = newTree.back();
 
             // Copy the children
             for (u64 idx = 0; idx < parent.numChildren; idx++) {
-                nodes[newIdx]        = nodes[source.firstChild + idx];
-                nodes[newIdx].parent = &parent;
-
-                newIdx++;
+                Node& node = nodes[source.firstChild + idx];
+                node.parent = &parent;
+                newTree.push_back(node);
             }
 
             // Update the parent
-            if (parent.numChildren > 0)
-                parent.firstChild = parentIdx + 1;
+            if (source.numChildren > 0)
+                parent.firstChild = parentIdx - 1;
 
 
             for (u64 idx = source.firstChild; idx < source.firstChild + source.numChildren; idx++)
-                rebuildTree(newIdx, idx);
+                rebuildTree(idx);
         };
 
         const u64 idx = findNodeIdx();
@@ -212,14 +218,22 @@ struct Searcher {
             return;
         }
 
-        // Copy root, then recursively copy children
-        nodes[0]            = nodes[idx];
-        nodes[0].firstChild = 1;
-        nodes[0].parent     = nullptr;
+        // Copy root, then recursively copy 
+        Node newRoot       = nodes[idx];
+        newRoot.firstChild = 1;
+        newRoot.parent     = nullptr;
 
-        u64 rebuildIdx = 1;
-        rebuildTree(rebuildIdx, idx);
-        cout << "info string Tree has been restored from previous search. " << rebuildIdx << " nodes have been added back to the tree." << endl;
+        newTree.push_back(newRoot);
+
+        rebuildTree(idx);
+
+        cout << "info string Tree has been restored from previous search. " << newTree.size() << " nodes have been added back to the tree." << endl;
+
+        const u64 currentNodeCount = nodes.size();
+        nodes = newTree;
+        newTree.clear();
+        newTree.shrink_to_fit();
+        nodes.reserve(currentNodeCount);
     }
 
     void bench(usize depth) {
