@@ -303,12 +303,19 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             score = 0;
         }
         else if (next->state == ONGOING) {
+            // If the node has no visits, backprop the static eval to save time on expanding very bad moves
+            if (next->visits == 0) {
+                score = cpToWDL(evaluate(boardAtLeaf));
+                next->totalScore += score;
+                next->visits++;
+            }
+            else {
+                // Break if expanding the node fails (node limit hit)
+                if (!expandNode(boardAtLeaf, *next))
+                    break;
 
-            // If expand node failed, hash limit has been hit
-            if (!expandNode(boardAtLeaf, *next))
-                break;
-
-            score = simulate(*next);
+                score = simulate(*next);
+            }
         }
         else
             score = next->getScore();
