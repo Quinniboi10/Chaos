@@ -120,10 +120,14 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
           // In future, this would be replaced by a policy NN
           // Loop runs backwards so pop_back can be used
           for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--) {
-              const Move m = moves[idx];
-              const PieceType capturedPiece = board.getPiece(m.to());
+              const Move      m             = moves[idx];
+              const Square    from          = m.from();
+              const Square    to            = m.to();
+              const PieceType pt            = board.getPiece(from);
+              const PieceType capturedPiece = board.getPiece(to);
 
-              const double policyScore = array<double, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
+              double policyScore = array<double, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
+              policyScore += (valueOf(board, pt, to) - valueOf(board, pt, from)) / PSQT_POLICY_DIVISOR;
 
               policyScores.push_back(policyScore);
         }

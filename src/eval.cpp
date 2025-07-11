@@ -182,3 +182,12 @@ i32 evaluate(const Board& board) {
 
     return (mg * std::min<i32>(phase, 24) + eg * (24 - std::min<i32>(phase, 24))) / 24 * (1 - 2 * (board.stm == BLACK));
 };
+
+i32 valueOf(const Board& board, const PieceType pt, const Square sq) {
+    const i32 mg = PSQT_MG[pt][sq];
+    const i32 eg = PSQT_EG[pt][sq];
+
+    const i32 phase = 4 * popcount(board.pieces(QUEEN)) + 2 * popcount(board.pieces(ROOK)) + popcount(board.pieces(BISHOP)) + popcount(board.pieces(KNIGHT));
+
+    return (mg * std::min<i32>(phase, 24) + eg * (24 - std::min<i32>(phase, 24))) / 24;
+};

@@ -6,4 +6,6 @@ constexpr double CPUCT = 2.4;
 constexpr double FPU = 0.5;
 constexpr double EVAL_DIVISOR = 400;
 
+constexpr double PSQT_POLICY_DIVISOR = 25;
+
 constexpr array<int, 7> PIECE_VALUES = {100, 316, 328, 493, 982, 0, 0};
