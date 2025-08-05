@@ -84,8 +84,7 @@ struct Board {
     bool inCheck(Color c) const;
     bool isUnderAttack(Color c, Square square) const;
 
-    bool isDraw();
-    bool isGameOver();
+    bool isDraw() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Board& board);
 };
