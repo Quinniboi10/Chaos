@@ -1,4 +1,3 @@
-#include "worker.h"
 #include "searcher.h"
 #include "movegen.h"
 #include "eval.h"
@@ -7,13 +6,13 @@
 #include <numeric>
 #include <functional>
 
-void Worker::search(const Board& board, vector<Node>& nodes, const SearchParameters params, const SearchLimits limits) {
+void Searcher::search(vector<Node>& nodes, const SearchParameters params, const SearchLimits limits) {
     // Reset worker
-    this->nodes = 0;
+    this->nodeCount = 0;
 
     u64 currentIndex = 1;
 
-    auto& iterations = this->nodes;
+    auto& iterations = this->nodeCount;
     u64 cumulativeDepth = 0;
 
     usize seldepth = 0;
@@ -34,8 +33,6 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
             || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
     };
 
-    // Board at the leaf node, updated when a new leaf node is found to search
-    Board boardAtLeaf = board;
     // Positions from root to the leaf
     vector<u64> posHistory;
 
@@ -45,13 +42,11 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
     const auto isLeaf = [](const Node& node) { return node.numChildren == 0; };
 
     // Return if a node is threefold (or twofold if all positions are past root)
-    const auto isThreefold = [&](const Node& node) {
-        const u64 leafHash = boardAtLeaf.zobrist;
-
+    const auto isThreefold = [&]() {
         usize reps = 0;
 
         for (const u64 hash : params.positionHistory) {
-            if (hash == leafHash) {
+            if (hash == posHistory.back()) {
                 reps++;
                 if (reps >= 2)
                     return true;
@@ -59,7 +54,7 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         }
 
         for (const u64 hash : posHistory) {
-            if (hash == leafHash) {
+            if (hash == posHistory.back()) {
                 reps++;
                 if (reps >= 2)
                     return true;
@@ -104,12 +99,9 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
       [&](const Board& board, Node& node) {
           MoveList moves = Movegen::generateMoves(board);
 
-          if (currentIndex + moves.length > limits.maxNodes)
-              return false;
-
           // Mates aren't handled until the simulation/rollout stage
           if (moves.length == 0)
-              return true;
+              return;
 
           node.firstChild  = currentIndex;
           node.numChildren = moves.length;
@@ -143,23 +135,21 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
 
             policyScores.pop_back();
         }
-
-        return true;
     };
 
     // Find the best child node from a parent
-    const auto findBestChild = [&](const Node& node) {
+    const auto findBestChild = [&](const Node& node) -> Node& {
         double bestScore = puct(node, nodes[node.firstChild]);
-        usize bestIdx = node.firstChild;
+        Node* bestChild = &nodes[node.firstChild];
         for (usize idx = node.firstChild + 1; idx < node.firstChild + node.numChildren; idx++) {
             const double score = puct(node, nodes[idx]);
             if (score > bestScore) {
                 bestScore = score;
-                bestIdx = idx;
+                bestChild = &nodes[idx];
             }
         }
 
-        return bestIdx;
+        return *bestChild;
     };
 
     // Search the tree for the PV line
@@ -186,81 +176,20 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         return pv;
     };
 
-    // Search the tree to find the next node to expand
-    const auto findNextNode = [&]() {
-        boardAtLeaf = board;
-        posHistory.clear();
-
-        Node* node = &nodes[0];
-
-        usize ply = 0;
-
-        while (!isLeaf(*node)) {
-            const usize bestIdx = findBestChild(*node);
-            node = &nodes[bestIdx];
-            posHistory.push_back(boardAtLeaf.zobrist);
-            boardAtLeaf.move(node->move);
-            ply++;
-        }
-
-        cumulativeDepth += ply;
-        seldepth = std::max(seldepth, ply);
-
-        // At this point, board is at the state of the best node,
-        // and node points to that node
-        return node;
-    };
-
-    // Backprop of game state
-    const std::function<void(Node&)> backpropState = [&](Node& node) {
-        GameState state = ONGOING;
-
-        bool isLoss = true;
-
-        for (usize idx = node.firstChild; idx < node.firstChild + node.numChildren; idx++) {
-            const Node& child = nodes[idx];
-            if (child.state == LOSS) {
-                state = WIN;
-                break;
-            }
-            if (child.state != WIN)
-                isLoss = false;
-        }
-
-        if (isLoss)
-            state = LOSS;
-
-        node.state = state;
-
-        if (node.parent != nullptr)
-            backpropState(*node.parent);
-    };
-
     // Evaluate node
-    const auto simulate = [&](Node& node) {
+    const auto simulate = [&](const Board& board, Node& node) {
         if (isLeaf(node) && node.state == ONGOING) {
-            if (boardAtLeaf.inCheck())
-                node.state = LOSS;
-            else
+            // This assumes the node has already been expanded
+            if (board.isDraw() || isThreefold() || !board.inCheck())
                 node.state = DRAW;
-
-            // Since the state of this node changed, backprop to others
-            if (node.parent != nullptr)
-                backpropState(*node.parent);
+            else
+                node.state = LOSS;
 
             return node.getScore();
         }
-
-        return cpToWDL(evaluate(boardAtLeaf));
-    };
-
-    // Backprop a score until root
-    const std::function<void(Node&, double)> backprop = [&](Node& node, double score) {
-        node.totalScore += score;
-        node.visits++;
-
-        if (node.parent != nullptr)
-            backprop(*node.parent, -score);
+        if (node.state != ONGOING)
+            return node.getScore();
+        return cpToWDL(evaluate(board));
     };
 
     const auto printUCI = [&]() {
@@ -268,9 +197,9 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         cout << "info depth " << cumulativeDepth / iterations;
         cout << " seldepth " << seldepth;
         cout << " time " << limits.commandTime.elapsed();
-        cout << " nodes " << this->nodes.load();
+        cout << " nodes " << nodeCount.load();
         if (limits.commandTime.elapsed() > 0)
-            cout << " nps " << this->nodes.load() * 1000 / limits.commandTime.elapsed();
+            cout << " nps " << nodeCount.load() * 1000 / limits.commandTime.elapsed();
         if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
             cout << " score cp " << wdlToCP(nodes[0].getScore());
         else
@@ -283,44 +212,50 @@ void Worker::search(const Board& board, vector<Node>& nodes, const SearchParamet
         return pv;
     };
 
-    // Expand root
-    expandNode(board, nodes[0]);
+    const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
+        double score;
+
+        // Selection
+        if (!isLeaf(node)) {
+            Node& bestChild = findBestChild(node);
+            Board newBoard = board;
+            newBoard.move(bestChild.move);
+
+            posHistory.push_back(newBoard.zobrist);
+            score = -searchNode(newBoard, bestChild, ply + 1);
+            posHistory.pop_back();
+        }
+        // Expansion + simulation
+        else {
+            if (node.visits == 0)
+                score = cpToWDL(evaluate(board));
+            else {
+                expandNode(board, node);
+                score = simulate(board, node);
+            }
+        }
+
+        // Backprop
+        node.totalScore += score;
+        node.visits++;
+
+        cumulativeDepth++;
+        seldepth = std::max(seldepth, ply);
+
+        return score;
+    };
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
     usize lastDepth = 0;
     usize lastSeldepth = 0;
 
+    // Expand root
+    expandNode(rootPos, nodes[0]);
+
     // Main search loop
     do {
-        Node* next = findNextNode();
-
-        // If node is terminal, instantly backprop it
-        double score;
-
-        if (boardAtLeaf.isDraw() || isThreefold(*next)) {
-            next->state = DRAW;
-            score = 0;
-        }
-        else if (next->state == ONGOING) {
-            // If the node has no visits, backprop the static eval to save time on expanding very bad moves
-            if (next->visits == 0) {
-                score = cpToWDL(evaluate(boardAtLeaf));
-                next->totalScore += score;
-                next->visits++;
-            }
-            else {
-                // Break if expanding the node fails (node limit hit)
-                if (!expandNode(boardAtLeaf, *next))
-                    break;
-
-                score = simulate(*next);
-            }
-        }
-        else
-            score = next->getScore();
-
-        backprop(*next, score);
+        searchNode(rootPos, nodes[0], 0);
 
         iterations++;
 

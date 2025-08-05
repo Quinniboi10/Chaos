@@ -472,7 +472,7 @@ bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
 
 
-bool Board::isDraw() {
+bool Board::isDraw() const {
     // 50 move rule
     if (halfMoveClock >= 100)
         return !inCheck(); // TODO: && no moves
@@ -487,15 +487,6 @@ bool Board::isDraw() {
         && popcount(pieces(KNIGHT)) < 2)                   // Under 2 knights
         return true;
 
-    // TODO: Threefold
-
-    return false;
-}
-
-bool Board::isGameOver() {
-    if (isDraw())
-        return true;
-    // TODO: Check if no moves
     return false;
 }
 

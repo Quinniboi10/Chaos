@@ -4,6 +4,7 @@
 #include "move.h"
 #include "stopwatch.h"
 #include "tunable.h"
+#include "util.h"
 
 constexpr i32 MATE_SCORE = 32767;
 
