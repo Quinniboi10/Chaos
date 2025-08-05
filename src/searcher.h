@@ -1,10 +1,10 @@
 #pragma once
 
-#include "constants.h"
 #include "types.h"
-#include "worker.h"
+#include "board.h"
 #include "search.h"
 #include "stopwatch.h"
+#include "constants.h"
 
 #include "../external/fmt/fmt/format.h"
 
@@ -14,9 +14,9 @@
 struct Searcher {
     Board rootPos;
     vector<Node> nodes;
+    atomic<u64> nodeCount;
     atomic<bool> isSearching;
 
-    Worker worker;
 
     Searcher() {
         isSearching = false;
@@ -25,7 +25,7 @@ struct Searcher {
     void setHash(const u64 hash) {
         assert(!isSearching);
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        nodes.resize(maxNodes);
+        nodes.resize(maxNodes + 256);
     }
 
     void start(const Board& board, const SearchParameters params, const SearchLimits limits) {
@@ -35,7 +35,7 @@ struct Searcher {
         nodes[0] = Node();
         isSearching = true;
         rootPos = board;
-        worker.search(board, nodes, params, limits);
+        search(nodes, params, limits);
         isSearching = false;
     }
 
@@ -154,6 +154,8 @@ struct Searcher {
         cout << "Returning to UCI loop" << endl;
     }
 
+    void search(vector<Node>& nodes, const SearchParameters params, const SearchLimits limits);
+
     void bench(usize depth) {
     static array<string, 50> fens = {"r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
                                      "4rrk1/2p1b1p1/p1p3q1/4p3/2P2n1p/1P1NR2P/PB3PP1/3R1QK1 b - - 2 24",
@@ -206,7 +208,6 @@ struct Searcher {
                                      "3br1k1/p1pn3p/1p3n2/5pNq/2P1p3/1PN3PP/P2Q1PB1/4R1K1 w - - 0 23",
                                      "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93"};
 
-        Board board;
         u64 totalNodes = 0;
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
@@ -215,11 +216,11 @@ struct Searcher {
         const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
 
         for (auto fen : fens) {
-            board.loadFromFEN(fen);
-            worker.search(board, nodes, params, limits);
-            totalNodes += worker.nodes.load();
+            rootPos.loadFromFEN(fen);
+            search(nodes, params, limits);
+            totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;
-            cout << worker.nodes.load() << " nodes " << endl;
+            cout << nodeCount.load() << " nodes " << endl;
         }
 
         cout << totalNodes << " nodes " << totalNodes * 1000 / stopwatch.elapsed() << " nps" << endl;
