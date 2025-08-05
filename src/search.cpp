@@ -44,20 +44,22 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     // Return if a node is threefold (or twofold if all positions are past root)
     const auto isThreefold = [&]() {
         usize reps = 0;
+        usize twofoldReps = 0;
 
         for (const u64 hash : params.positionHistory) {
             if (hash == posHistory.back()) {
-                reps++;
                 if (reps >= 2)
                     return true;
+                reps++;
             }
         }
 
         for (const u64 hash : posHistory) {
             if (hash == posHistory.back()) {
-                reps++;
-                if (reps >= 2)
+                if (reps >= 2 || twofoldReps >= 1)
                     return true;
+                twofoldReps++;
+                reps++;
             }
         }
 
