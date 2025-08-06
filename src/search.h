@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.h"
 #include "types.h"
 #include "move.h"
 #include "stopwatch.h"
@@ -8,10 +9,16 @@
 
 constexpr i32 MATE_SCORE = 32767;
 
+struct NodeIndex {
+    u64 index;
+    u8 half;
+
+    bool operator==(const NodeIndex& other) const { return index == other.index && half == other.half; }
+};
 struct Node {
     atomic<double> totalScore;
+    atomic<NodeIndex> firstChild;
     atomic<u64> visits;
-    atomic<u64> firstChild;
     atomic<double> policy;
     atomic<Move> move;
     atomic<GameState> state;
@@ -21,7 +28,7 @@ struct Node {
     Node() {
         totalScore = 0;
         visits = 0;
-        firstChild = 0;
+        firstChild = { 0, 0 };
         policy = 0;
         state = ONGOING;
         move = Move::null();
@@ -56,7 +63,7 @@ struct Node {
     bool operator==(const Node& other) const {
         return totalScore == other.totalScore.load()
             && visits == other.visits.load()
-            && firstChild == other.firstChild.load()
+            && firstChild.load() == other.firstChild.load()
             && state == other.state.load()
             && move == other.move.load()
             && numChildren == other.numChildren.load()
@@ -88,19 +95,32 @@ struct SearchParameters {
 
 struct SearchLimits {
     Stopwatch<std::chrono::milliseconds> commandTime;
-    u64 maxNodes;
-    usize depth;
+    u64 nodes;
     i64 time;
     i64 inc;
+    usize depth;
 
-    SearchLimits(const Stopwatch<std::chrono::milliseconds>& commandTime, const u64 hash, const usize depth, const u64 nodes, const i64 time, const i64 inc) {
+    SearchLimits(const Stopwatch<std::chrono::milliseconds>& commandTime, const usize depth, const u64 nodes, const i64 time, const i64 inc) {
         this->commandTime = commandTime;
         this->depth = depth;
+        this->nodes = nodes;
         this->time = time;
         this->inc = inc;
-
-        maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        if (nodes)
-            maxNodes = std::min(maxNodes, nodes);
     }
+};
+
+struct Tree {
+    array<vector<Node>, 2> nodes;
+
+    Tree() {
+        resize(DEFAULT_HASH);
+    }
+
+    void resize(const u64 size) {
+        nodes[0].resize(size / 2 + 256);
+        nodes[1].resize(size / 2 + 256);
+    }
+
+    const Node& operator[](const NodeIndex& idx) const { return nodes[idx.half][idx.index]; }
+    Node& operator[](const NodeIndex& idx) { return nodes[idx.half][idx.index]; }
 };
