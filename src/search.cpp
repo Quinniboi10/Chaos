@@ -45,19 +45,15 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     const auto isThreefold = [&]() {
         usize reps = 0;
 
-        for (const u64 hash : params.positionHistory) {
-            if (hash == posHistory.back()) {
+        for (const u64 hash : params.positionHistory)
+            if (hash == posHistory.back())
                 reps++;
-                if (reps >= 2)
-                    return true;
-            }
-        }
 
         for (const u64 hash : posHistory) {
             if (hash == posHistory.back()) {
-                reps++;
                 if (reps >= 2)
                     return true;
+                reps++;
             }
         }
 
