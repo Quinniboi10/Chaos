@@ -13,26 +13,27 @@
 
 struct Searcher {
     Board rootPos;
-    vector<Node> nodes;
+    Tree nodes;
     atomic<u64> nodeCount;
     atomic<bool> isSearching;
+    atomic<u8> currentHalf;
 
 
     Searcher() {
+        setHash(DEFAULT_HASH);
         isSearching = false;
+        currentHalf = 0;
     }
 
     void setHash(const u64 hash) {
         assert(!isSearching);
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        nodes.resize(maxNodes + 256);
+        nodes.resize(maxNodes);
     }
 
     void start(const Board& board, const SearchParameters params, const SearchLimits limits) {
         assert(!isSearching);
-        if (nodes.size() == 0)
-            setHash(DEFAULT_HASH);
-        nodes[0] = Node();
+        nodes[{ 0, currentHalf }] = Node();
         isSearching = true;
         rootPos = board;
         search(nodes, params, limits);
@@ -49,7 +50,7 @@ struct Searcher {
         };
 
         usize ply = 0;
-        Node parent = nodes[0];
+        Node parent = nodes[{ 0, currentHalf }];
         vector<string> parents;
 
         const auto rootString = [&](const Node& node) {
@@ -68,7 +69,7 @@ struct Searcher {
         const auto childString = [&](const Node& node) {
             return fmt::format(
                 fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"),
-                node.firstChild.load(),
+                node.firstChild.load().index,
                 node.move.load().toString(),
                 static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore()) : node.state == WIN ? MATE_SCORE : -MATE_SCORE) / 100),
                 node.visits.load(),
@@ -100,18 +101,18 @@ struct Searcher {
                 cout << "└─> ";
             cout << "parent      " << rootString(node) << endl;
 
-            for (u64 idx = node.firstChild; idx < node.firstChild + node.numChildren - 1; idx++) {
+            for (u64 idx = node.firstChild.load().index; idx < node.firstChild.load().index + node.numChildren - 1; idx++) {
                 for (usize i = 0; i < parents.size() + 1; i++)
                     cout << "    ";
-                cout << "├─> " << childString(nodes[idx]) << endl;
-                assert(*nodes[idx].parent == node);
+                cout << "├─> " << childString(nodes[{ idx, currentHalf }]) << endl;
+                // assert(*nodes[{ idx, currentHalf }].parent == node);
             }
 
             for (usize i = 0; i < parents.size() + 1; i++)
                 cout << "    ";
-            const Node& child = nodes[node.firstChild + node.numChildren - 1];
+            const Node& child = nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }];
             cout << "└─> " << childString(child) << endl;
-            assert(*nodes[node.firstChild + node.numChildren - 1].parent == node);
+            // assert(*nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }].parent == node);
         };
 
         while (true) {
@@ -141,10 +142,10 @@ struct Searcher {
             else if (command == "quit")
                 break;
             else {
-                for (u64 idx = parent.firstChild; idx < parent.firstChild + parent.numChildren; idx++) {
-                    if (nodes[idx].move.load().toString() == tokens[0]) {
+                for (u64 idx = parent.firstChild.load().index; idx < parent.firstChild.load().index + parent.numChildren; idx++) {
+                    if (nodes[{ idx, currentHalf }].move.load().toString() == tokens[0]) {
                         parents.push_back(rootString(parent));
-                        parent = nodes[idx];
+                        parent = nodes[{ idx, currentHalf }];
                         ply++;
                         break;
                     }
@@ -154,7 +155,7 @@ struct Searcher {
         cout << "Returning to UCI loop" << endl;
     }
 
-    void search(vector<Node>& nodes, const SearchParameters params, const SearchLimits limits);
+    void search(Tree& nodes, const SearchParameters params, const SearchLimits limits);
 
     void bench(usize depth) {
     static array<string, 50> fens = {"r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -213,7 +214,7 @@ struct Searcher {
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64> posHistory;
         const SearchParameters params(posHistory, CPUCT, false, false);
-        const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
+        const SearchLimits limits(stopwatch, depth, 0, 0, 0);
 
         for (auto fen : fens) {
             posHistory.clear();

@@ -6,7 +6,7 @@
 #include <numeric>
 #include <functional>
 
-void Searcher::search(vector<Node>& nodes, const SearchParameters params, const SearchLimits limits) {
+void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLimits limits) {
     // Reset worker
     this->nodeCount = 0;
 
@@ -23,12 +23,9 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     if (timeToSpend)
         timeToSpend -= MOVE_OVERHEAD;
 
-    if (nodes.size() < limits.maxNodes)
-        nodes.resize(limits.maxNodes);
-
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        return currentIndex >= limits.maxNodes
+        return (limits.nodes > 0 && currentIndex >= limits.nodes)
             || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
             || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
     };
@@ -39,7 +36,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     // ****** Define lambdas for node operations ******
 
     // Return if a node is an unexplored or terminal node
-    const auto isLeaf = [](const Node& node) { return node.numChildren == 0; };
+    const auto isLeaf = [this](const Node& node) { return node.numChildren == 0 || node.firstChild.load().half != currentHalf; };
 
     // Return if a node is threefold (or twofold if all positions are past root)
     const auto isThreefold = [&]() {
@@ -93,7 +90,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
           if (moves.length == 0)
               return;
 
-          node.firstChild  = currentIndex;
+          node.firstChild  = { currentIndex, currentHalf };
           node.numChildren = moves.length;
 
           vector<double> policyScores;
@@ -113,10 +110,10 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         softmax(policyScores);
 
         for (const Move& move : moves) {
-            Node& child = nodes[currentIndex++];
+            Node& child = nodes[{ currentIndex++, currentHalf }];
             child.totalScore = 0;
             child.visits = 0;
-            child.firstChild = 0;
+            child.firstChild = { 0, 0 };
             child.policy = policyScores.back();
             child.state = ONGOING;
             child.move = move;
@@ -129,13 +126,14 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Find the best child node from a parent
     const auto findBestChild = [&](const Node& node) -> Node& {
+        const u8 half = node.firstChild.load().half;
         double bestScore = puct(node, nodes[node.firstChild]);
         Node* bestChild = &nodes[node.firstChild];
-        for (usize idx = node.firstChild + 1; idx < node.firstChild + node.numChildren; idx++) {
-            const double score = puct(node, nodes[idx]);
+        for (usize idx = node.firstChild.load().index + 1; idx < node.firstChild.load().index + node.numChildren; idx++) {
+            const double score = puct(node, nodes[{ idx, half }]);
             if (score > bestScore) {
                 bestScore = score;
-                bestChild = &nodes[idx];
+                bestChild = &nodes[{ idx, half }];
             }
         }
 
@@ -146,20 +144,20 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     const auto findPV = [&]() {
         MoveList pv{};
 
-        Node* node = &nodes[0];
+        Node* node = &nodes[{ 0, currentHalf }];
 
         while (!isLeaf(*node)) {
             double bestScore = -nodes[node->firstChild].getScore();
-            usize bestIdx = node->firstChild;
-            for (usize idx = node->firstChild + 1; idx < node->firstChild + node->numChildren; idx++) {
-                const double score = -nodes[idx].getScore();
+            usize bestIdx = node->firstChild.load().index;
+            for (usize idx = node->firstChild.load().index + 1; idx < node->firstChild.load().index + node->numChildren; idx++) {
+                const double score = -nodes[{ idx, currentHalf}].getScore();
                 if (score > bestScore) {
                     bestScore = score;
                     bestIdx = idx;
                 }
             }
 
-            node = &nodes[bestIdx];
+            node = &nodes[{ bestIdx, currentHalf }];
             pv.add(node->move);
         }
 
@@ -178,6 +176,37 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
             return node.getScore();
         return cpToWDL(evaluate(board));
     };
+
+    const auto copyChildren = [&](Node& node) {
+        const NodeIndex oldIdx = node.firstChild.load();
+
+        for (usize i = 0; i < node.numChildren; i++) {
+            Node& child = nodes[{ currentIndex + i, currentHalf }];
+            child = nodes[{ oldIdx.index + i, oldIdx.half }];
+            child.parent = &node;
+        }
+
+        node.firstChild.store({ currentIndex, currentHalf });
+
+        currentIndex += node.numChildren;
+    };
+
+    // Remove all references to the other half
+    const auto removeReferences = [&]() {
+        const std::function<void(Node&)> removeRefs = [&](Node& node) {
+            if (node.firstChild.load().half == currentHalf) {
+                for (usize idx = node.firstChild.load().index; idx < node.firstChild.load().index + node.numChildren; idx++)
+                    removeRefs(nodes[{ idx, currentHalf }]);
+            }
+            else {
+                node.numChildren = 0;
+                node.firstChild = { 0, currentHalf };
+            }
+        };
+
+        removeRefs(nodes[{ 0, currentHalf }]);
+    };
+
 
     const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
         // Check for an early return
@@ -198,7 +227,11 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         }
         // Expansion + simulation
         else {
-            if (node.visits == 0)
+            if (node.firstChild.load().half != currentHalf && node.numChildren > 0) {
+                copyChildren(node);
+                score = searchNode(board, node, ply);
+            }
+            else if (node.visits == 0)
                 score = cpToWDL(evaluate(board));
             else {
                 expandNode(board, node);
@@ -230,10 +263,10 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         cout << " nodes " << nodeCount.load();
         if (limits.commandTime.elapsed() > 0)
             cout << " nps " << nodeCount.load() * 1000 / limits.commandTime.elapsed();
-        if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
-            cout << " score cp " << wdlToCP(nodes[0].getScore());
+        if (nodes[{ 0, currentHalf }].state == ONGOING || nodes[{ 0, currentHalf }].state == DRAW)
+            cout << " score cp " << wdlToCP(nodes[{ 0, currentHalf }].getScore());
         else
-            cout << " score mate " << (pv.length + 1) / 2 * (nodes[0].state == WIN ? 1 : -1);
+            cout << " score mate " << (pv.length + 1) / 2 * (nodes[{ 0, currentHalf }].state == WIN ? 1 : -1);
         cout << " pv";
         for (Move m : pv)
             cout << " " << m;
@@ -244,7 +277,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         cursor::goTo(1, 14);
 
         cout << Colors::GREY << "Tree Usage: " << Colors::WHITE;
-        coloredProgBar(40, forceFullBar ? 1 : static_cast<float>(currentIndex) / nodes.size());
+        coloredProgBar(40, forceFullBar ? 1 : static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";
 
         cout << Colors::GREY << "Nodes:            " << Colors::WHITE << nodeCount.load() << "\n";
@@ -259,7 +292,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         cout << Colors::GREY << "Max depth: " << Colors::WHITE << seldepth << "\n\n";
 
         cursor::clear();
-        const double rootWdl = nodes[0].getScore();
+        const double rootWdl = nodes[{ 0, currentHalf }].getScore();
         cout << Colors::GREY << "Score:     ";
         printColoredScore(rootWdl);
         cout << "\n";
@@ -276,7 +309,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     };
 
     // Expand root
-    expandNode(rootPos, nodes[0]);
+    expandNode(rootPos, nodes[{ 0, currentHalf }]);
 
     // Prepare for pretty printing
     if (params.doReporting && !params.doUci) {
@@ -285,7 +318,7 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         cursor::home();
 
         cout << rootPos << "\n";
-        cout << Colors::GREY << "Tree Size:  " << Colors::WHITE << nodes.size() * sizeof(Node) / 1024 / 1024 << "MB\n";
+        cout << Colors::GREY << "Tree Size:  " << Colors::WHITE << (nodes.nodes[0].size() + nodes.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
     }
 
     // Main search loop
@@ -293,7 +326,16 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         // Reset zobrist history
         posHistory = params.positionHistory;
 
-        searchNode(rootPos, nodes[0], 0);
+        searchNode(rootPos, nodes[{ 0, currentHalf }], 0);
+
+        // Switch halves
+        if (currentIndex >= nodes.nodes[0].size() - 256) {
+            nodes[{ 0, static_cast<u8>(currentHalf ^ 1) }] = nodes[{ 0, currentHalf }];
+            removeReferences();
+            currentIndex = 1;
+            currentHalf ^= 1;
+            copyChildren(nodes[{ 0, currentHalf }]);
+        }
 
         iterations++;
 
