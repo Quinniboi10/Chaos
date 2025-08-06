@@ -63,8 +63,11 @@ int main(int argc, char* argv[]) {
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "uciok" << endl;
         }
-        else if (command == "ucinewgame")
+        else if (command == "ucinewgame") {
+            searcher.nodes[0] = Node();
             board.reset();
+            positionHistory.clear();
+        }
         else if (command == "isready")
             cout << "readyok" << endl;
         else if (tokens[0] == "position") {
