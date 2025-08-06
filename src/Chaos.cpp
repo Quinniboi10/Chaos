@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 7);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 6);
         return 0;
     }
 
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
             const i64 inc = board.stm == WHITE ? winc : binc;
 
             const SearchParameters params(positionHistory, CPUCT, true, doUci);
-            const SearchLimits limits(commandTime, hash, depth, nodes, time, inc);
+            const SearchLimits limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
