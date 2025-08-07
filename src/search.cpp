@@ -52,21 +52,21 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
     };
 
     // Performs a softmax on the given vector
-    const auto softmax = [](vector<double>& scores) {
+    const auto softmax = [](vector<float>& scores) {
         assert(!scores.empty());
 
         // Find the max value
-        double maxIn = scores[0];
+        float maxIn = scores[0];
         for (usize idx = 1; idx < scores.size(); idx++)
             maxIn = std::max(maxIn, scores[idx]);
 
         // Compute exponentials
-        for (double& score : scores)
+        for (float& score : scores)
             score = std::exp(score - maxIn);
 
-        const double sum = std::reduce(scores.begin(), scores.end());
+        const float sum = std::reduce(scores.begin(), scores.end());
         // Scale down by sum of exponents
-        for (double& score : scores)
+        for (float& score : scores)
             score /= sum;
     };
 
@@ -93,7 +93,7 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
           node.firstChild  = { currentIndex, currentHalf };
           node.numChildren = moves.length;
 
-          vector<double> policyScores;
+          vector<float> policyScores;
           policyScores.reserve(moves.length);
 
           // In future, this would be replaced by a policy NN
@@ -102,7 +102,7 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
               const Move m = moves[idx];
               const PieceType capturedPiece = board.getPiece(m.to());
 
-              const double policyScore = array<double, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
+              const float policyScore = array<float, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
 
               policyScores.push_back(policyScore);
         }

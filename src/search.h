@@ -23,7 +23,7 @@ struct Node {
     atomic<double> totalScore;
     atomic<NodeIndex> firstChild;
     atomic<u64> visits;
-    atomic<double> policy;
+    atomic<float> policy;
     atomic<Move> move;
     atomic<GameState> state;
     atomic<u8> numChildren;
