@@ -475,7 +475,7 @@ bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] &
 bool Board::isDraw() const {
     // 50 move rule
     if (halfMoveClock >= 100)
-        return !inCheck(); // TODO: && no moves
+        return !inCheck();
 
     // Insufficient material
     if (pieces(PAWN) == 0                                  // No pawns

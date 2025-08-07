@@ -216,7 +216,9 @@ struct Searcher {
         const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
 
         for (auto fen : fens) {
+            posHistory.clear();
             rootPos.loadFromFEN(fen);
+            posHistory.push_back(rootPos.zobrist);
             search(nodes, params, limits);
             totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;
