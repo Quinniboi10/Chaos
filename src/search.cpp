@@ -44,22 +44,12 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     // Return if a node is threefold (or twofold if all positions are past root)
     const auto isThreefold = [&]() {
         usize reps = 0;
+        const u64 current = posHistory.back();
 
-        for (const u64 hash : params.positionHistory) {
-            if (hash == posHistory.back()) {
-                reps++;
-                if (reps >= 2)
+        for (const u64 hash : posHistory)
+            if (hash == current)
+                if (++reps == 3)
                     return true;
-            }
-        }
-
-        for (const u64 hash : posHistory) {
-            if (hash == posHistory.back()) {
-                reps++;
-                if (reps >= 2)
-                    return true;
-            }
-        }
 
         return false;
     };
@@ -178,15 +168,12 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Evaluate node
     const auto simulate = [&](const Board& board, Node& node) {
-        if (isLeaf(node) && node.state == ONGOING) {
-            // This assumes the node has already been expanded
-            if (board.isDraw() || isThreefold() || !board.inCheck())
-                node.state = DRAW;
-            else
-                node.state = LOSS;
+        assert(node.state == ONGOING);
 
-            return node.getScore();
-        }
+        if (board.isDraw() || isThreefold() || (node.numChildren == 0 && !board.inCheck()))
+            node.state = DRAW;
+        else if (node.numChildren == 0)
+            node.state = LOSS;
         if (node.state != ONGOING)
             return node.getScore();
         return cpToWDL(evaluate(board));
@@ -213,6 +200,10 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     };
 
     const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
+        // Check for an early return
+        if (node.state != ONGOING)
+            return node.getScore();
+
         double score;
 
         // Selection
@@ -255,6 +246,9 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Main search loop
     do {
+        // Reset zobrist history
+        posHistory = params.positionHistory;
+
         searchNode(rootPos, nodes[0], 0);
 
         iterations++;
