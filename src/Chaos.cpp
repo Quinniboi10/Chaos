@@ -4,6 +4,11 @@
 #include "searcher.h"
 #include "tunable.h"
 #include "constants.h"
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#undef NOMINMAX
+#endif
 
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
@@ -11,6 +16,10 @@ usize hash = DEFAULT_HASH;
 bool chess960 = false;
 
 int main(int argc, char* argv[]) {
+    #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    #endif
+
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
 
@@ -21,6 +30,8 @@ int main(int argc, char* argv[]) {
 
     string         command;
     vector<string> tokens;
+
+    bool doUci = false;
 
     board.reset();
 
@@ -52,6 +63,7 @@ int main(int argc, char* argv[]) {
         // ************   UCI   ************
 
         if (command == "uci") {
+            doUci = true;
             cout << "id name Chaos"
 #ifdef GIT_HEAD_COMMIT_ID
                  << " (" << GIT_HEAD_COMMIT_ID << ")"
@@ -102,7 +114,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, CPUCT, true);
+            const SearchParameters params(positionHistory, CPUCT, true, doUci);
             const SearchLimits limits(commandTime, hash, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }

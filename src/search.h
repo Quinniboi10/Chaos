@@ -8,13 +8,6 @@
 
 constexpr i32 MATE_SCORE = 32767;
 
-inline double cpToWDL(int cp) { return sigmoid((static_cast<double>(cp) / EVAL_DIVISOR)); }
-inline i32 wdlToCP(double wdl) {
-    assert(wdl > -1);
-    assert(wdl < 1);
-    return inverseSigmoid(wdl) * EVAL_DIVISOR;
-}
-
 struct Node {
     atomic<double> totalScore;
     atomic<u64> visits;
@@ -88,8 +81,9 @@ struct SearchParameters {
     double cpuct;
 
     bool doReporting;
+    bool doUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const bool doReporting) : positionHistory(positionHistory), cpuct(cpuct), doReporting(doReporting) {}
+    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const bool doReporting, const bool doUci) : positionHistory(positionHistory), cpuct(cpuct), doReporting(doReporting), doUci(doUci) {}
 };
 
 struct SearchLimits {

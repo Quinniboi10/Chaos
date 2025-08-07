@@ -179,26 +179,6 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         return cpToWDL(evaluate(board));
     };
 
-    const auto printUCI = [&]() {
-        MoveList pv = findPV();
-        cout << "info depth " << cumulativeDepth / iterations;
-        cout << " seldepth " << seldepth;
-        cout << " time " << limits.commandTime.elapsed();
-        cout << " nodes " << nodeCount.load();
-        if (limits.commandTime.elapsed() > 0)
-            cout << " nps " << nodeCount.load() * 1000 / limits.commandTime.elapsed();
-        if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
-            cout << " score cp " << wdlToCP(nodes[0].getScore());
-        else
-            cout << " score mate " << (pv.length + 1) / 2 * (nodes[0].state == WIN ? 1 : -1);
-        cout << " pv";
-        for (Move m : pv)
-            cout << " " << m;
-        cout << endl;
-
-        return pv;
-    };
-
     const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
         // Check for an early return
         if (node.state != ONGOING)
@@ -238,11 +218,75 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
+    vector<std::pair<u64, Move>> bestMoves;
     usize lastDepth = 0;
     usize lastSeldepth = 0;
+    Move lastMove = Move::null();
+
+    const auto printUCI = [&](MoveList& pv) {
+        cout << "info depth " << cumulativeDepth / iterations;
+        cout << " seldepth " << seldepth;
+        cout << " time " << limits.commandTime.elapsed();
+        cout << " nodes " << nodeCount.load();
+        if (limits.commandTime.elapsed() > 0)
+            cout << " nps " << nodeCount.load() * 1000 / limits.commandTime.elapsed();
+        if (nodes[0].state == ONGOING || nodes[0].state == DRAW)
+            cout << " score cp " << wdlToCP(nodes[0].getScore());
+        else
+            cout << " score mate " << (pv.length + 1) / 2 * (nodes[0].state == WIN ? 1 : -1);
+        cout << " pv";
+        for (Move m : pv)
+            cout << " " << m;
+        cout << endl;
+    };
+
+    const auto prettyPrint = [&](const MoveList& pv, const bool forceFullBar = false) {
+        cursor::goTo(1, 14);
+
+        cout << Colors::GREY << "Tree Usage: " << Colors::WHITE;
+        coloredProgBar(40, forceFullBar ? 1 : static_cast<float>(currentIndex) / nodes.size());
+        cout << "\n\n";
+
+        cout << Colors::GREY << "Nodes:            " << Colors::WHITE << nodeCount.load() << "\n";
+        cursor::clear();
+        cout << Colors::GREY << "Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
+        cursor::clear();
+        cout << Colors::GREY << "Nodes per second: " << Colors::WHITE << nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1) << "\n";
+        cout << "\n";
+
+        cursor::clear();
+        cout << Colors::GREY << "Depth:     " << Colors::WHITE << cumulativeDepth / iterations << "\n";
+        cout << Colors::GREY << "Max depth: " << Colors::WHITE << seldepth << "\n\n";
+
+        cursor::clear();
+        const double rootWdl = nodes[0].getScore();
+        cout << Colors::GREY << "Score:     ";
+        printColoredScore(rootWdl);
+        cout << "\n";
+        cursor::clear();
+        cout << Colors::GREY << "Best move: " << Colors::WHITE << pv[0] << "\n";
+        cout << "\n\n";
+        cout << "Best move history:" << "\n";
+        for (const auto& m : bestMoves)
+            cout << "    " << Colors::GREY << formatTime(m.first) << Colors::WHITE << " -> " << m.second << "\n";
+
+
+        cout << Colors::RESET;
+        cout.flush();
+    };
 
     // Expand root
     expandNode(rootPos, nodes[0]);
+
+    // Prepare for pretty printing
+    if (params.doReporting && !params.doUci) {
+        cursor::clearAll();
+        cursor::hide();
+        cursor::home();
+
+        cout << rootPos << "\n";
+        cout << Colors::GREY << "Tree Size:  " << Colors::WHITE << nodes.size() * sizeof(Node) / 1024 / 1024 << "MB\n";
+    }
 
     // Main search loop
     do {
@@ -254,17 +298,40 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
         iterations++;
 
         // Check if UCI should be printed
-        if ((lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY) && params.doReporting) {
-            printUCI();
-            lastDepth = cumulativeDepth / iterations;
-            lastSeldepth = seldepth;
-            stopwatch.reset();
+        if (params.doReporting) {
+            MoveList pv = findPV();
+            if (params.doUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || pv[0] != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
+                printUCI(pv);
+
+                lastDepth = cumulativeDepth / iterations;
+                lastSeldepth = seldepth;
+                lastMove = pv[0];
+                stopwatch.reset();
+            }
+            else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
+                if (pv[0] != lastMove)
+                    bestMoves.emplace_back(limits.commandTime.elapsed(), pv[0]);
+                prettyPrint(pv);
+
+                lastDepth = cumulativeDepth / iterations;
+                lastSeldepth = seldepth;
+                lastMove = pv[0];
+                stopwatch.reset();
+            }
         }
     } while (!stopSearching());
 
     if (params.doReporting) {
-        MoveList pv = printUCI();
+        MoveList pv = findPV();
 
-        cout << "bestmove " << pv[0] << endl;
+        if (params.doUci) {
+            printUCI(pv);
+            cout << "bestmove " << pv[0] << endl;
+        }
+        else {
+            prettyPrint(pv, true);
+            cout << "\n\nBest move: " << Colors::BRIGHT_BLUE << pv[0] << Colors::RESET << endl;
+            cursor::show();
+        }
     }
 }

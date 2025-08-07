@@ -350,6 +350,57 @@ void Board::loadFromFEN(string fen) {
     updateCheckPinAttack();
 }
 
+string Board::fen() const {
+    std::ostringstream ss;
+
+    // Pieces
+    for (i32 rank = 7; rank >= 0; rank--) {
+        usize empty = 0;
+        for (usize file = 0; file < 8; file++) {
+            i32 sq = rank * 8 + file;
+            char pc = getPieceAt(sq);
+            if (pc == ' ')
+                empty++;
+            else {
+                if (empty) {
+                    ss << empty;
+                    empty = 0;
+                }
+                ss << pc;
+            }
+        }
+        if (empty)
+            ss << empty;
+        if (rank != 0)
+            ss << '/';
+    }
+
+    // Stm
+    ss << ' ' << (stm == WHITE ? 'w' : 'b');
+
+    // Castling
+    string castle;
+    if (castling[castleIndex(WHITE, true)] != NO_SQUARE)  castle += 'K';
+    if (castling[castleIndex(WHITE, false)] != NO_SQUARE) castle += 'Q';
+    if (castling[castleIndex(BLACK, true)] != NO_SQUARE)  castle += 'k';
+    if (castling[castleIndex(BLACK, false)] != NO_SQUARE) castle += 'q';
+    ss << ' ' << (castle.empty() ? "-" : castle);
+
+    // En passant
+    if (epSquare != NO_SQUARE)
+        ss << ' ' << squareToAlgebraic(epSquare);
+    else
+        ss << " -";
+
+    // Halfmove
+    ss << ' ' << halfMoveClock;
+
+    // Fullmove
+    ss << ' ' << fullMoveClock;
+
+    return ss.str();
+}
+
 // Return the type of the piece on the square
 PieceType Board::getPiece(int sq) const {
     assert(sq >= 0);
@@ -492,20 +543,32 @@ bool Board::isDraw() const {
 
 // Print the board
 std::ostream& operator<<(std::ostream& os, const Board& board) {
-    os << (board.stm ? "White's turn" : "Black's turn") << endl;
+    const auto printInfo = [&](const usize line) {
+        std::ostringstream ss;
+        if (line == 1)
+            ss << "FEN: " << board.fen();
+        else if (line == 2)
+            ss << "Hash: 0x" << std::hex << std::uppercase << board.zobrist << std::dec;
+        else if (line == 3)
+            ss << "Side to move: " << (board.stm == WHITE ? "WHITE" : "BLACK");
+        else if (line == 4)
+            ss << "En passant: " << (board.epSquare == NO_SQUARE ? "-" : squareToAlgebraic(board.epSquare));
+        return ss.str();
+    };
 
-    for (int rank = 7; rank >= 0; rank--) {
-        os << "+---+---+---+---+---+---+---+---+" << endl;
-        for (int file = 0; file < 8; file++) {
-            int  i     = rank * 8 + file;
-            auto color = ((1ULL << i) & board.pieces(WHITE)) ? Colors::YELLOW : Colors::BLUE;
-            os << "| " << color << board.getPieceAt(i) << Colors::RESET << " ";
+    os << "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n";
+
+    usize line = 1;
+    for (i32 rank = (board.stm == WHITE) * 7; (board.stm == WHITE) ? rank >= 0 : rank < 8; (board.stm == WHITE) ? rank-- : rank++) {
+        os << "\u2502 ";
+        for (usize file = 0; file < 8; file++) {
+            const auto sq    = static_cast<Square>(rank * 8 + file);
+            const auto color = ((1ULL << sq) & board.pieces(WHITE)) ? Colors::YELLOW : Colors::BLUE;
+            os << color << board.getPieceAt(sq) << Colors::RESET << " ";
         }
-        os << "| " << rank + 1 << endl;
+        os << "\u2502 " << rank + 1 << "    " << printInfo(line++) << "\n";
     }
-    os << "+---+---+---+---+---+---+---+---+" << endl;
-    os << "  a   b   c   d   e   f   g   h" << endl << endl;
-    os << std::endl;
-    os << "Board hash: 0x" << std::hex << std::uppercase << board.zobrist << std::dec << endl;
+    os << "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n";
+    os << "  a b c d e f g h\n";
     return os;
 }
