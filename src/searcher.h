@@ -212,15 +212,13 @@ struct Searcher {
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64> posHistory;
+        const SearchParameters params(posHistory, CPUCT, false);
         const SearchLimits limits(stopwatch, 256, depth, 0, 0, 0);
 
         for (auto fen : fens) {
             posHistory.clear();
             rootPos.loadFromFEN(fen);
             posHistory.push_back(rootPos.zobrist);
-
-            const SearchParameters params(posHistory, CPUCT, false);
-
             search(nodes, params, limits);
             totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;

@@ -168,11 +168,12 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Evaluate node
     const auto simulate = [&](const Board& board, Node& node) {
-        if (node.state == ONGOING && (board.isDraw() || isThreefold() || (node.numChildren == 0 && !board.inCheck())))
+        assert(node.state == ONGOING);
+
+        if (board.isDraw() || isThreefold() || (node.numChildren == 0 && !board.inCheck()))
             node.state = DRAW;
         else if (node.numChildren == 0)
             node.state = LOSS;
-
         if (node.state != ONGOING)
             return node.getScore();
         return cpToWDL(evaluate(board));
@@ -199,6 +200,10 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     };
 
     const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
+        // Check for an early return
+        if (node.state != ONGOING)
+            return node.getScore();
+
         double score;
 
         // Selection
@@ -206,9 +211,6 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
             Node& bestChild = findBestChild(node);
             Board newBoard = board;
             newBoard.move(bestChild.move);
-
-            if (!board.isQuiet(bestChild.move))
-                posHistory.clear();
 
             posHistory.push_back(newBoard.zobrist);
             score = -searchNode(newBoard, bestChild, ply + 1);
