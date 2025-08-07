@@ -1,5 +1,8 @@
 #pragma once
 
+#include "search.h"
+
+
 #include <bit>
 #include <numbers>
 #include <vector>
@@ -9,6 +12,7 @@
 #include <string_view>
 
 #include "types.h"
+#include "../external/fmt/fmt/color.h"
 #include "../external/fmt/fmt/format.h"
 
 #define ctzll(x) std::countr_zero(x)
@@ -45,6 +49,13 @@ inline u64 shift(int dir, u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
 
 inline double sigmoid(double x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
 inline double inverseSigmoid(double x) { return std::log((1 + x) / (1 - x)); }
+
+inline double cpToWDL(int cp) { return sigmoid((static_cast<double>(cp) / EVAL_DIVISOR)); }
+inline i32 wdlToCP(double wdl) {
+    assert(wdl > -1);
+    assert(wdl < 1);
+    return inverseSigmoid(wdl) * EVAL_DIVISOR;
+}
 
 inline std::vector<string> split(const string& str, char delim) {
     std::vector<std::string> result;
@@ -167,10 +178,89 @@ inline string padStr(string str, i64 target, u64 minPadding = 2) {
     return str;
 }
 
+// Score color
+inline void printColoredScore(double wdl) {
+    double colorWdl = std::clamp(wdl * 5, -1.0, 1.0);
+    int r, g, b;
+
+    if (colorWdl < 0) {
+        r = static_cast<int>(200 - colorWdl * (240 - 200));
+        g = static_cast<int>(60 - colorWdl * (240 - 60));
+        b = static_cast<int>(60 - colorWdl * (240 - 60));
+    }
+    else {
+        r = static_cast<int>(240 + colorWdl * (60 - 240));
+        g = static_cast<int>(240 + colorWdl * (180 - 240));
+        b = static_cast<int>(240 + colorWdl * (60 - 240));
+    }
+
+    fmt::print(fmt::fg(fmt::rgb(r, g, b)), "{:.2f}", wdlToCP(wdl) / 100.0f);
+}
+
+// Heat color
+inline void heatColor(float t, const string& text) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    int r, g, b = 0;
+    if (t < 0.5f) {
+        const float ratio = t / 0.5f;
+        r = 255;
+        g = static_cast<int>(ratio * 255);
+    } else {
+        const float ratio = (t - 0.5f) / 0.5f;
+        r = static_cast<int>(255 * (1.0f - ratio));
+        g = 255;
+    }
+
+    fmt::print(fg(fmt::rgb(r, g, b)), "{}", text);
+}
+
+// Colored progress bar
+inline void coloredProgBar(const usize length, const float fill) {
+    if (length == 0) {
+        fmt::print("[] 0%\n");
+        return;
+    }
+    fmt::print("[");
+    for (usize i = 0; i < length; ++i) {
+        float percentage = static_cast<float>(i) / (length - 1);
+        if (percentage <= fill) {
+            heatColor(1 - percentage, "#");
+        } else {
+            fmt::print(".");
+        }
+    }
+    fmt::print("] {}%\n", static_cast<usize>(fill * 100));
+}
+
+// Colorless progress bar
+inline void progressBar(const usize length, const float fill) {
+    if (length == 0) {
+        cout << "[] 0%";
+        return;
+    }
+    cout << "[";
+    for (usize i = 0; i < length; ++i)
+        cout << (static_cast<float>(i) / (length - 1) <= fill ? "#" : ".");
+    cout << "] " << static_cast<usize>(fill * 100) << "%";
+}
+
 inline int findIndexOf(const auto arr, string entry) {
     auto it = std::find(arr.begin(), arr.end(), entry);
     if (it != arr.end()) {
         return std::distance(arr.begin(), it);
     }
     return -1;
+}
+
+namespace cursor {
+    static void clearAll() { cout << "\033[2J\033[H"; }
+    static void clear() { cout << "\033[2K\r"; }
+    static void home() { cout << "\033[H"; }
+    static void up() { cout << "\033[A"; }
+    static void down() { cout << "\033[B"; }
+    static void begin() { cout << "\033[1G"; }
+    static void goTo(const usize x, const usize y) { cout << "\033[" << y << ";" << x << "H"; }
+
+    static void hide() { cout << "\033[?25l"; }
+    static void show() { cout << "\033[?25h"; }
 }

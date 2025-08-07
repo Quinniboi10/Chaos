@@ -69,6 +69,7 @@ struct Board {
     void reset();
 
     void loadFromFEN(string fen);
+    string fen() const;
 
     PieceType getPiece(int sq) const;
     bool      isCapture(Move m) const;
