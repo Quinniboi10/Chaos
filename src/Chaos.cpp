@@ -63,28 +63,30 @@ int main(int argc, char* argv[]) {
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "uciok" << endl;
         }
-        else if (command == "ucinewgame")
+        else if (command == "ucinewgame") {
             board.reset();
+            positionHistory.clear();
+            positionHistory.push_back(board.zobrist);
+        }
         else if (command == "isready")
             cout << "readyok" << endl;
         else if (tokens[0] == "position") {
-            if (tokens[1] == "startpos") {
+            positionHistory.clear();
+
+            if (tokens[1] == "startpos")
                 board.reset();
-                if (tokens.size() > 2 && tokens[2] == "moves")
-                    for (usize i = 3; i < tokens.size(); i++) {
-                        positionHistory.push_back(board.zobrist);
-                        board.move(tokens[i]);
-                    }
-            }
             else if (tokens[1] == "kiwipete")
                 board.loadFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-            else if (tokens[1] == "fen") {
+            else if (tokens[1] == "fen")
                 board.loadFromFEN(command.substr(13));
-                if (tokens.size() > 8 && tokens[8] == "moves")
-                    for (usize i = 9; i < tokens.size(); i++) {
-                        positionHistory.push_back(board.zobrist);
-                        board.move(tokens[i]);
-                    }
+
+            positionHistory.push_back(board.zobrist);
+
+            if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1) {
+                for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++) {
+                    board.move(tokens[mIdx]);
+                    positionHistory.push_back(board.zobrist);
+                }
             }
         }
         else if (tokens[0] == "go") {

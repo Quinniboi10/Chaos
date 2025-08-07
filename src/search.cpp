@@ -44,18 +44,12 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
     // Return if a node is threefold (or twofold if all positions are past root)
     const auto isThreefold = [&]() {
         usize reps = 0;
+        const u64 current = posHistory.back();
 
-        for (const u64 hash : params.positionHistory)
-            if (hash == posHistory.back())
-                reps++;
-
-        for (const u64 hash : posHistory) {
-            if (hash == posHistory.back()) {
-                if (reps >= 2)
+        for (const u64 hash : posHistory)
+            if (hash == current)
+                if (++reps == 3)
                     return true;
-                reps++;
-            }
-        }
 
         return false;
     };
@@ -174,15 +168,11 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Evaluate node
     const auto simulate = [&](const Board& board, Node& node) {
-        if (isLeaf(node) && node.state == ONGOING) {
-            // This assumes the node has already been expanded
-            if (board.isDraw() || isThreefold() || !board.inCheck())
-                node.state = DRAW;
-            else
-                node.state = LOSS;
+        if (node.state == ONGOING && (board.isDraw() || isThreefold() || (node.numChildren == 0 && !board.inCheck())))
+            node.state = DRAW;
+        else if (node.numChildren == 0)
+            node.state = LOSS;
 
-            return node.getScore();
-        }
         if (node.state != ONGOING)
             return node.getScore();
         return cpToWDL(evaluate(board));
@@ -216,6 +206,9 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
             Node& bestChild = findBestChild(node);
             Board newBoard = board;
             newBoard.move(bestChild.move);
+
+            if (!board.isQuiet(bestChild.move))
+                posHistory.clear();
 
             posHistory.push_back(newBoard.zobrist);
             score = -searchNode(newBoard, bestChild, ply + 1);
@@ -251,6 +244,9 @@ void Searcher::search(vector<Node>& nodes, const SearchParameters params, const 
 
     // Main search loop
     do {
+        // Reset zobrist history
+        posHistory = params.positionHistory;
+
         searchNode(rootPos, nodes[0], 0);
 
         iterations++;
