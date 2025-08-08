@@ -5,25 +5,28 @@
 #include "move.h"
 #include "stopwatch.h"
 #include "tunable.h"
-#include "util.h"
 
 constexpr i32 MATE_SCORE = 32767;
 
-struct NodeIndex {
-    u64 index;
-    u8 half;
+class NodeIndex {
+    u64 idx;
+public:
+    NodeIndex() = default;
+    NodeIndex(const u64 idx, const u8 half) { this->idx = idx | (static_cast<u64>(half) << 63); }
 
-    bool operator==(const NodeIndex& other) const { return index == other.index && half == other.half; }
+    u64 index() const { return idx & ~(1ULL << 63); }
+    u8 half() const { return idx >> 63; }
+
+    bool operator==(const NodeIndex& other) const { return idx == other.idx; }
 };
 struct Node {
     atomic<double> totalScore;
     atomic<NodeIndex> firstChild;
     atomic<u64> visits;
-    atomic<double> policy;
+    atomic<float> policy;
     atomic<Move> move;
     atomic<GameState> state;
     atomic<u8> numChildren;
-    Node* parent;
 
     Node() {
         totalScore = 0;
@@ -33,7 +36,6 @@ struct Node {
         state = ONGOING;
         move = Move::null();
         numChildren = 0;
-        parent = nullptr;
     }
 
     Node(const Node& other) {
@@ -44,7 +46,6 @@ struct Node {
         state = other.state.load();
         move = other.move.load();
         numChildren = other.numChildren.load();
-        parent = other.parent;
     }
 
     Node& operator=(const Node& other) {
@@ -55,7 +56,6 @@ struct Node {
             state = other.state.load();
             move = other.move.load();
             numChildren = other.numChildren.load();
-            parent = other.parent;
         }
         return *this;
     }
@@ -66,8 +66,7 @@ struct Node {
             && firstChild.load() == other.firstChild.load()
             && state == other.state.load()
             && move == other.move.load()
-            && numChildren == other.numChildren.load()
-            && parent == other.parent;
+            && numChildren == other.numChildren.load();
     }
 
     double getScore() const {
@@ -79,7 +78,7 @@ struct Node {
             return -1;
         if (visits == 0)
             return FPU;
-        return static_cast<double>(totalScore.load()) / visits.load();
+        return totalScore.load() / visits.load();
     }
 };
 
@@ -121,6 +120,6 @@ struct Tree {
         nodes[1].resize(size / 2 + 256);
     }
 
-    const Node& operator[](const NodeIndex& idx) const { return nodes[idx.half][idx.index]; }
-    Node& operator[](const NodeIndex& idx) { return nodes[idx.half][idx.index]; }
+    const Node& operator[](const NodeIndex& idx) const { return nodes[idx.half()][idx.index()]; }
+    Node& operator[](const NodeIndex& idx) { return nodes[idx.half()][idx.index()]; }
 };
