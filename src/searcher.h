@@ -41,19 +41,11 @@ struct Searcher {
     }
 
     void launchInteractiveTree() {
-        const auto clear = []() {
-            #ifdef _WIN32
-            system("cls");
-            #else
-            system("clear");
-            #endif
-        };
-
         usize ply = 0;
-        Node parent = nodes[{ 0, currentHalf }];
-        vector<string> parents;
+        Node* parent = &nodes[{ 0, currentHalf }];
+        vector<Node*> parents = { parent };
 
-        const auto rootString = [&](const Node& node) {
+        const auto rootString = [&](const Node& node, const usize ply) {
             const string plyStr = fmt::format(
                 fmt::runtime("({} ply)"),
                 ply
@@ -69,7 +61,7 @@ struct Searcher {
         const auto childString = [&](const Node& node) {
             return fmt::format(
                 fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"),
-                node.firstChild.load().index,
+                node.firstChild.load().index(),
                 node.move.load().toString(),
                 static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore()) : node.state == WIN ? MATE_SCORE : -MATE_SCORE) / 100),
                 node.visits.load(),
@@ -79,12 +71,12 @@ struct Searcher {
         };
 
         const auto printParents = [&]() {
-            for (usize idx = 0; idx < parents.size(); idx++) {
+            for (usize idx = 0; idx < parents.size() - 1; idx++) {
                 for (usize i = 0; i < std::max<usize>(idx, 1); i++)
                     cout << "    ";
                 if (idx > 0)
                     cout << "└─> ";
-                cout << "parent      " << parents[idx] << endl;
+                cout << "parent      " << rootString(*parents[idx], idx) << endl;
             }
         };
 
@@ -99,9 +91,9 @@ struct Searcher {
 
             if (ply > 0)
                 cout << "└─> ";
-            cout << "parent      " << rootString(node) << endl;
+            cout << "parent      " << rootString(node, ply) << endl;
 
-            for (u64 idx = node.firstChild.load().index; idx < node.firstChild.load().index + node.numChildren - 1; idx++) {
+            for (u64 idx = node.firstChild.load().index(); idx < node.firstChild.load().index() + node.numChildren - 1; idx++) {
                 for (usize i = 0; i < parents.size() + 1; i++)
                     cout << "    ";
                 cout << "├─> " << childString(nodes[{ idx, currentHalf }]) << endl;
@@ -110,16 +102,17 @@ struct Searcher {
 
             for (usize i = 0; i < parents.size() + 1; i++)
                 cout << "    ";
-            const Node& child = nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }];
+            const Node& child = nodes[{ node.firstChild.load().index() + node.numChildren - 1, currentHalf }];
             cout << "└─> " << childString(child) << endl;
             // assert(*nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }].parent == node);
         };
 
         while (true) {
-            clear();
+            cursor::clearAll();
+            cursor::home();
 
             printParents();
-            printChildren(parent);
+            printChildren(*parent);
             cout << endl;
             cout << "Enter move to switch to (.. to move up) > ";
 
@@ -136,16 +129,16 @@ struct Searcher {
                 if (ply == 0)
                     break;
                 parents.pop_back();
-                parent = *parent.parent;
+                parent = parents.back();
                 ply--;
             }
             else if (command == "quit")
                 break;
             else {
-                for (u64 idx = parent.firstChild.load().index; idx < parent.firstChild.load().index + parent.numChildren; idx++) {
+                for (u64 idx = parent->firstChild.load().index(); idx < parent->firstChild.load().index() + parent->numChildren; idx++) {
                     if (nodes[{ idx, currentHalf }].move.load().toString() == tokens[0]) {
-                        parents.push_back(rootString(parent));
-                        parent = nodes[{ idx, currentHalf }];
+                        parents.push_back(parent);
+                        parent = &nodes[{ idx, currentHalf }];
                         ply++;
                         break;
                     }
