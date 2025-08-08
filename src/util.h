@@ -180,7 +180,7 @@ inline string padStr(string str, i64 target, u64 minPadding = 2) {
 
 // Score color
 inline void printColoredScore(double wdl) {
-    double colorWdl = std::clamp(wdl * 5, -1.0, 1.0);
+    double colorWdl = std::clamp(wdl, -1.0, 1.0);
     int r, g, b;
 
     if (colorWdl < 0) {

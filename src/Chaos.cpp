@@ -4,6 +4,7 @@
 #include "searcher.h"
 #include "tunable.h"
 #include "constants.h"
+#include "policy.h"
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -22,6 +23,7 @@ int main(int argc, char* argv[]) {
 
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
+    initPolicy();
 
     Board    board;
     Searcher searcher{};
@@ -135,6 +137,8 @@ int main(int argc, char* argv[]) {
             board.move(tokens[1]);
         else if (command == "eval")
             cout << evaluate(board) << endl;
+        else if (command == "policy")
+            searcher.printRootPolicy(board);
         else if (tokens[0] == "perft")
             Movegen::perft(board, std::stoi(tokens[1]), false);
         else if (tokens[0] == "bulk")

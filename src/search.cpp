@@ -1,12 +1,13 @@
 #include "searcher.h"
 #include "movegen.h"
+#include "policy.h"
 #include "eval.h"
 
 #include <cmath>
 #include <numeric>
 #include <functional>
 
-void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLimits limits) {
+void Searcher::search(const SearchParameters params, const SearchLimits limits) {
     // Reset worker
     this->nodeCount = 0;
 
@@ -51,25 +52,6 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
         return false;
     };
 
-    // Performs a softmax on the given vector
-    const auto softmax = [](vector<float>& scores) {
-        assert(!scores.empty());
-
-        // Find the max value
-        float maxIn = scores[0];
-        for (usize idx = 1; idx < scores.size(); idx++)
-            maxIn = std::max(maxIn, scores[idx]);
-
-        // Compute exponentials
-        for (float& score : scores)
-            score = std::exp(score - maxIn);
-
-        const float sum = std::reduce(scores.begin(), scores.end());
-        // Scale down by sum of exponents
-        for (float& score : scores)
-            score /= sum;
-    };
-
     // PUCT formula
     const auto puct = [&](const Node& parent, const Node& child) {
         // V + C * P * (N.max(1).sqrt() / (n + 1))
@@ -82,45 +64,27 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
     };
 
     // Expand a node
-    const auto expandNode =
-      [&](const Board& board, Node& node) {
-          MoveList moves = Movegen::generateMoves(board);
+    const auto expandNode = [&](const Board& board, Node& node) {
+        MoveList moves = Movegen::generateMoves(board);
 
-          // Mates aren't handled until the simulation/rollout stage
-          if (moves.length == 0)
-              return;
+        // Mates aren't handled until the simulation/rollout stage
+        if (moves.length == 0)
+            return;
 
-          node.firstChild  = { currentIndex, currentHalf };
-          node.numChildren = moves.length;
-
-          vector<float> policyScores;
-          policyScores.reserve(moves.length);
-
-          // In future, this would be replaced by a policy NN
-          // Loop runs backwards so pop_back can be used
-          for (i16 idx = static_cast<i16>(moves.length) - 1; idx >= 0; idx--) {
-              const Move m = moves[idx];
-              const PieceType capturedPiece = board.getPiece(m.to());
-
-              const float policyScore = array<float, 7>{0.7, 2, 2, 3, 4, 0, 0}[capturedPiece];
-
-              policyScores.push_back(policyScore);
-        }
-
-        softmax(policyScores);
+        node.firstChild  = { currentIndex, currentHalf };
+        node.numChildren = moves.length;
 
         for (const Move& move : moves) {
             Node& child = nodes[{ currentIndex++, currentHalf }];
             child.totalScore = 0;
             child.visits = 0;
             child.firstChild = { 0, 0 };
-            child.policy = policyScores.back();
             child.state = ONGOING;
             child.move = move;
             child.numChildren = 0;
-
-            policyScores.pop_back();
         }
+
+        fillPolicy(board, nodes, node);
     };
 
     // Find the best child node from a parent
@@ -274,6 +238,7 @@ void Searcher::search(Tree& nodes, const SearchParameters params, const SearchLi
     const auto prettyPrint = [&](const MoveList& pv) {
         cursor::goTo(1, 14);
 
+        cursor::clear();
         cout << Colors::GREY << "Tree Usage: " << Colors::WHITE;
         coloredProgBar(40, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";

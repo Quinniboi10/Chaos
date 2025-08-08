@@ -2,7 +2,6 @@
 #include "types.h"
 
 #include <fstream>
-#include <cassert>
 #include <thread>
 
 MultiArray<u64, 64, 64> LINE;
