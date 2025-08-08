@@ -1,3 +1,5 @@
+DEFAULT_VALUE_NET = Vine_03.value
+
 # Detect Operating System
 ifeq ($(OS),Windows_NT)
     # Windows settings
@@ -42,11 +44,26 @@ SRCS     := $(wildcard ./src/*.cpp)
 OBJS     := $(SRCS:.cpp=.o)
 
 # Default target
+all: download
 all: $(EXE)
 
 # Link the executable
 $(EXE): $(SRCS)
-	$(CXX) $(CXXFLAGS) $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+	$(CXX) $(CXXFLAGS) -DVALUEFILE="\"$(VALUEFILE)\"" $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+
+# Download the net from the repository
+VALUEFILE ?= $(DEFAULT_VALUE_NET)
+
+download:
+ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
+	@if [ ! -f "$(DEFAULT_VALUE_NET)" ]; then \
+		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_VALUE_NET); \
+	else \
+		echo "$(DEFAULT_VALUE_NET) already exists, skipping download."; \
+	fi
+else
+	@echo "VALUEFILE is set to '$(VALUEFILE)', skipping download."
+endif
 
 # Debug build
 .PHONY: debug

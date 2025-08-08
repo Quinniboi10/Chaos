@@ -1,184 +1,241 @@
 #include "eval.h"
 
-struct ScorePair {
-    i16 mg;
-    i16 eg;
+// Embed of NNs
+#ifdef _MSC_VER
+    #define MSVC
+    #pragma push_macro("_MSC_VER")
+    #undef _MSC_VER
+#endif
 
-    constexpr ScorePair(i16 m, i16 e) : mg(m), eg(e) {}
+#include "../external/incbin.h"
+
+#ifdef MSVC
+    #pragma pop_macro("_MSC_VER")
+    #undef MSVC
+#endif
+
+#if !defined(_MSC_VER) || defined(__clang__)
+INCBIN(EVAL, VALUEFILE);
+#endif
+
+#ifdef __AVX512F__
+constexpr usize ALIGNMENT = 64;
+#else
+constexpr usize ALIGNMENT = 32;
+#endif
+
+struct Accumulator {
+    alignas(ALIGNMENT) array<i16, HL_SIZE> underlying;
+
+    explicit Accumulator(const Board& board);
+
+    const i16& operator[](const usize& idx) const { return underlying[idx]; }
+    i16& operator[](const usize& idx) { return underlying[idx]; }
 };
 
-// Helper to keep the tables readable
-constexpr ScorePair S(i16 mg, i16 eg) { return {mg, eg}; }
+struct NN {
+    alignas(ALIGNMENT) array<i16, HL_SIZE * 768> weightsToHL;
+    alignas(ALIGNMENT) array<i16, HL_SIZE> hiddenLayerBias;
+    alignas(ALIGNMENT) array<i16, HL_SIZE> weightsToOut;
+    i16 outputBias;
 
+    static i16 ReLU(const i16 x);
+    static i16 CReLU(const i16 x);
 
-constexpr array<ScorePair, 6> MATERIAL = {
-    S(  63,  119),
-    S( 267,  337),
-    S( 301,  360),
-    S( 381,  631),
-    S( 769, 1197),
-    S(   0,    0)
+    i32 vectorizedSCReLU(const Accumulator& accum) const;
+
+    static usize feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square);
 };
 
-constexpr MultiArray<i64, 6, 64> PSQT_MG{{
-    /* pawn */ {
-           0,    0,    0,    0,    0,    0,    0,    0,
-          73,   95,   73,  102,   86,   69,    3,  -22,
-          -5,    9,   41,   47,   50,   71,   51,    9,
-         -20,    4,    8,   10,   31,   22,   26,    3,
-         -30,   -3,   -4,   12,   12,    4,   13,   -9,
-         -32,   -7,   -7,   -6,    8,   -3,   27,   -2,
-         -31,   -7,  -11,  -21,   -1,   13,   36,  -10,
-           0,    0,    0,    0,    0,    0,    0,    0
-    },
-    /* knight */ {
-        -142, -110,  -46,  -14,   17,  -39,  -92,  -87,
-         -11,    6,   31,   48,   32,   93,    5,   28,
-           4,   37,   54,   66,  102,  103,   60,   29,
-           0,   13,   37,   57,   40,   64,   23,   33,
-         -13,    2,   16,   17,   26,   21,   20,   -3,
-         -32,  -10,    4,    7,   18,    8,   11,  -16,
-         -45,  -33,  -17,   -5,   -4,   -2,  -15,  -18,
-         -87,  -34,  -47,  -33,  -29,  -16,  -32,  -58
-    },
-    /* bishop */ {
-         -26,  -44,  -33,  -74,  -63,  -45,  -16,  -53,
-          -9,   14,    8,   -9,   19,   19,   11,    0,
-           0,   23,   24,   47,   33,   64,   41,   29,
-          -8,    6,   27,   37,   34,   30,    6,   -8,
-         -14,   -2,    4,   24,   21,    7,   -1,   -6,
-          -4,    3,    3,    6,    7,    2,    4,    8,
-          -2,   -1,   10,  -11,   -4,    9,   15,    2,
-         -23,   -4,  -19,  -28,  -23,  -24,    0,  -13
-    },
-    /* rook */ {
-          29,   21,   28,   33,   51,   67,   50,   69,
-          11,   10,   29,   49,   35,   63,   50,   80,
-          -9,   11,   13,   16,   44,   45,   82,   60,
-         -25,  -12,   -9,   -1,    5,    5,   13,   16,
-         -43,  -41,  -31,  -19,  -19,  -34,  -11,  -19,
-         -50,  -41,  -33,  -33,  -28,  -30,    3,  -18,
-         -53,  -41,  -26,  -30,  -25,  -24,   -7,  -36,
-         -34,  -33,  -24,  -18,  -14,  -24,  -10,  -33
-    },
-    /* queen */ {
-         -36,  -28,    2,   35,   35,   40,   58,    5,
-           1,  -21,  -14,  -21,  -16,   21,    1,   44,
-           1,   -1,   -3,   13,   18,   59,   60,   57,
-         -15,  -11,   -7,   -8,   -6,    7,    6,   13,
-         -13,  -15,  -17,   -8,   -9,  -10,    1,    4,
-         -16,   -9,  -14,  -15,  -12,   -5,    7,    1,
-         -18,  -13,   -2,   -3,   -5,    4,   10,   21,
-         -20,  -30,  -23,   -8,  -16,  -29,   -7,  -14
-    },
-    /* king */ {
-          64,   40,   73,  -68,  -12,   38,   87,  194,
-         -53,  -14,  -57,   50,   -3,    3,   42,   21,
-         -74,   28,  -39,  -58,  -17,   58,   38,    2,
-         -42,  -52,  -68, -112,  -99,  -62,  -62,  -85,
-         -36,  -45,  -75, -102,  -99,  -63,  -67,  -90,
-           8,   23,  -33,  -45,  -39,  -37,    9,   -8,
-          95,   55,   41,    7,    6,   24,   71,   80,
-          91,  114,   88,  -11,   53,   14,   95,   96
-    }
-}};
+const NN nn = *reinterpret_cast<const NN*>(gEVALData);
 
-constexpr MultiArray<i64, 6, 64> PSQT_EG = {{
-    /* pawn */ {
-           0,    0,    0,    0,    0,    0,    0,    0,
-         163,  155,  156,  107,  103,  114,  159,  173,
-         104,  112,   78,   57,   49,   34,   81,   79,
-          36,   25,    5,   -3,  -12,   -9,   10,   10,
-          11,    8,   -9,  -12,  -14,  -12,   -1,   -8,
-           5,    7,  -10,    2,   -6,   -8,   -3,  -12,
-          10,   11,   -3,    3,    8,   -3,   -4,  -11,
-           0,    0,    0,    0,    0,    0,    0,    0
-    },
-    /* knight */ {
-         -75,  -15,   -1,   -9,   -6,  -29,   -8,  -97,
-         -22,   -1,    7,    6,   -1,  -16,   -5,  -37,
-          -6,    9,   25,   26,   11,    6,   -1,  -16,
-           5,   26,   37,   39,   40,   34,   25,   -2,
-           6,   15,   39,   39,   42,   32,   18,   -2,
-          -9,    9,   19,   32,   31,   15,    4,   -7,
-         -18,   -2,    6,   10,    9,    4,  -11,   -8,
-         -25,  -38,   -9,   -6,   -5,  -15,  -31,  -37
-    },
-    /* bishop */ {
-          -9,    2,   -1,   13,    6,   -3,  -10,  -12,
-         -22,   -3,    1,    4,   -5,   -7,    1,  -24,
-           7,    1,   12,    1,    6,    7,    0,    0,
-           2,   18,   13,   26,   19,   16,   15,    2,
-          -2,   15,   23,   19,   19,   18,   13,  -12,
-          -2,    8,   16,   15,   19,   16,   -1,  -12,
-          -8,   -7,   -9,    6,    8,   -4,   -2,  -27,
-         -24,   -7,  -26,   -5,   -8,   -8,  -22,  -37
-    },
-    /* rook */ {
-           9,   16,   25,   21,   12,    2,    4,   -1,
-           9,   21,   25,   16,   16,    2,   -2,  -15,
-           9,   12,   14,   12,   -1,   -7,  -16,  -20,
-          11,   10,   19,   15,    0,   -5,   -9,  -15,
-           4,    9,   11,   10,    6,    4,   -9,  -14,
-           0,    0,   -1,    4,    0,   -8,  -28,  -27,
-          -5,   -1,   -1,    1,   -7,  -11,  -20,  -15,
-         -10,    0,    7,    6,   -2,   -7,  -11,  -18
-    },
-    /* queen */ {
-           2,   15,   32,   18,   15,    8,  -35,   -4,
-         -33,    9,   43,   60,   78,   37,   21,   -3,
-         -22,   -5,   37,   38,   52,   32,   -4,  -17,
-         -12,   11,   25,   49,   61,   47,   33,   12,
-         -15,   14,   23,   42,   41,   32,   12,   -1,
-         -26,  -10,   13,   11,   15,    6,  -16,  -28,
-         -31,  -27,  -30,  -20,  -17,  -43,  -71, -101,
-         -38,  -30,  -26,  -35,  -31,  -32,  -62,  -62
-    },
-    /* king */ {
-        -103,  -53,  -44,    6,  -14,  -11,  -19, -126,
-         -11,   18,   31,   12,   33,   45,   34,    4,
-           5,   23,   42,   53,   52,   44,   43,   14,
-          -5,   29,   46,   59,   58,   53,   44,   19,
-         -17,   14,   37,   52,   51,   38,   27,   10,
-         -27,   -4,   17,   29,   28,   20,    0,  -12,
-         -49,  -22,   -9,    1,    5,   -5,  -23,  -41,
-         -83,  -64,  -45,  -27,  -52,  -29,  -55,  -83
+ Accumulator::Accumulator(const Board& board) {
+     u64 whitePieces = board.pieces(WHITE);
+     u64 blackPieces = board.pieces(BLACK);
+
+     underlying = nn.hiddenLayerBias;
+
+     while (whitePieces) {
+         const Square sq = popLSB(whitePieces);
+
+         const usize feature = NN::feature(board.stm, WHITE, board.getPiece(sq), sq);
+
+         for (usize i = 0; i < HL_SIZE; i++)
+             underlying[i] += nn.weightsToHL[feature * HL_SIZE + i];
+     }
+
+     while (blackPieces) {
+         const Square sq = popLSB(blackPieces);
+
+         const usize feature = NN::feature(board.stm, BLACK, board.getPiece(sq), sq);
+
+         for (usize i = 0; i < HL_SIZE; i++)
+             underlying[i] += nn.weightsToHL[feature * HL_SIZE + i];
+     }
+ }
+
+i16 NN::ReLU(const i16 x) {
+    if (x < 0)
+        return 0;
+    return x;
+}
+
+i16 NN::CReLU(const i16 x) {
+    if (x < 0)
+        return 0;
+    if (x > QA)
+        return QA;
+    return x;
+}
+
+#if defined(__x86_64__) || defined(__amd64__) || (defined(_WIN64) && (defined(_M_X64) || defined(_M_AMD64)) || defined(__ARM_NEON))
+    #ifndef __ARM_NEON
+        #include <immintrin.h>
+    #endif
+    #if defined(__AVX512F__)
+        #pragma message("Using AVX512 NNUE inference")
+using Vectori16 = __m512i;
+using Vectori32 = __m512i;
+        #define set1_epi16 _mm512_set1_epi16
+        #define load_epi16(x) _mm512_load_si512(reinterpret_cast<const Vectori16*>(x))
+        #define min_epi16 _mm512_min_epi16
+        #define max_epi16 _mm512_max_epi16
+        #define madd_epi16 _mm512_madd_epi16
+        #define mullo_epi16 _mm512_mullo_epi16
+        #define add_epi32 _mm512_add_epi32
+        #define reduce_epi32 _mm512_reduce_add_epi32
+    #elif defined(__AVX2__)
+        #pragma message("Using AVX2 NNUE inference")
+using Vectori16 = __m256i;
+using Vectori32 = __m256i;
+        #define set1_epi16 _mm256_set1_epi16
+        #define load_epi16(x) _mm256_load_si256(reinterpret_cast<const Vectori16*>(x))
+        #define min_epi16 _mm256_min_epi16
+        #define max_epi16 _mm256_max_epi16
+        #define madd_epi16 _mm256_madd_epi16
+        #define mullo_epi16 _mm256_mullo_epi16
+        #define add_epi32 _mm256_add_epi32
+        #define reduce_epi32 \
+            [](Vectori32 vec) { \
+                __m128i xmm1 = _mm256_extracti128_si256(vec, 1); \
+                __m128i xmm0 = _mm256_castsi256_si128(vec); \
+                xmm0         = _mm_add_epi32(xmm0, xmm1); \
+                xmm1         = _mm_shuffle_epi32(xmm0, 238); \
+                xmm0         = _mm_add_epi32(xmm0, xmm1); \
+                xmm1         = _mm_shuffle_epi32(xmm0, 85); \
+                xmm0         = _mm_add_epi32(xmm0, xmm1); \
+                return _mm_cvtsi128_si32(xmm0); \
+            }
+    #elif defined(__ARM_NEON)
+        #include <arm_neon.h>
+        #pragma message("Using NEON NNUE inference")
+using Vectori16 = int16x8_t;
+using Vectori32 = int32x4_t;
+        #define set1_epi16 vdupq_n_s16
+        #define load_epi16(x) vld1q_s16(reinterpret_cast<const i16*>(x))
+        #define min_epi16 vminq_s16
+        #define max_epi16 vmaxq_s16
+        #define madd_epi16 \
+            [](Vectori16 a, Vectori16 b) { \
+                const Vectori16 low = vmull_s16(vget_low_s16(a), vget_low_s16(b)); \
+                const Vectori16 high = vmull_high_s16(a, b); \
+                return vpaddq_s32(low, high); \
+            }
+        #define mullo_epi16 vmulq_s16
+        #define add_epi32 vaddq_s32
+        #define reduce_epi32 vaddvq_s32
+    #else
+        #pragma message("Using SSE NNUE inference")
+// Assumes SSE support here
+using Vectori16 = __m128i;
+using Vectori32 = __m128i;
+        #define set1_epi16 _mm_set1_epi16
+        #define load_epi16(x) _mm_load_si128(reinterpret_cast<const Vectori16*>(x))
+        #define min_epi16 _mm_min_epi16
+        #define max_epi16 _mm_max_epi16
+        #define madd_epi16 _mm_madd_epi16
+        #define mullo_epi16 _mm_mullo_epi16
+        #define add_epi32 _mm_add_epi32
+        #define reduce_epi32 \
+            [](Vectori32 vec) { \
+                __m128i xmm1 = _mm_shuffle_epi32(vec, 238); \
+                vec          = _mm_add_epi32(vec, xmm1); \
+                xmm1         = _mm_shuffle_epi32(vec, 85); \
+                vec          = _mm_add_epi32(vec, xmm1); \
+                return _mm_cvtsi128_si32(vec); \
+            }
+    #endif
+i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
+    constexpr usize VECTOR_SIZE = sizeof(Vectori16) / sizeof(i16);
+    static_assert(HL_SIZE % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
+    const Vectori16 VEC_QA   = set1_epi16(QA);
+    const Vectori16 VEC_ZERO = set1_epi16(0);
+
+    Vectori32 accumulator{};
+
+    #pragma unroll
+    for (usize i = 0; i < HL_SIZE; i += VECTOR_SIZE) {
+        // Load accumulator
+        const Vectori16 accumValues  = load_epi16(&accum[i]);
+
+        // Clamp values
+        const Vectori16 clamped  = min_epi16(VEC_QA, max_epi16(accumValues, VEC_ZERO));
+
+        // Load weights
+        const Vectori16 weights  = load_epi16(reinterpret_cast<const Vectori16*>(&weightsToOut[i]));
+
+        // SCReLU it
+        const Vectori32 activated  = madd_epi16(clamped, mullo_epi16(clamped, weights));
+
+        accumulator = add_epi32(accumulator, activated);
     }
-}};
+
+    return reduce_epi32(accumulator);
+}
+#else
+    #pragma message("Using compiler optimized NNUE inference")
+i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
+    i32 res = 0;
+
+    #pragma unroll
+    for (usize i = 0; i < HL_SIZE; i++) {
+        res += (i32) SCReLU(accum[i]) * weightsToOut[bucket][i];
+    }
+    return res;
+}
+#endif
+
+// Finds the input feature
+usize NN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
+    const bool enemy = stm != pieceColor;
+    const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
+
+    return enemy * 64 * 6 + piece * 64 + squareIndex;
+}
 
 i32 evaluate(const Board& board) {
-    i32 mg = 0;
-    i32 eg = 0;
+    const Accumulator accum(board);
+    i32 eval = 0;
 
-    u64 whitePieces = board.pieces(WHITE);
-    u64 blackPieces = board.pieces(BLACK);
-
-    while (whitePieces) {
-        const Square sq = popLSB(whitePieces);
-        const PieceType pt = board.getPiece(sq);
-
-        mg += MATERIAL[pt].mg;
-        eg += MATERIAL[pt].eg;
-
-        mg += PSQT_MG[pt][sq];
-        eg += PSQT_EG[pt][sq];
+    if constexpr (ACTIVATION != ::SCReLU) {
+        for (usize i = 0; i < HL_SIZE; i++) {
+            // First HL_SIZE weights are for STM
+            if constexpr (ACTIVATION == ::ReLU)
+                eval += nn.ReLU(accum[i]) * nn.weightsToOut[i];
+            if constexpr (ACTIVATION == ::CReLU)
+                eval += nn.CReLU(accum[i]) * nn.weightsToOut[i];
+        }
     }
+    else
+        eval = nn.vectorizedSCReLU(accum);
 
-    while (blackPieces) {
-        const Square sq = flipRank(getLSB(blackPieces));
-        const PieceType pt = board.getPiece(popLSB(blackPieces));
 
-        mg -= MATERIAL[pt].mg;
-        eg -= MATERIAL[pt].eg;
+    // Dequantization
+    if constexpr (ACTIVATION == ::SCReLU)
+        eval /= QA;
 
-        mg -= PSQT_MG[pt][sq];
-        eg -= PSQT_EG[pt][sq];
-    }
+    eval += nn.outputBias;
 
-    const i32 phase = 4 * popcount(board.pieces(QUEEN))
-        + 2 * popcount(board.pieces(ROOK))
-        + popcount(board.pieces(BISHOP))
-        + popcount(board.pieces(KNIGHT));
-
-    return (mg * std::min<i32>(phase, 24) + eg * (24 - std::min<i32>(phase, 24))) / 24 * (1 - 2 * (board.stm == BLACK));
-};
+    // Apply output bias and scale the result
+    return (eval * EVAL_SCALE) / (QA * QB);
+}
