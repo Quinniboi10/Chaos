@@ -64,6 +64,12 @@ enum GameState : i8 {
     WIN
 };
 
+enum Activations {
+    ReLU,
+    CReLU,
+    SCReLU
+};
+
 constexpr array<std::string_view, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW", "WIN" };
 
 constexpr auto operator<=>(const GameState a, const GameState b) { return static_cast<int>(a) <=> static_cast<int>(b); }

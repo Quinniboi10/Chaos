@@ -36,7 +36,7 @@ struct Searcher {
         nodes[{ 0, currentHalf }] = Node();
         isSearching = true;
         rootPos = board;
-        search(nodes, params, limits);
+        search(params, limits);
         isSearching = false;
     }
 
@@ -148,9 +148,28 @@ struct Searcher {
         cout << "Returning to UCI loop" << endl;
     }
 
-    void search(Tree& nodes, const SearchParameters params, const SearchLimits limits);
+    void printRootPolicy(const Board& board) {
+        rootPos = board;
 
-    void bench(usize depth) {
+        const Stopwatch<std::chrono::milliseconds> stopwatch;
+        const vector<u64> posHistory;
+        const SearchParameters params(posHistory, CPUCT, false, false);
+        const SearchLimits limits(stopwatch, 0, 1, 0, 0);
+
+        nodes[{ 0, currentHalf }] = Node();
+
+        search(params, limits);
+
+        const Node& root = nodes[{ 0, currentHalf }];
+        for (usize idx = root.firstChild.load().index(); idx < root.firstChild.load().index() + root.numChildren; idx++) {
+            const Node& node = nodes[{ idx, currentHalf }];
+            cout << fmt::format("{}: {:.2f}%", node.move.load().toString(), node.policy * 100) << endl;
+        }
+    }
+
+    void search(const SearchParameters params, const SearchLimits limits);
+
+    void bench(const usize depth) {
     static array<string, 50> fens = {"r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
                                      "4rrk1/2p1b1p1/p1p3q1/4p3/2P2n1p/1P1NR2P/PB3PP1/3R1QK1 b - - 2 24",
                                      "r3qbrk/6p1/2b2pPp/p3pP1Q/PpPpP2P/3P1B2/2PB3K/R5R1 w - - 16 42",
@@ -213,7 +232,7 @@ struct Searcher {
             posHistory.clear();
             rootPos.loadFromFEN(fen);
             posHistory.push_back(rootPos.zobrist);
-            search(nodes, params, limits);
+            search(params, limits);
             totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;
             cout << nodeCount.load() << " nodes " << endl;
