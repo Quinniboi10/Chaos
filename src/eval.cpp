@@ -1,6 +1,5 @@
 #include "eval.h"
 
-// Embed of NNs
 #ifdef _MSC_VER
     #define MSVC
     #pragma push_macro("_MSC_VER")
@@ -24,67 +23,67 @@ constexpr usize ALIGNMENT = 64;
 constexpr usize ALIGNMENT = 32;
 #endif
 
-struct Accumulator {
-    alignas(ALIGNMENT) array<i16, HL_SIZE> underlying;
+struct ValueAccumulator {
+    alignas(ALIGNMENT) array<i16, HL_SIZE_V> underlying;
 
-    explicit Accumulator(const Board& board);
+    explicit ValueAccumulator(const Board& board);
 
     const i16& operator[](const usize& idx) const { return underlying[idx]; }
     i16& operator[](const usize& idx) { return underlying[idx]; }
 };
 
-struct NN {
-    alignas(ALIGNMENT) array<i16, HL_SIZE * 768> weightsToHL;
-    alignas(ALIGNMENT) array<i16, HL_SIZE> hiddenLayerBias;
-    alignas(ALIGNMENT) array<i16, HL_SIZE> weightsToOut;
+struct ValueNN {
+    alignas(ALIGNMENT) array<i16, HL_SIZE_V * 768> weightsToHL;
+    alignas(ALIGNMENT) array<i16, HL_SIZE_V> hiddenLayerBias;
+    alignas(ALIGNMENT) array<i16, HL_SIZE_V> weightsToOut;
     i16 outputBias;
 
     static i16 ReLU(const i16 x);
     static i16 CReLU(const i16 x);
 
-    i32 vectorizedSCReLU(const Accumulator& accum) const;
+    i32 vectorizedSCReLU(const ValueAccumulator& accum) const;
 
     static usize feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square);
 };
 
-const NN nn = *reinterpret_cast<const NN*>(gEVALData);
+const ValueNN nn = *reinterpret_cast<const ValueNN*>(gEVALData);
 
- Accumulator::Accumulator(const Board& board) {
-     u64 whitePieces = board.pieces(WHITE);
-     u64 blackPieces = board.pieces(BLACK);
+ValueAccumulator::ValueAccumulator(const Board& board) {
+    u64 whitePieces = board.pieces(WHITE);
+    u64 blackPieces = board.pieces(BLACK);
 
-     underlying = nn.hiddenLayerBias;
+    underlying = nn.hiddenLayerBias;
 
-     while (whitePieces) {
-         const Square sq = popLSB(whitePieces);
+    while (whitePieces) {
+        const Square sq = popLSB(whitePieces);
 
-         const usize feature = NN::feature(board.stm, WHITE, board.getPiece(sq), sq);
+        const usize feature = ValueNN::feature(board.stm, WHITE, board.getPiece(sq), sq);
 
-         for (usize i = 0; i < HL_SIZE; i++)
-             underlying[i] += nn.weightsToHL[feature * HL_SIZE + i];
-     }
+        for (usize i = 0; i < HL_SIZE_V; i++)
+            underlying[i] += nn.weightsToHL[feature * HL_SIZE_V + i];
+    }
 
-     while (blackPieces) {
-         const Square sq = popLSB(blackPieces);
+    while (blackPieces) {
+        const Square sq = popLSB(blackPieces);
 
-         const usize feature = NN::feature(board.stm, BLACK, board.getPiece(sq), sq);
+        const usize feature = ValueNN::feature(board.stm, BLACK, board.getPiece(sq), sq);
 
-         for (usize i = 0; i < HL_SIZE; i++)
-             underlying[i] += nn.weightsToHL[feature * HL_SIZE + i];
-     }
- }
+        for (usize i = 0; i < HL_SIZE_V; i++)
+            underlying[i] += nn.weightsToHL[feature * HL_SIZE_V + i];
+    }
+}
 
-i16 NN::ReLU(const i16 x) {
+i16 ValueNN::ReLU(const i16 x) {
     if (x < 0)
         return 0;
     return x;
 }
 
-i16 NN::CReLU(const i16 x) {
+i16 ValueNN::CReLU(const i16 x) {
     if (x < 0)
         return 0;
-    if (x > QA)
-        return QA;
+    if (x > QA_V)
+        return QA_V;
     return x;
 }
 
@@ -165,21 +164,21 @@ using Vectori32 = __m128i;
                 return _mm_cvtsi128_si32(vec); \
             }
     #endif
-i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
+i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     constexpr usize VECTOR_SIZE = sizeof(Vectori16) / sizeof(i16);
-    static_assert(HL_SIZE % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
-    const Vectori16 VEC_QA   = set1_epi16(QA);
+    static_assert(HL_SIZE_V % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
+    const Vectori16 VEC_QA_V   = set1_epi16(QA_V);
     const Vectori16 VEC_ZERO = set1_epi16(0);
 
-    Vectori32 accumulator{};
+    Vectori32 ValueAccumulator{};
 
     #pragma unroll
-    for (usize i = 0; i < HL_SIZE; i += VECTOR_SIZE) {
-        // Load accumulator
+    for (usize i = 0; i < HL_SIZE_V; i += VECTOR_SIZE) {
+        // Load ValueAccumulator
         const Vectori16 accumValues  = load_epi16(&accum[i]);
 
         // Clamp values
-        const Vectori16 clamped  = min_epi16(VEC_QA, max_epi16(accumValues, VEC_ZERO));
+        const Vectori16 clamped  = min_epi16(VEC_QA_V, max_epi16(accumValues, VEC_ZERO));
 
         // Load weights
         const Vectori16 weights  = load_epi16(reinterpret_cast<const Vectori16*>(&weightsToOut[i]));
@@ -187,18 +186,18 @@ i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
         // SCReLU it
         const Vectori32 activated  = madd_epi16(clamped, mullo_epi16(clamped, weights));
 
-        accumulator = add_epi32(accumulator, activated);
+        ValueAccumulator = add_epi32(ValueAccumulator, activated);
     }
 
-    return reduce_epi32(accumulator);
+    return reduce_epi32(ValueAccumulator);
 }
 #else
     #pragma message("Using compiler optimized NNUE inference")
-i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
+i32 NN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     i32 res = 0;
 
     #pragma unroll
-    for (usize i = 0; i < HL_SIZE; i++) {
+    for (usize i = 0; i < HL_SIZE_V; i++) {
         res += (i32) SCReLU(accum[i]) * weightsToOut[bucket][i];
     }
     return res;
@@ -206,7 +205,7 @@ i32 NN::vectorizedSCReLU(const Accumulator& accum) const {
 #endif
 
 // Finds the input feature
-usize NN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
+usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
     const bool enemy = stm != pieceColor;
     const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
 
@@ -214,15 +213,15 @@ usize NN::feature(const Color stm, const Color pieceColor, const PieceType piece
 }
 
 i32 evaluate(const Board& board) {
-    const Accumulator accum(board);
+    const ValueAccumulator accum(board);
     i32 eval = 0;
 
-    if constexpr (ACTIVATION != ::SCReLU) {
-        for (usize i = 0; i < HL_SIZE; i++) {
-            // First HL_SIZE weights are for STM
-            if constexpr (ACTIVATION == ::ReLU)
+    if constexpr (ACTIVATION_V != ::SCReLU) {
+        for (usize i = 0; i < HL_SIZE_V; i++) {
+            // First HL_SIZE_V weights are for STM
+            if constexpr (ACTIVATION_V == ::ReLU)
                 eval += nn.ReLU(accum[i]) * nn.weightsToOut[i];
-            if constexpr (ACTIVATION == ::CReLU)
+            if constexpr (ACTIVATION_V == ::CReLU)
                 eval += nn.CReLU(accum[i]) * nn.weightsToOut[i];
         }
     }
@@ -231,11 +230,11 @@ i32 evaluate(const Board& board) {
 
 
     // Dequantization
-    if constexpr (ACTIVATION == ::SCReLU)
-        eval /= QA;
+    if constexpr (ACTIVATION_V == ::SCReLU)
+        eval /= QA_V;
 
     eval += nn.outputBias;
 
     // Apply output bias and scale the result
-    return (eval * EVAL_SCALE) / (QA * QB);
+    return (eval * EVAL_SCALE_V) / (QA_V * QB_V);
 }

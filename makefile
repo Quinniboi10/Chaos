@@ -1,4 +1,5 @@
 DEFAULT_VALUE_NET = Vine_03.value
+DEFAULT_POLICY_NET = Vine_00.policy
 
 # Detect Operating System
 ifeq ($(OS),Windows_NT)
@@ -44,17 +45,19 @@ SRCS     := $(wildcard ./src/*.cpp)
 OBJS     := $(SRCS:.cpp=.o)
 
 # Default target
-all: download
+all: downloadV
+all: downloadP
 all: $(EXE)
 
 # Link the executable
 $(EXE): $(SRCS)
-	$(CXX) $(CXXFLAGS) -DVALUEFILE="\"$(VALUEFILE)\"" $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+	$(CXX) $(CXXFLAGS) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
 
 # Download the net from the repository
 VALUEFILE ?= $(DEFAULT_VALUE_NET)
+POLICYFILE ?= $(DEFAULT_POLICY_NET)
 
-download:
+downloadV:
 ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
 	@if [ ! -f "$(DEFAULT_VALUE_NET)" ]; then \
 		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_VALUE_NET); \
@@ -63,6 +66,17 @@ ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
 	fi
 else
 	@echo "VALUEFILE is set to '$(VALUEFILE)', skipping download."
+endif
+
+downloadP:
+ifeq ($(POLICYFILE),$(DEFAULT_POLICY_NET))
+	@if [ ! -f "$(DEFAULT_POLICY_NET)" ]; then \
+		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_POLICY_NET); \
+	else \
+		echo "$(DEFAULT_POLICY_NET) already exists, skipping download."; \
+	fi
+else
+	@echo "POLICYFILE is set to '$(POLICYFILE)', skipping download."
 endif
 
 # Debug build
