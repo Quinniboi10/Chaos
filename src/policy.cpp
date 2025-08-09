@@ -152,7 +152,7 @@ double policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, 
     return static_cast<double>(eval) / (Q_P * Q_P);
 }
 
-void fillPolicy(const Board& board, Tree& tree, const Node& parent) {
+void fillPolicy(const Board& board, Tree& tree, const Node& parent, const double temperature) {
     const PolicyAccumulator accum(board);
 
     double maxScore = -std::numeric_limits<double>::infinity();
@@ -175,7 +175,7 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent) {
 
     // Exponentiate and sum
     for (usize idx = 0; idx < numChildren; idx++) {
-        scores[idx] = std::exp(scores[idx] - maxScore);
+        scores[idx] = std::exp((scores[idx] - maxScore) / temperature);
         sum += scores[idx];
     }
 

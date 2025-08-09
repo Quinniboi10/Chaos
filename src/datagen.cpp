@@ -286,7 +286,7 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
     vector<u64> posHistory;
-    const SearchParameters params(posHistory, CPUCT, false, false);
+    const SearchParameters params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
     const SearchLimits limits(stopwatch, 0, nodes, 0, 0);
 
     searcher.setHash(datagen::HASH_PER_T);
