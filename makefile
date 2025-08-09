@@ -88,7 +88,7 @@ debug: all
 # Debug build
 .PHONY: profile
 profile: clean
-profile: CXXFLAGS = -O3 -g -march=native -fno-inline-functions -fno-finite-math-only -funroll-loops -flto -fuse-ld=lld -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
+profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -fuse-ld=lld -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
 profile: all
 
 # Force rebuild

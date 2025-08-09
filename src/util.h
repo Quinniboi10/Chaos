@@ -151,24 +151,46 @@ inline string formatNum(i64 v) {
 }
 
 // Fancy formats a time
-inline string formatTime(u64 timeInMS) {
-    long long seconds = timeInMS / 1000;
-    long long hours   = seconds / 3600;
+inline string formatTime(const u64 timeInMS) {
+    u64 seconds = timeInMS / 1000;
+    const u64 days = seconds / 60 / 60 / 24;
+    seconds %= 60 * 60 * 24;
+    const u64 hours = seconds / 3600;
     seconds %= 3600;
-    long long minutes = seconds / 60;
+    const u64 minutes = seconds / 60;
     seconds %= 60;
 
     string result;
 
+    if (days > 0)
+        result += std::to_string(days) + "d ";
     if (hours > 0)
         result += std::to_string(hours) + "h ";
     if (minutes > 0 || hours > 0)
         result += std::to_string(minutes) + "m ";
     if (seconds > 0 || minutes > 0 || hours > 0)
         result += std::to_string(seconds) + "s";
-    if (result == "")
+    if (result.empty())
         return std::to_string(timeInMS) + "ms";
     return result;
+}
+
+inline string suffixNum(double num) {
+    char suffix = '\0';
+    if (num >= static_cast<double>(1'000'000'000) * 10) {
+        num /= 1'000'000'000;
+        suffix = 'G';
+    }
+    else if (num >= 1'000'000 * 10) {
+        num /= 1'000'000;
+        suffix = 'M';
+    }
+    else if (num >= 1'000 * 10) {
+        num /= 1'000;
+        suffix = 'K';
+    }
+
+    return fmt::format("{:.2f}{}", num, suffix);
 }
 
 inline string padStr(string str, i64 target, u64 minPadding = 2) {
@@ -183,15 +205,21 @@ inline void printColoredScore(double wdl) {
     double colorWdl = std::clamp(wdl, -1.0, 1.0);
     int r, g, b;
 
+    const auto lerp = [](const double a, const double b, const double t) {
+        return a + t * (b - a);
+    };
+
     if (colorWdl < 0) {
-        r = static_cast<int>(200 - colorWdl * (240 - 200));
-        g = static_cast<int>(60 - colorWdl * (240 - 60));
-        b = static_cast<int>(60 - colorWdl * (240 - 60));
+        double t = colorWdl + 1.0;
+        r = static_cast<int>(lerp(255, 255, t)); // red stays max
+        g = static_cast<int>(lerp(0,   255, t)); // green rises
+        b = static_cast<int>(lerp(0,   255, t)); // blue rises
     }
     else {
-        r = static_cast<int>(240 + colorWdl * (60 - 240));
-        g = static_cast<int>(240 + colorWdl * (180 - 240));
-        b = static_cast<int>(240 + colorWdl * (60 - 240));
+        double t = colorWdl; // maps 0 → 1
+        r = static_cast<int>(lerp(255, 0,   t)); // red drops
+        g = static_cast<int>(lerp(255, 255, t)); // green stays max
+        b = static_cast<int>(lerp(255, 0,   t)); // blue drops
     }
 
     fmt::print(fmt::fg(fmt::rgb(r, g, b)), "{:.2f}", wdlToCP(wdl) / 100.0f);
@@ -222,7 +250,7 @@ inline void coloredProgBar(const usize length, const float fill) {
     }
     fmt::print("[");
     for (usize i = 0; i < length; ++i) {
-        float percentage = static_cast<float>(i) / (length - 1);
+        const float percentage = static_cast<float>(i) / (length - 1);
         if (percentage <= fill) {
             heatColor(1 - percentage, "#");
         } else {
@@ -233,15 +261,17 @@ inline void coloredProgBar(const usize length, const float fill) {
 }
 
 // Colorless progress bar
-inline void progressBar(const usize length, const float fill) {
+inline void progressBar(const usize length, const float fill, const std::string_view& color = "", std::ostream& os = std::cout) {
     if (length == 0) {
-        cout << "[] 0%";
+        os << "[] 0%";
         return;
     }
-    cout << "[";
+    os << "[";
+    os << color;
     for (usize i = 0; i < length; ++i)
-        cout << (static_cast<float>(i) / (length - 1) <= fill ? "#" : ".");
-    cout << "] " << static_cast<usize>(fill * 100) << "%";
+        os << (static_cast<float>(i) / (length - 1) <= fill ? "#" : ".");
+    os << Colors::RESET;
+    os << "] " << static_cast<usize>(fill * 100) << "%";
 }
 
 inline int findIndexOf(const auto arr, string entry) {
@@ -253,14 +283,14 @@ inline int findIndexOf(const auto arr, string entry) {
 }
 
 namespace cursor {
-    static void clearAll() { cout << "\033[2J\033[H"; }
-    static void clear() { cout << "\033[2K\r"; }
-    static void home() { cout << "\033[H"; }
-    static void up() { cout << "\033[A"; }
-    static void down() { cout << "\033[B"; }
-    static void begin() { cout << "\033[1G"; }
-    static void goTo(const usize x, const usize y) { cout << "\033[" << y << ";" << x << "H"; }
+    static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
+    static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }
+    static void home(std::ostream& out = cout) { out << "\033[H"; }
+    static void up(std::ostream& out = cout) { out << "\033[A"; }
+    static void down(std::ostream& out = cout) { out << "\033[B"; }
+    static void begin(std::ostream& out = cout) { out << "\033[1G"; }
+    static void goTo(const usize x, const usize y, std::ostream& out = cout) { out << "\033[" << y << ";" << x << "H"; }
 
-    static void hide() { cout << "\033[?25l"; }
-    static void show() { cout << "\033[?25h"; }
+    static void hide(std::ostream& out = cout) { out << "\033[?25l"; }
+    static void show(std::ostream& out = cout) { out << "\033[?25h"; }
 }

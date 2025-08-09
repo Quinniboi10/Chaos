@@ -138,17 +138,17 @@ usize moveIdx(const Color stm, const Move m) {
     return OFFSETS[from] + static_cast<usize>(popcount(below));
 }
 
-double policyScore(const Color stm, const PolicyAccumulator& PolicyAccumulator, const Move m) {
+double policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
     const usize idx = moveIdx(stm, m);
     double eval = nn.outputBiases[idx];
     for (usize i = 0; i < HL_SIZE_P; i++) {
         // First HL_SIZE_V weights are for STM
         if constexpr (ACTIVATION_P == ::ReLU)
-            eval += nn.ReLU(PolicyAccumulator[i]) * nn.weightsToOut[idx][i];
+            eval += nn.ReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
         if constexpr (ACTIVATION_P == ::CReLU)
-            eval += nn.CReLU(PolicyAccumulator[i]) * nn.weightsToOut[idx][i];
+            eval += nn.CReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
         if constexpr (ACTIVATION_P == ::SCReLU)
-            eval += nn.SCReLU(PolicyAccumulator[i]) * nn.weightsToOut[idx][i];
+            eval += nn.SCReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
     }
 
     return eval / (Q_P * Q_P);

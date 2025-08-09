@@ -31,13 +31,14 @@ struct Searcher {
         nodes.resize(maxNodes);
     }
 
-    void start(const Board& board, const SearchParameters params, const SearchLimits limits) {
+    Move start(const Board& board, const SearchParameters params, const SearchLimits limits) {
         assert(!isSearching);
         nodes[{ 0, currentHalf }] = Node();
         isSearching = true;
         rootPos = board;
-        search(params, limits);
+        const Move m = search(params, limits);
         isSearching = false;
+        return m;
     }
 
     void launchInteractiveTree() {
@@ -149,14 +150,15 @@ struct Searcher {
     }
 
     void printRootPolicy(const Board& board) {
-        rootPos = board;
+        if (rootPos != board) {
+            rootPos = board;
+            nodes[{ 0, currentHalf }] = Node();
+        }
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         const vector<u64> posHistory;
         const SearchParameters params(posHistory, CPUCT, false, false);
         const SearchLimits limits(stopwatch, 0, 1, 0, 0);
-
-        nodes[{ 0, currentHalf }] = Node();
 
         search(params, limits);
 
@@ -167,7 +169,7 @@ struct Searcher {
         }
     }
 
-    void search(const SearchParameters params, const SearchLimits limits);
+    Move search(const SearchParameters params, const SearchLimits limits);
 
     void bench(const usize depth) {
     static array<string, 50> fens = {"r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",

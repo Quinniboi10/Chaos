@@ -541,6 +541,24 @@ bool Board::isDraw() const {
     return false;
 }
 
+bool Board::isGameOver(const vector<u64>& posHistory) const {
+    if (isDraw())
+        return true;
+
+    // Threefold
+    if (!posHistory.empty()) {
+        usize reps = 0;
+        const u64 current = posHistory.back();
+
+        for (const u64 hash : posHistory)
+            if (hash == current)
+                if (++reps == 3)
+                    return true;
+    }
+
+    return Movegen::generateMoves(*this).length == 0;
+}
+
 // Print the board
 std::ostream& operator<<(std::ostream& os, const Board& board) {
     const auto printInfo = [&](const usize line) {
