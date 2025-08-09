@@ -72,6 +72,15 @@ PolicyAccumulator::PolicyAccumulator(const Board& board) {
         for (usize i = 0; i < HL_SIZE_P; i++)
             underlying[i] += nn.weightsToHL[feature * HL_SIZE_P + i];
     }
+
+    for (i16& i : underlying) {
+        if constexpr (ACTIVATION_P == ::ReLU)
+            i = PolicyNN::ReLU(i);
+        if constexpr (ACTIVATION_P == ::CReLU)
+            i = PolicyNN::CReLU(i);
+        if constexpr (ACTIVATION_P == ::SCReLU)
+            i = PolicyNN::SCReLU(i);
+    }
 }
 
 i16 PolicyNN::ReLU(const i16 x) {
@@ -81,11 +90,7 @@ i16 PolicyNN::ReLU(const i16 x) {
 }
 
 i16 PolicyNN::CReLU(const i16 x) {
-    if (x < 0)
-        return 0;
-    if (x > Q_P)
-        return Q_P;
-    return x;
+    return std::clamp<i16>(x, 0, Q_P);
 }
 
 i32 PolicyNN::SCReLU(const i16 x) {
@@ -140,18 +145,11 @@ usize moveIdx(const Color stm, const Move m) {
 
 double policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
     const usize idx = moveIdx(stm, m);
-    double eval = nn.outputBiases[idx];
-    for (usize i = 0; i < HL_SIZE_P; i++) {
-        // First HL_SIZE_V weights are for STM
-        if constexpr (ACTIVATION_P == ::ReLU)
-            eval += nn.ReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
-        if constexpr (ACTIVATION_P == ::CReLU)
-            eval += nn.CReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
-        if constexpr (ACTIVATION_P == ::SCReLU)
-            eval += nn.SCReLU(policyAccumulator[i]) * nn.weightsToOut[idx][i];
-    }
+    i32 eval = static_cast<i32>(nn.outputBiases[idx]);
+    for (usize i = 0; i < HL_SIZE_P; i++)
+        eval += policyAccumulator[i] * nn.weightsToOut[idx][i];
 
-    return eval / (Q_P * Q_P);
+    return static_cast<double>(eval) / (Q_P * Q_P);
 }
 
 void fillPolicy(const Board& board, Tree& tree, const Node& parent) {
@@ -162,11 +160,13 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent) {
 
     const u8 half = parent.firstChild.load().half();
     const usize firstIdx = parent.firstChild.load().index();
+    const u8 numChildren = parent.numChildren.load();
 
     vector<double> scores;
+    scores.reserve(parent.numChildren);
 
     // Get raw scores and find max
-    for (usize idx = firstIdx; idx < firstIdx + parent.numChildren; idx++) {
+    for (usize idx = firstIdx; idx < firstIdx + numChildren; idx++) {
         Node& child = tree[{ idx, half }];
         const double score = policyScore(board.stm, accum, child.move);
         scores.push_back(score);
@@ -174,13 +174,13 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent) {
     }
 
     // Exponentiate and sum
-    for (usize idx = 0; idx < parent.numChildren; idx++) {
+    for (usize idx = 0; idx < numChildren; idx++) {
         scores[idx] = std::exp(scores[idx] - maxScore);
         sum += scores[idx];
     }
 
     // Normalize
-    for (usize idx = 0; idx < parent.numChildren; idx++) {
+    for (usize idx = 0; idx < numChildren; idx++) {
         atomic<float>& score = tree[{ idx + firstIdx, half }].policy;
         const double exp = scores[idx];
         score.store(exp / sum);
