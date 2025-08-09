@@ -84,7 +84,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             child.numChildren = 0;
         }
 
-        fillPolicy(board, nodes, node);
+        fillPolicy(board, nodes, node, params.temp);
     };
 
     // Find the best child node from a parent
