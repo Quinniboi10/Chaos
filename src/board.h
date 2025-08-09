@@ -86,6 +86,9 @@ struct Board {
     bool isUnderAttack(Color c, Square square) const;
 
     bool isDraw() const;
+    bool isGameOver(const vector<u64>& posHistory) const;
+
+    bool operator==(const Board& other) const = default;
 
     friend std::ostream& operator<<(std::ostream& os, const Board& board);
 };

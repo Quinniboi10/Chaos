@@ -11,3 +11,10 @@ Chaos*
 # NNs
 *.value
 *.policy
+
+# Datagen
+data
+*.chaosdata
+
+# Perf
+perf*

@@ -4,6 +4,7 @@
 #include "searcher.h"
 #include "tunable.h"
 #include "constants.h"
+#include "datagen.h"
 #include "policy.h"
 #ifdef _WIN32
 #define NOMINMAX
@@ -25,7 +26,7 @@ int main(int argc, char* argv[]) {
     Movegen::initializeAllDatabases();
     initPolicy();
 
-    Board    board;
+    Board    board{};
     Searcher searcher{};
 
     vector<u64> positionHistory;
@@ -38,8 +39,8 @@ int main(int argc, char* argv[]) {
     board.reset();
 
     const auto exists            = [&](const string& sub) { return command.find(" " + sub + " ") != string::npos; };
-    const auto index             = [&](const string& sub, int offset = 0) { return findIndexOf(tokens, sub) + offset; };
-    const auto getValueFollowing = [&](const string& value, int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
+    const auto index             = [&](const string& sub, const int offset = 0) { return findIndexOf(tokens, sub) + offset; };
+    const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
 
     // *********** ./Prelude <ARGS> ************
     if (argc > 1) {
@@ -51,6 +52,16 @@ int main(int argc, char* argv[]) {
 
         if (args[1] == "bench")
             searcher.bench(argc > 2 ? std::stoi(argv[2]) : 6);
+        else if (args[1] == "datagen") {
+            std::ostringstream ss{};
+            for (usize idx = 2; idx < argc; idx++) {
+                ss << args[idx];
+                if (idx < argc - 1)
+                    ss << " ";
+            }
+            datagen::run(ss.str());
+        }
+
         return 0;
     }
 
@@ -155,8 +166,8 @@ int main(int argc, char* argv[]) {
             printBitboard(board.attacking[~board.stm]);
         }
         else if (command == "debug.moves") {
-            MoveList moves = Movegen::generateMoves(board);
-            for (Move m : moves)
+            const MoveList moves = Movegen::generateMoves(board);
+            for (const Move m : moves)
                 cout << m << endl;
         }
         else if (command == "debug.checkers")

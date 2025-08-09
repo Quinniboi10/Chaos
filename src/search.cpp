@@ -7,7 +7,7 @@
 #include <numeric>
 #include <functional>
 
-void Searcher::search(const SearchParameters params, const SearchLimits limits) {
+Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     // Reset worker
     this->nodeCount = 0;
 
@@ -26,7 +26,7 @@ void Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        return (limits.nodes > 0 && currentIndex >= limits.nodes)
+        return (limits.nodes > 0 && nodeCount.load() >= limits.nodes)
             || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
             || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
     };
@@ -170,7 +170,7 @@ void Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
 
-    const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, usize ply) {
+    const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, const usize ply) {
         // Check for an early return
         if (node.state != ONGOING)
             return node.getScore();
@@ -243,7 +243,7 @@ void Searcher::search(const SearchParameters params, const SearchLimits limits) 
         coloredProgBar(40, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";
 
-        cout << Colors::GREY << "Nodes:            " << Colors::WHITE << nodeCount.load() << "\n";
+        cout << Colors::GREY << "Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "\n";
         cursor::clear();
         cout << Colors::GREY << "Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
         cursor::clear();
@@ -326,9 +326,9 @@ void Searcher::search(const SearchParameters params, const SearchLimits limits) 
         }
     } while (!stopSearching());
 
-    if (params.doReporting) {
-        MoveList pv = findPV();
+    MoveList pv = findPV();
 
+    if (params.doReporting) {
         if (params.doUci) {
             printUCI(pv);
             cout << "bestmove " << pv[0] << endl;
@@ -339,4 +339,6 @@ void Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cursor::show();
         }
     }
+
+    return pv[0];
 }
