@@ -27,6 +27,7 @@ struct Node {
     atomic<Move> move;
     atomic<GameState> state;
     atomic<u8> numChildren;
+    atomic<bool> locked;
 
     Node() {
         totalScore = 0;
@@ -85,11 +86,12 @@ struct Node {
 struct SearchParameters {
     const vector<u64>& positionHistory;
     double cpuct;
+    usize threads;
 
     bool doReporting;
     bool doUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const bool doReporting, const bool doUci) : positionHistory(positionHistory), cpuct(cpuct), doReporting(doReporting), doUci(doUci) {}
+    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const usize threads, const bool doReporting, const bool doUci) : positionHistory(positionHistory), cpuct(cpuct), threads(threads), doReporting(doReporting), doUci(doUci) {}
 };
 
 struct SearchLimits {
@@ -115,9 +117,9 @@ struct Tree {
         resize(DEFAULT_HASH);
     }
 
-    void resize(const u64 size) {
-        nodes[0].resize(size / 2 + 256);
-        nodes[1].resize(size / 2 + 256);
+    void resize(const u64 size, const usize threads = 1) {
+        nodes[0].resize(size / 2 + 256 * threads);
+        nodes[1].resize(size / 2 + 256 * threads);
     }
 
     const Node& operator[](const NodeIndex& idx) const { return nodes[idx.half()][idx.index()]; }

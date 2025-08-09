@@ -82,7 +82,7 @@ endif
 # Debug build
 .PHONY: debug
 debug: clean
-debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline -fno-inline-functions -ldl -ggdb -DDEBUG -fsanitize=address -no-pie -fno-pie  -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
+debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline -fno-inline-functions -ldl -ggdb -DDEBUG -no-pie -fno-pie -fsanitize=undefined,address -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
 debug: all
 
 # Debug build

@@ -18,17 +18,20 @@ struct Searcher {
     atomic<bool> isSearching;
     atomic<u8> currentHalf;
 
+    atomic<bool>& stopFlag;
 
-    Searcher() {
+
+    Searcher(atomic<bool>& stopFlag) : stopFlag(stopFlag) {
+        rootPos.reset();
         setHash(DEFAULT_HASH);
         isSearching = false;
         currentHalf = 0;
     }
 
-    void setHash(const u64 hash) {
+    void setHash(const u64 hash, const usize threads = 1) {
         assert(!isSearching);
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        nodes.resize(maxNodes);
+        nodes.resize(maxNodes, threads);
     }
 
     Move start(const Board& board, const SearchParameters params, const SearchLimits limits) {
@@ -157,7 +160,7 @@ struct Searcher {
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         const vector<u64> posHistory;
-        const SearchParameters params(posHistory, CPUCT, false, false);
+        const SearchParameters params(posHistory, CPUCT, 1, false, false);
         const SearchLimits limits(stopwatch, 0, 1, 0, 0);
 
         search(params, limits);
@@ -227,7 +230,7 @@ struct Searcher {
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64> posHistory;
-        const SearchParameters params(posHistory, CPUCT, false, false);
+        const SearchParameters params(posHistory, CPUCT, 1, false, false);
         const SearchLimits limits(stopwatch, depth, 0, 0, 0);
 
         for (auto fen : fens) {

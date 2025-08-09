@@ -14,6 +14,7 @@
 
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
+usize threads = 1;
 
 bool chess960 = false;
 
@@ -26,8 +27,10 @@ int main(int argc, char* argv[]) {
     Movegen::initializeAllDatabases();
     initPolicy();
 
+    atomic<bool> stopFlag{false};
+
     Board    board{};
-    Searcher searcher{};
+    Searcher searcher{stopFlag};
 
     vector<u64> positionHistory;
 
@@ -42,7 +45,7 @@ int main(int argc, char* argv[]) {
     const auto index             = [&](const string& sub, const int offset = 0) { return findIndexOf(tokens, sub) + offset; };
     const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
 
-    // *********** ./Prelude <ARGS> ************
+    // *********** ./Chaos <ARGS> ************
     if (argc > 1) {
         // Convert args into strings
         vector<string> args;
@@ -83,7 +86,7 @@ int main(int argc, char* argv[]) {
 #endif
                  << endl;
             cout << "id author Quinniboi10" << endl;
-            cout << "option name Threads type spin default 1 min 1 max 1" << endl;
+            cout << "option name Threads type spin default 1 min 1 max 4096" << endl;
             cout << "option name Hash type spin default " << DEFAULT_HASH << " min 1 max 1048576" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "uciok" << endl;
@@ -127,14 +130,20 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, CPUCT, true, doUci);
+            const SearchParameters params(positionHistory, CPUCT, threads, true, doUci);
             const SearchLimits limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
-            if (tokens[2] == "Hash")
-                searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
+            if (tokens[2] == "Threads")
+                searcher.setHash(hash, threads = std::max(getValueFollowing("value", 1), 1));
+            else if (tokens[2] == "Hash")
+                searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH), threads);
+            else if (tokens[2] == "Hash")
+                chess960 = tokens[findIndexOf(tokens, "value") + 1] == "true";
         }
+        else if (command == "stop")
+            stopFlag.store(true);
         else if (command == "quit")
             break;
 

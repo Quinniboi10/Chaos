@@ -277,7 +277,8 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
 
     FileWriter fileWriter(filePath);
 
-    Searcher searcher;
+    atomic<bool> stopFlag{false};
+    Searcher searcher{stopFlag};
 
     std::random_device                 rd;
     std::mt19937_64                    engine(rd());
@@ -286,7 +287,7 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
     vector<u64> posHistory;
-    const SearchParameters params(posHistory, CPUCT, false, false);
+    const SearchParameters params(posHistory, CPUCT, 1, false, false);
     const SearchLimits limits(stopwatch, 0, nodes, 0, 0);
 
     searcher.setHash(datagen::HASH_PER_T);
