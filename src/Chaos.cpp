@@ -61,6 +61,8 @@ int main(int argc, char* argv[]) {
             }
             datagen::run(ss.str());
         }
+        else if (args[1].substr(0, 7) == "genfens")
+            datagen::genFens(args[1]);
 
         return 0;
     }

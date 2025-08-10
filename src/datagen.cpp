@@ -289,18 +289,24 @@ mainLoop:
         for (usize i = 0; i < randomMoves; i++) {
             lk.lock();
             makeRandomMove(board);
+            lk.unlock();
             if (board.isGameOver(posHistory))
                 goto mainLoop;
-            lk.unlock();
         }
 
         fileWriter.setStartpos(board);
         posHistory = { board.zobrist };
 
+        bool isFirstMove = true;
 
         while (!board.isGameOver(posHistory)) {
             const Move m = searcher.start(board, params, limits);
             assert(!m.isNull());
+
+            if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE) {
+                goto mainLoop;
+                isFirstMove = false;
+            }
 
             fileWriter.addMove(searcher, m);
 
@@ -308,6 +314,8 @@ mainLoop:
             board.move(m);
             lk.unlock();
             posHistory.push_back(board.zobrist);
+
+            isFirstMove = false;
 
             positions++;
         }
@@ -420,4 +428,65 @@ void datagen::run(const string& params) {
             thread.join();
     cursor::goTo(1, 30);
     cursor::show();
+}
+
+
+void datagen::genFens(const string& params) {
+    if (params.empty())
+        return;
+
+    vector<string> tokens = split(params, ' ');
+
+    const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
+        const auto  loc = std::find(tokens.begin(), tokens.end(), value);
+        const usize idx = std::distance(tokens.begin(), loc) + 1;
+        if (loc == tokens.end() || idx >= tokens.size()) {
+            std::ostringstream ss;
+            ss << defaultValue;
+            return ss.str();
+        }
+        return tokens[idx];
+    };
+
+    const auto isValidPosition = [](const Board& board) {
+        const Stopwatch<std::chrono::milliseconds> stopwatch;
+        const vector<u64>                          posHistory;
+        const SearchParameters                     params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
+        const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
+
+        Searcher searcher;
+        searcher.start(board, params, limits);
+        assert(!m.isNull());
+
+        return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= datagen::MAX_STARTPOS_SCORE;
+    };
+
+    const u64 numFens = std::stoull(getValueFollowing("genfens", 1));
+    const u64 seed    = std::stoull(getValueFollowing("seed", std::time(nullptr)));
+
+    std::mt19937                       eng(seed);
+    std::uniform_int_distribution<int> dist(0, 1);
+    auto                               randBool = [&]() { return dist(eng); };
+
+
+    const vector<u64> posHistory;
+    u64               fens = 0;
+    while (fens < numFens) {
+        Board board;
+        board.reset();
+        const usize randomMoves = datagen::RAND_MOVES + randBool();
+        for (usize i = 0; i < randomMoves; i++) {
+            MoveList                           moves = Movegen::generateMoves(board);
+            std::uniform_int_distribution<int> dist(0, moves.length - 1);
+            board.move(moves.moves[dist(eng)]);
+            if (board.isGameOver(posHistory))
+                break;
+        }
+
+        if (!isValidPosition(board))
+            continue;
+
+        cout << "info string genfens " << board.fen() << endl;
+        fens++;
+    }
 }
