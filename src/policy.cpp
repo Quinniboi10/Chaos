@@ -143,32 +143,32 @@ usize moveIdx(const Color stm, const Move m) {
     return OFFSETS[from] + static_cast<usize>(popcount(below));
 }
 
-double policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
+float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
     const usize idx = moveIdx(stm, m);
-    i32 eval = static_cast<i32>(nn.outputBiases[idx]);
+    i32 eval = nn.outputBiases[idx];
     for (usize i = 0; i < HL_SIZE_P; i++)
         eval += policyAccumulator[i] * nn.weightsToOut[idx][i];
 
-    return static_cast<double>(eval) / (Q_P * Q_P);
+    return static_cast<float>(eval) / (Q_P * Q_P);
 }
 
-void fillPolicy(const Board& board, Tree& tree, const Node& parent, const double temperature) {
+void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float temperature) {
     const PolicyAccumulator accum(board);
 
-    double maxScore = -std::numeric_limits<double>::infinity();
-    double sum = 0;
+    float maxScore = -std::numeric_limits<float>::infinity();
+    float sum = 0;
 
     const u8 half = parent.firstChild.load().half();
     const usize firstIdx = parent.firstChild.load().index();
     const u8 numChildren = parent.numChildren.load();
 
-    vector<double> scores;
+    vector<float> scores;
     scores.reserve(parent.numChildren);
 
     // Get raw scores and find max
     for (usize idx = firstIdx; idx < firstIdx + numChildren; idx++) {
         Node& child = tree[{ idx, half }];
-        const double score = policyScore(board.stm, accum, child.move);
+        const float score = policyScore(board.stm, accum, child.move);
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }
@@ -182,7 +182,7 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent, const double
     // Normalize
     for (usize idx = 0; idx < numChildren; idx++) {
         atomic<float>& score = tree[{ idx + firstIdx, half }].policy;
-        const double exp = scores[idx];
+        const float exp = scores[idx];
         score.store(exp / sum);
     }
 }
