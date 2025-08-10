@@ -20,7 +20,7 @@ public:
     bool operator==(const NodeIndex& other) const { return idx == other.idx; }
 };
 struct Node {
-    atomic<double> totalScore;
+    atomic<float> totalScore;
     atomic<NodeIndex> firstChild;
     atomic<u64> visits;
     atomic<float> policy;
@@ -69,7 +69,7 @@ struct Node {
             && numChildren == other.numChildren.load();
     }
 
-    double getScore() const {
+    float getScore() const {
         if (state == DRAW)
             return 0;
         if (state == WIN)
@@ -85,12 +85,12 @@ struct Node {
 struct SearchParameters {
     const vector<u64>& positionHistory;
     double cpuct;
-    double temp;
+    float temp;
 
     bool doReporting;
     bool doUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const double temp, const bool doReporting, const bool doUci) : positionHistory(positionHistory), cpuct(cpuct), temp(temp), doReporting(doReporting), doUci(doUci) {}
+    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const float temp, const bool doReporting, const bool doUci) : positionHistory(positionHistory), cpuct(cpuct), temp(temp), doReporting(doReporting), doUci(doUci) {}
 };
 
 struct SearchLimits {

@@ -47,18 +47,18 @@ inline u64 shift(u64 bb) {
 
 inline u64 shift(int dir, u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
 
-inline double sigmoid(double x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
-inline double inverseSigmoid(double x) { return std::log((1 + x) / (1 - x)); }
+inline float sigmoid(const float x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
+inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
 
-inline double cpToWDL(int cp) { return sigmoid((static_cast<double>(cp) / EVAL_DIVISOR)); }
-inline i32 wdlToCP(double wdl) {
+inline float cpToWDL(int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
+inline i32 wdlToCP(float wdl) {
     assert(wdl > -1);
     assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
 }
 
-inline std::vector<string> split(const string& str, char delim) {
-    std::vector<std::string> result;
+inline vector<string> split(const string& str, char delim) {
+    vector<std::string> result;
 
     std::istringstream stream(str);
 
@@ -285,6 +285,7 @@ inline int findIndexOf(const auto arr, string entry) {
 namespace cursor {
     static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
     static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }
+    static void clearDown(std::ostream& out = cout) { out << "\x1b[J"; }
     static void home(std::ostream& out = cout) { out << "\033[H"; }
     static void up(std::ostream& out = cout) { out << "\033[A"; }
     static void down(std::ostream& out = cout) { out << "\033[B"; }

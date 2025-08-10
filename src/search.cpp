@@ -12,7 +12,7 @@ bool isLeaf(const Node& node, const u8 currentHalf) {
     return node.numChildren == 0 || node.firstChild.load().half() != currentHalf;
 }
 
-// Return if a node is threefold (or twofold if all positions are past root)
+// Return if a node is threefold
 bool isThreefold(const vector<u64>& posHistory) {
     usize reps = 0;
     const u64 current = posHistory.back();
@@ -47,14 +47,14 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     node.firstChild  = { currentIndex, currentHalf };
     node.numChildren = moves.length;
 
+    Node* child = &nodes[{ currentIndex, currentHalf }];
+
     for (usize i = 0; i < moves.length; i++) {
-        Node& child = nodes[{ currentIndex + i, currentHalf }];
-        child.totalScore = 0;
-        child.visits = 0;
-        child.firstChild = { 0, 0 };
-        child.state = ONGOING;
-        child.move = moves[i];
-        child.numChildren = 0;
+        child[i].totalScore = 0;
+        child[i].visits = 0;
+        child[i].move = moves[i];
+        child[i].state = ONGOING;
+        child[i].numChildren = 0;
     }
 
     currentIndex += moves.length;
@@ -67,11 +67,12 @@ Node& findBestChild(Tree& nodes, const Node& node) {
     const u8 half = node.firstChild.load().half();
     double bestScore = puct(node, nodes[node.firstChild]);
     Node* bestChild = &nodes[node.firstChild];
-    for (usize idx = node.firstChild.load().index() + 1; idx < node.firstChild.load().index() + node.numChildren; idx++) {
-        const double score = puct(node, nodes[{ idx, half }]);
+    Node* child = bestChild;
+    for (usize idx = 1; idx < + node.numChildren; idx++) {
+        const double score = puct(node, child[idx]);
         if (score > bestScore) {
             bestScore = score;
-            bestChild = &nodes[{ idx, half }];
+            bestChild = child + idx;
         }
     }
 
@@ -79,7 +80,7 @@ Node& findBestChild(Tree& nodes, const Node& node) {
 };
 
 // Evaluate node
-double simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
+float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
     assert(node.state == ONGOING);
 
     if (board.isDraw() || isThreefold(posHistory) || (node.numChildren == 0 && !board.inCheck()))
@@ -93,17 +94,15 @@ double simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
 
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& nodes, const Node& node) {
-    const NodeIndex startIdx = node.firstChild.load();
-    const u8 half = startIdx.half();
+    const Node* child = &nodes[node.firstChild.load()];
 
-    double bestScore = -nodes[startIdx].getScore();
-    Move bestMove = nodes[startIdx].move;
-    for (usize idx = startIdx.index() + 1; idx < startIdx.index() + node.numChildren; idx++) {
-        const Node& child = nodes[{ idx, half}];
-        const double score = -child.getScore();
+    float bestScore = -child->getScore();
+    Move bestMove = child->move;
+    for (usize idx = 1; idx < node.numChildren; idx++) {
+        const float score = -child[idx].getScore();
         if (score > bestScore) {
             bestScore = score;
-            bestMove = child.move;
+            bestMove = child[idx].move;
         }
     }
 
@@ -118,18 +117,19 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
 
     while (!isLeaf(*node, currentHalf)) {
         const NodeIndex startIdx = node->firstChild.load();
-        double bestScore = -nodes[startIdx].getScore();
-        usize bestIdx = startIdx.index();
-        for (usize idx = startIdx.index() + 1; idx < startIdx.index() + node->numChildren; idx++) {
-            const double score = -nodes[{ idx, currentHalf}].getScore();
+        const Node* child = &nodes[startIdx];
+        const Node* bestChild = child;
+        float bestScore = -child->getScore();
+        for (usize idx = 1; idx < node->numChildren; idx++) {
+            const float score = -child[idx].getScore();
             if (score > bestScore) {
                 bestScore = score;
-                bestIdx = idx;
+                bestChild = child + idx;
             }
         }
 
-        node = &nodes[{ bestIdx, currentHalf }];
-        pv.add(node->move);
+        pv.add(bestChild->move);
+        node = bestChild;
     }
 
     return pv;
@@ -137,12 +137,11 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
 
 // Copy children from the constant half to the current one
 void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
-    const NodeIndex oldIdx = node.firstChild.load();
+    const Node* oldChild = &nodes[node.firstChild.load()];
+    Node* newChild = &nodes[{ currentIndex, currentHalf }];
 
-    for (usize i = 0; i < node.numChildren; i++) {
-        Node& child = nodes[{ currentIndex + i, currentHalf }];
-        child = nodes[{ oldIdx.index() + i, oldIdx.half() }];
-    }
+    for (usize i = 0; i < node.numChildren; i++)
+        newChild[i] = oldChild[i];
 
     node.firstChild.store({ currentIndex, currentHalf });
 
@@ -151,9 +150,12 @@ void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHa
 
 // Remove all references to the other half
 void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
-    if (node.firstChild.load().half() == currentHalf) {
-        for (usize idx = node.firstChild.load().index(); idx < node.firstChild.load().index() + node.numChildren; idx++)
-            removeRefs(nodes, nodes[{ idx, currentHalf }], currentHalf);
+    const NodeIndex startIdx = node.firstChild.load();
+
+    if (startIdx.half() == currentHalf) {
+        Node* child = &nodes[startIdx];
+        for (usize idx = 0; idx < + node.numChildren; idx++)
+            removeRefs(nodes, child[idx], currentHalf);
     }
     else {
         node.numChildren = 0;
@@ -161,12 +163,12 @@ void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
     }
 };
 
-double searchNode(Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+float searchNode(Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
     if (node.state != ONGOING)
         return node.getScore();
 
-    double score;
+    float score;
 
     // Selection
     if (!isLeaf(node, currentHalf)) {
@@ -265,7 +267,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::clear();
         cout << Colors::GREY << "Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
         cursor::clear();
-        cout << Colors::GREY << "Nodes per second: " << Colors::WHITE << nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1) << "\n";
+        cout << Colors::GREY << "Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "\n";
         cout << "\n";
 
         cursor::clear();
@@ -273,7 +275,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << Colors::GREY << "Max depth: " << Colors::WHITE << seldepth << "\n\n";
 
         cursor::clear();
-        const double rootWdl = nodes[{ 0, currentHalf }].getScore();
+        const float rootWdl = nodes[{ 0, currentHalf }].getScore();
         cout << Colors::GREY << "Score:     ";
         printColoredScore(rootWdl);
         cout << "\n";
