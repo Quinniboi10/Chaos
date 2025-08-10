@@ -8,13 +8,11 @@
 #include <functional>
 
 // Return if a node is an unexplored or terminal node in the current half
-bool isLeaf(const Node& node, const u8 currentHalf) {
-    return node.numChildren == 0 || node.firstChild.load().half() != currentHalf;
-}
+bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
 // Return if a node is threefold
 bool isThreefold(const vector<u64>& posHistory) {
-    usize reps = 0;
+    usize     reps    = 0;
     const u64 current = posHistory.back();
 
     for (const u64 hash : posHistory)
@@ -50,10 +48,10 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     Node* child = &nodes[{ currentIndex, currentHalf }];
 
     for (usize i = 0; i < moves.length; i++) {
-        child[i].totalScore = 0;
-        child[i].visits = 0;
-        child[i].move = moves[i];
-        child[i].state = ONGOING;
+        child[i].totalScore  = 0;
+        child[i].visits      = 0;
+        child[i].move        = moves[i];
+        child[i].state       = ONGOING;
         child[i].numChildren = 0;
     }
 
@@ -64,11 +62,10 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
 
 // Find the best child node from a parent
 Node& findBestChild(Tree& nodes, const Node& node) {
-    const u8 half = node.firstChild.load().half();
     double bestScore = puct(node, nodes[node.firstChild]);
-    Node* bestChild = &nodes[node.firstChild];
-    Node* child = bestChild;
-    for (usize idx = 1; idx < + node.numChildren; idx++) {
+    Node*  bestChild = &nodes[node.firstChild];
+    Node*  child     = bestChild;
+    for (usize idx = 1; idx < node.numChildren; idx++) {
         const double score = puct(node, child[idx]);
         if (score > bestScore) {
             bestScore = score;
@@ -97,12 +94,12 @@ Move findPvMove(const Tree& nodes, const Node& node) {
     const Node* child = &nodes[node.firstChild.load()];
 
     float bestScore = -child->getScore();
-    Move bestMove = child->move;
+    Move  bestMove  = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
         const float score = -child[idx].getScore();
         if (score > bestScore) {
             bestScore = score;
-            bestMove = child[idx].move;
+            bestMove  = child[idx].move;
         }
     }
 
@@ -116,10 +113,10 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
     const Node* node = &nodes[{ 0, currentHalf }];
 
     while (!isLeaf(*node, currentHalf)) {
-        const NodeIndex startIdx = node->firstChild.load();
-        const Node* child = &nodes[startIdx];
-        const Node* bestChild = child;
-        float bestScore = -child->getScore();
+        const NodeIndex startIdx  = node->firstChild.load();
+        const Node*     child     = &nodes[startIdx];
+        const Node*     bestChild = child;
+        float           bestScore = -child->getScore();
         for (usize idx = 1; idx < node->numChildren; idx++) {
             const float score = -child[idx].getScore();
             if (score > bestScore) {
@@ -138,7 +135,7 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
 // Copy children from the constant half to the current one
 void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
     const Node* oldChild = &nodes[node.firstChild.load()];
-    Node* newChild = &nodes[{ currentIndex, currentHalf }];
+    Node*       newChild = &nodes[{ currentIndex, currentHalf }];
 
     for (usize i = 0; i < node.numChildren; i++)
         newChild[i] = oldChild[i];
@@ -154,16 +151,17 @@ void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
 
     if (startIdx.half() == currentHalf) {
         Node* child = &nodes[startIdx];
-        for (usize idx = 0; idx < + node.numChildren; idx++)
+        for (usize idx = 0; idx < +node.numChildren; idx++)
             removeRefs(nodes, child[idx], currentHalf);
     }
     else {
         node.numChildren = 0;
-        node.firstChild = { 0, currentHalf };
+        node.firstChild  = { 0, currentHalf };
     }
 };
 
-float searchNode(Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+float searchNode(
+  Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
     if (node.state != ONGOING)
         return node.getScore();
@@ -173,7 +171,7 @@ float searchNode(Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& curren
     // Selection
     if (!isLeaf(node, currentHalf)) {
         Node& bestChild = findBestChild(nodes, node);
-        Board newBoard = board;
+        Board newBoard  = board;
         newBoard.move(bestChild.move);
 
         posHistory.push_back(newBoard.zobrist);
@@ -210,8 +208,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     u64 currentIndex = 1;
 
-    auto& iterations = this->nodeCount;
-    u64 cumulativeDepth = 0;
+    auto& iterations      = this->nodeCount;
+    u64   cumulativeDepth = 0;
 
     usize seldepth = 0;
 
@@ -223,8 +221,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        return (limits.nodes > 0 && nodeCount.load() >= limits.nodes)
-            || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
+        return (limits.nodes > 0 && nodeCount.load() >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
             || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
     };
 
@@ -233,10 +230,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<std::pair<u64, Move>> bestMoves;
-    usize lastDepth = 0;
-    usize lastSeldepth = 0;
-    Move lastMove = Move::null();
+    vector<std::pair<u64, Move>>         bestMoves;
+    usize                                lastDepth    = 0;
+    usize                                lastSeldepth = 0;
+    Move                                 lastMove     = Move::null();
 
     const auto printUCI = [&](const MoveList& pv) {
         cout << "info depth " << cumulativeDepth / iterations;
@@ -329,9 +326,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                 const MoveList pv = findPV(nodes, currentHalf);
                 printUCI(pv);
 
-                lastDepth = cumulativeDepth / iterations;
+                lastDepth    = cumulativeDepth / iterations;
                 lastSeldepth = seldepth;
-                lastMove = pv[0];
+                lastMove     = pv[0];
                 stopwatch.reset();
             }
             else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
@@ -340,9 +337,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                     bestMoves.emplace_back(limits.commandTime.elapsed(), pv[0]);
                 prettyPrint(pv);
 
-                lastDepth = cumulativeDepth / iterations;
+                lastDepth    = cumulativeDepth / iterations;
                 lastSeldepth = seldepth;
-                lastMove = pv[0];
+                lastMove     = pv[0];
                 stopwatch.reset();
             }
         }

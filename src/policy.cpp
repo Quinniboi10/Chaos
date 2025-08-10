@@ -30,7 +30,7 @@ struct PolicyAccumulator {
     explicit PolicyAccumulator(const Board& board);
 
     const i16& operator[](const usize& idx) const { return underlying[idx]; }
-    i16& operator[](const usize& idx) { return underlying[idx]; }
+    i16&       operator[](const usize& idx) { return underlying[idx]; }
 };
 
 struct PolicyNN {
@@ -89,9 +89,7 @@ i16 PolicyNN::ReLU(const i16 x) {
     return x;
 }
 
-i16 PolicyNN::CReLU(const i16 x) {
-    return std::clamp<i16>(x, 0, Q_P);
-}
+i16 PolicyNN::CReLU(const i16 x) { return std::clamp<i16>(x, 0, Q_P); }
 
 i32 PolicyNN::SCReLU(const i16 x) {
     if (x < 0)
@@ -103,14 +101,14 @@ i32 PolicyNN::SCReLU(const i16 x) {
 
 // Finds the input feature
 usize PolicyNN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
-    const bool enemy = stm != pieceColor;
-    const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
+    const bool enemy       = stm != pieceColor;
+    const int  squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
 
     return enemy * 64 * 6 + piece * 64 + squareIndex;
 }
 
 // Based on code from Vine
-array<u64, 64> ALL_DESTINATIONS;
+array<u64, 64>   ALL_DESTINATIONS;
 array<usize, 65> OFFSETS;
 
 void initPolicy() {
@@ -131,21 +129,21 @@ usize moveIdx(const Color stm, const Move m) {
     const i32 flipper = stm == Color::BLACK ? 56 : 0;
     if (m.typeOf() == PROMOTION) {
         constexpr usize PROMO_STRIDE = 22;
-        const i32 promoId = 2 * fileOf(m.from()) + fileOf(m.to());
-        const i32 kind = m.promo() - 1;
+        const i32       promoId      = 2 * fileOf(m.from()) + fileOf(m.to());
+        const i32       kind         = m.promo() - 1;
         return OFFSETS[64] + kind * PROMO_STRIDE + promoId;
     }
 
-    const Square from = Square(m.from() ^ flipper);
-    const Square to = Square(m.to() ^ flipper);
-    const u64 all = ALL_DESTINATIONS[from];
-    const u64 below = to == 0 ? 0 : all & ((1ULL << to) - 1);
+    const Square from  = Square(m.from() ^ flipper);
+    const Square to    = Square(m.to() ^ flipper);
+    const u64    all   = ALL_DESTINATIONS[from];
+    const u64    below = to == 0 ? 0 : all & ((1ULL << to) - 1);
     return OFFSETS[from] + static_cast<usize>(popcount(below));
 }
 
 float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
-    const usize idx = moveIdx(stm, m);
-    i32 eval = nn.outputBiases[idx];
+    const usize idx  = moveIdx(stm, m);
+    i32         eval = nn.outputBiases[idx];
     for (usize i = 0; i < HL_SIZE_P; i++)
         eval += policyAccumulator[i] * nn.weightsToOut[idx][i];
 
@@ -156,18 +154,18 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float 
     const PolicyAccumulator accum(board);
 
     float maxScore = -std::numeric_limits<float>::infinity();
-    float sum = 0;
+    float sum      = 0;
 
-    const u8 half = parent.firstChild.load().half();
-    const usize firstIdx = parent.firstChild.load().index();
-    const u8 numChildren = parent.numChildren.load();
+    const u8    half        = parent.firstChild.load().half();
+    const usize firstIdx    = parent.firstChild.load().index();
+    const u8    numChildren = parent.numChildren.load();
 
     vector<float> scores;
     scores.reserve(parent.numChildren);
 
     // Get raw scores and find max
     for (usize idx = firstIdx; idx < firstIdx + numChildren; idx++) {
-        Node& child = tree[{ idx, half }];
+        Node&       child = tree[{ idx, half }];
         const float score = policyScore(board.stm, accum, child.move);
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
@@ -182,7 +180,7 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float 
     // Normalize
     for (usize idx = 0; idx < numChildren; idx++) {
         atomic<float>& score = tree[{ idx + firstIdx, half }].policy;
-        const float exp = scores[idx];
+        const float    exp   = scores[idx];
         score.store(exp / sum);
     }
 }

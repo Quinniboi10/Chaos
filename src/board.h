@@ -36,7 +36,7 @@ struct Board {
     usize halfMoveClock;
     usize fullMoveClock;
 
-  private:
+   private:
     char getPieceAt(int i) const;
 
     void placePiece(Color c, PieceType pt, int sq);
@@ -53,7 +53,7 @@ struct Board {
 
    public:
     static void fillZobristTable();
-    Square castleSq(Color c, bool kingside) const { return castling[castleIndex(c, kingside)]; }
+    Square      castleSq(Color c, bool kingside) const { return castling[castleIndex(c, kingside)]; }
 
     u8 count(PieceType pt) const;
 
@@ -68,7 +68,7 @@ struct Board {
 
     void reset();
 
-    void loadFromFEN(string fen);
+    void   loadFromFEN(string fen);
     string fen() const;
 
     PieceType getPiece(int sq) const;

@@ -51,7 +51,7 @@ inline float sigmoid(const float x) { return 2 / (1 + std::pow(std::numbers::e, 
 inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
 
 inline float cpToWDL(int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
-inline i32 wdlToCP(float wdl) {
+inline i32   wdlToCP(float wdl) {
     assert(wdl > -1);
     assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
@@ -152,8 +152,8 @@ inline string formatNum(i64 v) {
 
 // Fancy formats a time
 inline string formatTime(const u64 timeInMS) {
-    u64 seconds = timeInMS / 1000;
-    const u64 days = seconds / 60 / 60 / 24;
+    u64       seconds = timeInMS / 1000;
+    const u64 days    = seconds / 60 / 60 / 24;
     seconds %= 60 * 60 * 24;
     const u64 hours = seconds / 3600;
     seconds %= 3600;
@@ -203,23 +203,21 @@ inline string padStr(string str, i64 target, u64 minPadding = 2) {
 // Score color
 inline void printColoredScore(double wdl) {
     double colorWdl = std::clamp(wdl, -1.0, 1.0);
-    int r, g, b;
+    int    r, g, b;
 
-    const auto lerp = [](const double a, const double b, const double t) {
-        return a + t * (b - a);
-    };
+    const auto lerp = [](const double a, const double b, const double t) { return a + t * (b - a); };
 
     if (colorWdl < 0) {
         double t = colorWdl + 1.0;
-        r = static_cast<int>(lerp(255, 255, t)); // red stays max
-        g = static_cast<int>(lerp(0,   255, t)); // green rises
-        b = static_cast<int>(lerp(0,   255, t)); // blue rises
+        r        = static_cast<int>(lerp(255, 255, t));  // red stays max
+        g        = static_cast<int>(lerp(0, 255, t));    // green rises
+        b        = static_cast<int>(lerp(0, 255, t));    // blue rises
     }
     else {
-        double t = colorWdl; // maps 0 → 1
-        r = static_cast<int>(lerp(255, 0,   t)); // red drops
-        g = static_cast<int>(lerp(255, 255, t)); // green stays max
-        b = static_cast<int>(lerp(255, 0,   t)); // blue drops
+        double t = colorWdl;                             // maps 0 → 1
+        r        = static_cast<int>(lerp(255, 0, t));    // red drops
+        g        = static_cast<int>(lerp(255, 255, t));  // green stays max
+        b        = static_cast<int>(lerp(255, 0, t));    // blue drops
     }
 
     fmt::print(fmt::fg(fmt::rgb(r, g, b)), "{:.2f}", wdlToCP(wdl) / 100.0f);
@@ -231,12 +229,13 @@ inline void heatColor(float t, const string& text) {
     int r, g, b = 0;
     if (t < 0.5f) {
         const float ratio = t / 0.5f;
-        r = 255;
-        g = static_cast<int>(ratio * 255);
-    } else {
+        r                 = 255;
+        g                 = static_cast<int>(ratio * 255);
+    }
+    else {
         const float ratio = (t - 0.5f) / 0.5f;
-        r = static_cast<int>(255 * (1.0f - ratio));
-        g = 255;
+        r                 = static_cast<int>(255 * (1.0f - ratio));
+        g                 = 255;
     }
 
     fmt::print(fg(fmt::rgb(r, g, b)), "{}", text);
@@ -253,7 +252,8 @@ inline void coloredProgBar(const usize length, const float fill) {
         const float percentage = static_cast<float>(i) / (length - 1);
         if (percentage <= fill) {
             heatColor(1 - percentage, "#");
-        } else {
+        }
+        else {
             fmt::print(".");
         }
     }
@@ -283,15 +283,15 @@ inline int findIndexOf(const auto arr, string entry) {
 }
 
 namespace cursor {
-    static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
-    static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }
-    static void clearDown(std::ostream& out = cout) { out << "\x1b[J"; }
-    static void home(std::ostream& out = cout) { out << "\033[H"; }
-    static void up(std::ostream& out = cout) { out << "\033[A"; }
-    static void down(std::ostream& out = cout) { out << "\033[B"; }
-    static void begin(std::ostream& out = cout) { out << "\033[1G"; }
-    static void goTo(const usize x, const usize y, std::ostream& out = cout) { out << "\033[" << y << ";" << x << "H"; }
+static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
+static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }
+static void clearDown(std::ostream& out = cout) { out << "\x1b[J"; }
+static void home(std::ostream& out = cout) { out << "\033[H"; }
+static void up(std::ostream& out = cout) { out << "\033[A"; }
+static void down(std::ostream& out = cout) { out << "\033[B"; }
+static void begin(std::ostream& out = cout) { out << "\033[1G"; }
+static void goTo(const usize x, const usize y, std::ostream& out = cout) { out << "\033[" << y << ";" << x << "H"; }
 
-    static void hide(std::ostream& out = cout) { out << "\033[?25l"; }
-    static void show(std::ostream& out = cout) { out << "\033[?25h"; }
+static void hide(std::ostream& out = cout) { out << "\033[?25l"; }
+static void show(std::ostream& out = cout) { out << "\033[?25h"; }
 }

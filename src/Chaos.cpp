@@ -7,9 +7,9 @@
 #include "datagen.h"
 #include "policy.h"
 #ifdef _WIN32
-#define NOMINMAX
-#include <windows.h>
-#undef NOMINMAX
+    #define NOMINMAX
+    #include <windows.h>
+    #undef NOMINMAX
 #endif
 
 // ****** UCI OPTIONS ******
@@ -18,9 +18,9 @@ usize hash = DEFAULT_HASH;
 bool chess960 = false;
 
 int main(int argc, char* argv[]) {
-    #ifdef _WIN32
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
-    #endif
+#endif
 
     Board::fillZobristTable();
     Movegen::initializeAllDatabases();
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);
-            const u64 nodes = getValueFollowing("nodes", 0);
+            const u64   nodes = getValueFollowing("nodes", 0);
 
             const usize wtime = getValueFollowing("wtime", 0);
             const usize btime = getValueFollowing("btime", 0);
@@ -125,10 +125,10 @@ int main(int argc, char* argv[]) {
             const usize binc = getValueFollowing("binc", 0);
 
             const i64 time = board.stm == WHITE ? wtime : btime;
-            const i64 inc = board.stm == WHITE ? winc : binc;
+            const i64 inc  = board.stm == WHITE ? winc : binc;
 
             const SearchParameters params(positionHistory, CPUCT, TEMPERATURE, true, doUci);
-            const SearchLimits limits(commandTime, depth, nodes, time, inc);
+            const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
