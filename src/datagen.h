@@ -9,5 +9,10 @@ constexpr usize HASH_PER_T          = 128;
 
 constexpr double TEMPERATURE = 1.4;
 
+constexpr i32 MAX_STARTPOS_SCORE = 400;
+
+constexpr u64 GENFENS_VERIF_NODES = 2'000;
+
 void run(const string& params);
+void genFens(const string& params);
 }
