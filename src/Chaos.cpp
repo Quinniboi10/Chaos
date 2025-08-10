@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     const auto index             = [&](const string& sub, const int offset = 0) { return findIndexOf(tokens, sub) + offset; };
     const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
 
-    // *********** ./Prelude <ARGS> ************
+    // *********** ./Chaos <ARGS> ************
     if (argc > 1) {
         // Convert args into strings
         vector<string> args;

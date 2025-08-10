@@ -7,6 +7,201 @@
 #include <numeric>
 #include <functional>
 
+// Return if a node is an unexplored or terminal node in the current half
+bool isLeaf(const Node& node, const u8 currentHalf) {
+    return node.numChildren == 0 || node.firstChild.load().half() != currentHalf;
+}
+
+// Return if a node is threefold (or twofold if all positions are past root)
+bool isThreefold(const vector<u64>& posHistory) {
+    usize reps = 0;
+    const u64 current = posHistory.back();
+
+    for (const u64 hash : posHistory)
+        if (hash == current)
+            if (++reps == 3)
+                return true;
+
+    return false;
+};
+
+// Return the PUCT score of a node
+double puct(const Node& parent, const Node& child) {
+    // V + C * P * (N.max(1).sqrt() / (n + 1))
+    // V = Q = total score / visits
+    // C = CPUCT
+    // P = move policy score
+    // N = parent visits
+    // n = child visits
+    return -child.getScore() + CPUCT * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
+};
+
+// Expand a node
+void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, const u8& currentHalf, const SearchParameters& params) {
+    MoveList moves = Movegen::generateMoves(board);
+
+    // Mates aren't handled until the simulation/rollout stage
+    if (moves.length == 0)
+        return;
+
+    node.firstChild  = { currentIndex, currentHalf };
+    node.numChildren = moves.length;
+
+    for (usize i = 0; i < moves.length; i++) {
+        Node& child = nodes[{ currentIndex + i, currentHalf }];
+        child.totalScore = 0;
+        child.visits = 0;
+        child.firstChild = { 0, 0 };
+        child.state = ONGOING;
+        child.move = moves[i];
+        child.numChildren = 0;
+    }
+
+    currentIndex += moves.length;
+
+    fillPolicy(board, nodes, node, params.temp);
+};
+
+// Find the best child node from a parent
+Node& findBestChild(Tree& nodes, const Node& node) {
+    const u8 half = node.firstChild.load().half();
+    double bestScore = puct(node, nodes[node.firstChild]);
+    Node* bestChild = &nodes[node.firstChild];
+    for (usize idx = node.firstChild.load().index() + 1; idx < node.firstChild.load().index() + node.numChildren; idx++) {
+        const double score = puct(node, nodes[{ idx, half }]);
+        if (score > bestScore) {
+            bestScore = score;
+            bestChild = &nodes[{ idx, half }];
+        }
+    }
+
+    return *bestChild;
+};
+
+// Evaluate node
+double simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
+    assert(node.state == ONGOING);
+
+    if (board.isDraw() || isThreefold(posHistory) || (node.numChildren == 0 && !board.inCheck()))
+        node.state = DRAW;
+    else if (node.numChildren == 0)
+        node.state = LOSS;
+    if (node.state != ONGOING)
+        return node.getScore();
+    return cpToWDL(evaluate(board));
+};
+
+// Find the PV (best Q) move for a node
+Move findPvMove(const Tree& nodes, const Node& node) {
+    const NodeIndex startIdx = node.firstChild.load();
+    const u8 half = startIdx.half();
+
+    double bestScore = -nodes[startIdx].getScore();
+    Move bestMove = nodes[startIdx].move;
+    for (usize idx = startIdx.index() + 1; idx < startIdx.index() + node.numChildren; idx++) {
+        const Node& child = nodes[{ idx, half}];
+        const double score = -child.getScore();
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = child.move;
+        }
+    }
+
+    return bestMove;
+}
+
+// Search the tree for the PV line
+MoveList findPV(const Tree& nodes, const u8 currentHalf) {
+    MoveList pv{};
+
+    const Node* node = &nodes[{ 0, currentHalf }];
+
+    while (!isLeaf(*node, currentHalf)) {
+        const NodeIndex startIdx = node->firstChild.load();
+        double bestScore = -nodes[startIdx].getScore();
+        usize bestIdx = startIdx.index();
+        for (usize idx = startIdx.index() + 1; idx < startIdx.index() + node->numChildren; idx++) {
+            const double score = -nodes[{ idx, currentHalf}].getScore();
+            if (score > bestScore) {
+                bestScore = score;
+                bestIdx = idx;
+            }
+        }
+
+        node = &nodes[{ bestIdx, currentHalf }];
+        pv.add(node->move);
+    }
+
+    return pv;
+};
+
+// Copy children from the constant half to the current one
+void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
+    const NodeIndex oldIdx = node.firstChild.load();
+
+    for (usize i = 0; i < node.numChildren; i++) {
+        Node& child = nodes[{ currentIndex + i, currentHalf }];
+        child = nodes[{ oldIdx.index() + i, oldIdx.half() }];
+    }
+
+    node.firstChild.store({ currentIndex, currentHalf });
+
+    currentIndex += node.numChildren;
+};
+
+// Remove all references to the other half
+void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
+    if (node.firstChild.load().half() == currentHalf) {
+        for (usize idx = node.firstChild.load().index(); idx < node.firstChild.load().index() + node.numChildren; idx++)
+            removeRefs(nodes, nodes[{ idx, currentHalf }], currentHalf);
+    }
+    else {
+        node.numChildren = 0;
+        node.firstChild = { 0, currentHalf };
+    }
+};
+
+double searchNode(Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+    // Check for an early return
+    if (node.state != ONGOING)
+        return node.getScore();
+
+    double score;
+
+    // Selection
+    if (!isLeaf(node, currentHalf)) {
+        Node& bestChild = findBestChild(nodes, node);
+        Board newBoard = board;
+        newBoard.move(bestChild.move);
+
+        posHistory.push_back(newBoard.zobrist);
+        score = -searchNode(nodes, cumulativeDepth, seldepth, currentIndex, currentHalf, posHistory, newBoard, bestChild, params, ply + 1);
+        posHistory.pop_back();
+    }
+    // Expansion + simulation
+    else {
+        if (node.firstChild.load().half() != currentHalf && node.numChildren > 0) {
+            copyChildren(nodes, node, currentIndex, currentHalf);
+            score = searchNode(nodes, cumulativeDepth, seldepth, currentIndex, currentHalf, posHistory, board, node, params, ply);
+        }
+        else if (node.visits == 0)
+            score = cpToWDL(evaluate(board));
+        else {
+            expandNode(nodes, board, node, currentIndex, currentHalf, params);
+            score = simulate(board, posHistory, node);
+        }
+    }
+
+    // Backprop
+    node.totalScore += score;
+    node.visits++;
+
+    cumulativeDepth++;
+    seldepth = std::max(seldepth, ply);
+
+    return score;
+};
+
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     // Reset worker
     this->nodeCount = 0;
@@ -34,183 +229,6 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     // Positions from root to the leaf
     vector<u64> posHistory;
 
-    // ****** Define lambdas for node operations ******
-
-    // Return if a node is an unexplored or terminal node
-    const auto isLeaf = [this](const Node& node) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; };
-
-    // Return if a node is threefold (or twofold if all positions are past root)
-    const auto isThreefold = [&]() {
-        usize reps = 0;
-        const u64 current = posHistory.back();
-
-        for (const u64 hash : posHistory)
-            if (hash == current)
-                if (++reps == 3)
-                    return true;
-
-        return false;
-    };
-
-    // PUCT formula
-    const auto puct = [&](const Node& parent, const Node& child) {
-        // V + C * P * (N.max(1).sqrt() / (n + 1))
-        // V = Q = total score / visits
-        // C = CPUCT
-        // P = move policy score
-        // N = parent visits
-        // n = child visits
-        return -child.getScore() + params.cpuct * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
-    };
-
-    // Expand a node
-    const auto expandNode = [&](const Board& board, Node& node) {
-        MoveList moves = Movegen::generateMoves(board);
-
-        // Mates aren't handled until the simulation/rollout stage
-        if (moves.length == 0)
-            return;
-
-        node.firstChild  = { currentIndex, currentHalf };
-        node.numChildren = moves.length;
-
-        for (const Move& move : moves) {
-            Node& child = nodes[{ currentIndex++, currentHalf }];
-            child.totalScore = 0;
-            child.visits = 0;
-            child.firstChild = { 0, 0 };
-            child.state = ONGOING;
-            child.move = move;
-            child.numChildren = 0;
-        }
-
-        fillPolicy(board, nodes, node, params.temp);
-    };
-
-    // Find the best child node from a parent
-    const auto findBestChild = [&](const Node& node) -> Node& {
-        const u8 half = node.firstChild.load().half();
-        double bestScore = puct(node, nodes[node.firstChild]);
-        Node* bestChild = &nodes[node.firstChild];
-        for (usize idx = node.firstChild.load().index() + 1; idx < node.firstChild.load().index() + node.numChildren; idx++) {
-            const double score = puct(node, nodes[{ idx, half }]);
-            if (score > bestScore) {
-                bestScore = score;
-                bestChild = &nodes[{ idx, half }];
-            }
-        }
-
-        return *bestChild;
-    };
-
-    // Search the tree for the PV line
-    const auto findPV = [&]() {
-        MoveList pv{};
-
-        Node* node = &nodes[{ 0, currentHalf }];
-
-        while (!isLeaf(*node)) {
-            double bestScore = -nodes[node->firstChild].getScore();
-            usize bestIdx = node->firstChild.load().index();
-            for (usize idx = node->firstChild.load().index() + 1; idx < node->firstChild.load().index() + node->numChildren; idx++) {
-                const double score = -nodes[{ idx, currentHalf}].getScore();
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestIdx = idx;
-                }
-            }
-
-            node = &nodes[{ bestIdx, currentHalf }];
-            pv.add(node->move);
-        }
-
-        return pv;
-    };
-
-    // Evaluate node
-    const auto simulate = [&](const Board& board, Node& node) {
-        assert(node.state == ONGOING);
-
-        if (board.isDraw() || isThreefold() || (node.numChildren == 0 && !board.inCheck()))
-            node.state = DRAW;
-        else if (node.numChildren == 0)
-            node.state = LOSS;
-        if (node.state != ONGOING)
-            return node.getScore();
-        return cpToWDL(evaluate(board));
-    };
-
-    const auto copyChildren = [&](Node& node) {
-        const NodeIndex oldIdx = node.firstChild.load();
-
-        for (usize i = 0; i < node.numChildren; i++) {
-            Node& child = nodes[{ currentIndex + i, currentHalf }];
-            child = nodes[{ oldIdx.index() + i, oldIdx.half() }];
-        }
-
-        node.firstChild.store({ currentIndex, currentHalf });
-
-        currentIndex += node.numChildren;
-    };
-
-    // Remove all references to the other half
-    const auto removeReferences = [&]() {
-        const std::function<void(Node&)> removeRefs = [&](Node& node) {
-            if (node.firstChild.load().half() == currentHalf) {
-                for (usize idx = node.firstChild.load().index(); idx < node.firstChild.load().index() + node.numChildren; idx++)
-                    removeRefs(nodes[{ idx, currentHalf }]);
-            }
-            else {
-                node.numChildren = 0;
-                node.firstChild = { 0, currentHalf };
-            }
-        };
-
-        removeRefs(nodes[{ 0, currentHalf }]);
-    };
-
-
-    const std::function<double(const Board&, Node&, usize)> searchNode = [&](const Board& board, Node& node, const usize ply) {
-        // Check for an early return
-        if (node.state != ONGOING)
-            return node.getScore();
-
-        double score;
-
-        // Selection
-        if (!isLeaf(node)) {
-            Node& bestChild = findBestChild(node);
-            Board newBoard = board;
-            newBoard.move(bestChild.move);
-
-            posHistory.push_back(newBoard.zobrist);
-            score = -searchNode(newBoard, bestChild, ply + 1);
-            posHistory.pop_back();
-        }
-        // Expansion + simulation
-        else {
-            if (node.firstChild.load().half() != currentHalf && node.numChildren > 0) {
-                copyChildren(node);
-                score = searchNode(board, node, ply);
-            }
-            else if (node.visits == 0)
-                score = cpToWDL(evaluate(board));
-            else {
-                expandNode(board, node);
-                score = simulate(board, node);
-            }
-        }
-
-        // Backprop
-        node.totalScore += score;
-        node.visits++;
-
-        cumulativeDepth++;
-        seldepth = std::max(seldepth, ply);
-
-        return score;
-    };
-
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
     vector<std::pair<u64, Move>> bestMoves;
@@ -218,7 +236,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     usize lastSeldepth = 0;
     Move lastMove = Move::null();
 
-    const auto printUCI = [&](MoveList& pv) {
+    const auto printUCI = [&](const MoveList& pv) {
         cout << "info depth " << cumulativeDepth / iterations;
         cout << " seldepth " << seldepth;
         cout << " time " << limits.commandTime.elapsed();
@@ -272,7 +290,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
     // Expand root
-    expandNode(rootPos, nodes[{ 0, currentHalf }]);
+    expandNode(nodes, rootPos, nodes[{ 0, currentHalf }], currentIndex, currentHalf, params);
 
     // Prepare for pretty printing
     if (params.doReporting && !params.doUci) {
@@ -289,23 +307,24 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         // Reset zobrist history
         posHistory = params.positionHistory;
 
-        searchNode(rootPos, nodes[{ 0, currentHalf }], 0);
+        searchNode(nodes, cumulativeDepth, seldepth, currentIndex, currentHalf, posHistory, rootPos, nodes[{ 0, currentHalf }], params, 0);
 
         // Switch halves
         if (currentIndex >= nodes.nodes[0].size() - 256) {
             nodes[{ 0, static_cast<u8>(currentHalf ^ 1) }] = nodes[{ 0, currentHalf }];
-            removeReferences();
+            removeRefs(nodes, nodes[{ 0, currentHalf }], currentHalf);
             currentIndex = 1;
             currentHalf ^= 1;
-            copyChildren(nodes[{ 0, currentHalf }]);
+            copyChildren(nodes, nodes[{ 0, currentHalf }], currentIndex, currentHalf);
         }
 
         iterations++;
 
         // Check if UCI should be printed
         if (params.doReporting) {
-            MoveList pv = findPV();
-            if (params.doUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || pv[0] != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
+            const Move bestMove = findPvMove(nodes, nodes[{ 0, currentHalf }]);
+            if (params.doUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
+                const MoveList pv = findPV(nodes, currentHalf);
                 printUCI(pv);
 
                 lastDepth = cumulativeDepth / iterations;
@@ -314,6 +333,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                 stopwatch.reset();
             }
             else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
+                const MoveList pv = findPV(nodes, currentHalf);
                 if (pv[0] != lastMove)
                     bestMoves.emplace_back(limits.commandTime.elapsed(), pv[0]);
                 prettyPrint(pv);
@@ -326,7 +346,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         }
     } while (!stopSearching());
 
-    MoveList pv = findPV();
+    const MoveList pv = findPV(nodes, currentHalf);
 
     if (params.doReporting) {
         if (params.doUci) {
