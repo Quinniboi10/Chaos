@@ -78,6 +78,6 @@ struct MoveList {
             *(location) = moves[--length];
     }
 
-    Move& operator[](usize idx) { return moves[idx]; }
+    Move&       operator[](usize idx) { return moves[idx]; }
     const Move& operator[](usize idx) const { return moves[idx]; }
 };

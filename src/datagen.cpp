@@ -17,23 +17,17 @@ using VisitDistribution = vector<std::pair<u16, u32>>;
 
 struct __attribute__((packed)) MontyFormatBoard {
     array<u64, 4> bbs;
-    u8 stm;
-    Square epSquare;
-    u8 castleRights;
-    u8 halfMoveClock;
-    u16 fullMoveClock;
+    u8            stm;
+    Square        epSquare;
+    u8            castleRights;
+    u8            halfMoveClock;
+    u16           fullMoveClock;
 
     MontyFormatBoard() = default;
 
     MontyFormatBoard(const Board& board) {
-        const array<u64, 8> raw = {board.pieces(WHITE),
-                                   board.pieces(BLACK),
-                                   board.pieces(PAWN),
-                                   board.pieces(KNIGHT),
-                                   board.pieces(BISHOP),
-                                   board.pieces(ROOK),
-                                   board.pieces(QUEEN),
-                                   board.pieces(KING)};
+        const array<u64, 8> raw = { board.pieces(WHITE),  board.pieces(BLACK), board.pieces(PAWN),  board.pieces(KNIGHT),
+                                    board.pieces(BISHOP), board.pieces(ROOK),  board.pieces(QUEEN), board.pieces(KING) };
 
         constexpr usize blackK = 0b1;
         constexpr usize blackQ = 0b10;
@@ -51,10 +45,10 @@ struct __attribute__((packed)) MontyFormatBoard {
         if (board.castling[castleIndex(BLACK, false)])
             flags |= blackQ;
 
-        bbs = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
-        stm = board.stm ^ 1;
-        epSquare = board.epSquare;
-        castleRights = flags;
+        bbs           = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
+        stm           = board.stm ^ 1;
+        epSquare      = board.epSquare;
+        castleRights  = flags;
         halfMoveClock = board.halfMoveClock;
         fullMoveClock = board.fullMoveClock;
     }
@@ -62,24 +56,24 @@ struct __attribute__((packed)) MontyFormatBoard {
 
 u16 asMontyMove(const Board& board, const Move m) {
     enum MontyMoveType : u16 {
-        QUIET = 0,
+        QUIET       = 0,
         DOUBLE_PUSH = 1,
-        CASTLE_K = 2,
-        CASTLE_Q = 3,
-        CAPTURE = 4,
-        EP = 5,
-        PROMO_K = 8,
-        PROMO_B = 9,
-        PROMO_R = 10,
-        PROMO_Q = 11,
-        PROMOC_K = 12,
-        PROMOC_B = 13,
-        PROMOC_R = 14,
-        PROMOC_Q = 15
+        CASTLE_K    = 2,
+        CASTLE_Q    = 3,
+        CAPTURE     = 4,
+        EP          = 5,
+        PROMO_K     = 8,
+        PROMO_B     = 9,
+        PROMO_R     = 10,
+        PROMO_Q     = 11,
+        PROMOC_K    = 12,
+        PROMOC_B    = 13,
+        PROMOC_R    = 14,
+        PROMOC_Q    = 15
     };
 
     const u16 from = m.from();
-    const u16 to = m.to();
+    const u16 to   = m.to();
 
     MontyMoveType flag = QUIET;
     if (m.typeOf() == MoveType::CASTLE)
@@ -115,20 +109,20 @@ u16 asMontyMove(const Board& board, const Move m) {
 }
 
 struct MontyFormatMove {
-    u16 bestMove;
-    double rootQ;
+    u16               bestMove;
+    double            rootQ;
     VisitDistribution visits;
 
     explicit MontyFormatMove(const Searcher& searcher, const Move m) {
-        const Node& root = searcher.nodes[{ 0, searcher.currentHalf }];
-        const u64 firstIdx = root.firstChild.load().index();
+        const Node& root     = searcher.nodes[{ 0, searcher.currentHalf }];
+        const u64   firstIdx = root.firstChild.load().index();
 
         bestMove = asMontyMove(searcher.rootPos, m);
-        rootQ = root.getScore();
+        rootQ    = root.getScore();
 
         for (u64 idx = firstIdx; idx < firstIdx + root.numChildren; idx++) {
             const Node& node = searcher.nodes[{ idx, searcher.currentHalf }];
-            const u16 move = asMontyMove(searcher.rootPos, node.move);
+            const u16   move = asMontyMove(searcher.rootPos, node.move);
 
             visits.emplace_back(move, node.visits);
         }
@@ -136,8 +130,8 @@ struct MontyFormatMove {
 };
 
 struct FileWriter {
-    Board board;
-    MontyFormatBoard compressedBoard;
+    Board                   board;
+    MontyFormatBoard        compressedBoard;
     vector<MontyFormatMove> moves;
 
     std::ofstream file;
@@ -155,21 +149,15 @@ struct FileWriter {
     }
 
     void setStartpos(const Board& board) {
-        this->board = board;
+        this->board     = board;
         compressedBoard = MontyFormatBoard(board);
     }
 
-    void addMove(const Searcher& searcher, const Move m) {
-        moves.emplace_back(searcher, m);
-    }
+    void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
 
-    void writeU8(const u8 value) {
-        file.write(reinterpret_cast<const char*>(&value), sizeof(u8));
-    }
+    void writeU8(const u8 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u8)); }
 
-    void writeU16(const u16 value) {
-        file.write(reinterpret_cast<const char*>(&value), sizeof(u16));
-    }
+    void writeU16(const u16 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u16)); }
 
     template<typename T>
     void write(const T& value) {
@@ -184,9 +172,7 @@ struct FileWriter {
 
         write(compressedBoard);
 
-        const auto getFile = [](const Square sq, const File fallback) {
-            return sq == NO_SQUARE ? fallback : fileOf(sq);
-        };
+        const auto getFile = [](const Square sq, const File fallback) { return sq == NO_SQUARE ? fallback : fileOf(sq); };
 
         writeU8(getFile(board.castling[castleIndex(WHITE, false)], AFILE));
         writeU8(getFile(board.castling[castleIndex(WHITE, true)], HFILE));
@@ -200,19 +186,19 @@ struct FileWriter {
             writeU16((move.rootQ + 1) / 2 * std::numeric_limits<u16>::max());
 
             // Sort by the move
-            std::sort(move.visits.begin(), move.visits.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+            std::sort(move.visits.begin(), move.visits.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
             const u8 count = static_cast<u8>(move.visits.size());
             writeU8(count);
 
             if (count > 0) {
                 u32 maxVisits = 0;
-                for (const auto &[_, visits] : move.visits)
+                for (const auto& [_, visits] : move.visits)
                     maxVisits = std::max(maxVisits, visits);
 
-                for (const auto &[_, visits] : move.visits)
+                for (const auto& [_, visits] : move.visits)
                     writeU8(static_cast<u8>(visits * 255.0 / maxVisits));
-                }
+            }
         }
 
         writeU16(0);
@@ -235,8 +221,8 @@ void makeRandomMove(Board& board) {
     const MoveList moves = Movegen::generateMoves(board);
     assert(moves.length > 0);
 
-    std::random_device rd;
-    std::mt19937_64 engine(rd());
+    std::random_device                 rd;
+    std::mt19937_64                    engine(rd());
     std::uniform_int_distribution<int> dist(0, moves.length - 1);
 
     board.move(moves.moves[dist(engine)]);
@@ -258,11 +244,11 @@ string makeFileName() {
     // Convert to tm structure
     std::tm tm;
 
-    #ifdef _WIN32
+#ifdef _WIN32
     localtime_s(&tm, &t);
-    #else
+#else
     localtime_r(&t, &tm);
-    #endif
+#endif
 
     const string randomStr = std::to_string(dist(engine));
 
@@ -285,9 +271,9 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
     const auto                         randBool = [&]() { return dist(engine); };
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<u64> posHistory;
-    const SearchParameters params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
-    const SearchLimits limits(stopwatch, 0, nodes, 0, 0);
+    vector<u64>                          posHistory;
+    const SearchParameters               params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
+    const SearchLimits                   limits(stopwatch, 0, nodes, 0, 0);
 
     searcher.setHash(datagen::HASH_PER_T);
 
@@ -346,7 +332,7 @@ void datagen::run(const string& params) {
     vector<string> tokens = split(params, ' ');
 
     const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
-        const auto loc = std::find(tokens.begin(), tokens.end(), value);
+        const auto  loc = std::find(tokens.begin(), tokens.end(), value);
         const usize idx = std::distance(tokens.begin(), loc) + 1;
         if (loc == tokens.end() || idx >= tokens.size()) {
             std::ostringstream ss;
@@ -356,17 +342,17 @@ void datagen::run(const string& params) {
         return tokens[idx];
     };
 
-    const usize threadCount = std::stoul(getValueFollowing("threads", 1));
-    const u64 numPositions = std::stoull(getValueFollowing("positions", 100'000'000));
-    const u64 nodes = std::stoull(getValueFollowing("nodes", 2'000));
+    const usize threadCount  = std::stoul(getValueFollowing("threads", 1));
+    const u64   numPositions = std::stoull(getValueFollowing("positions", 100'000'000));
+    const u64   nodes        = std::stoull(getValueFollowing("nodes", 2'000));
 
     Stopwatch<std::chrono::milliseconds> time;
-    vector<std::thread> threads;
-    vector<atomic<bool>> running(threadCount);
-    vector<atomic<u64>> positions(threadCount);
-    vector<Board> boards(threadCount);
-    vector<std::mutex> boardMutexes(threadCount);
-    atomic<bool> stop(false);
+    vector<std::thread>                  threads;
+    vector<atomic<bool>>                 running(threadCount);
+    vector<atomic<u64>>                  positions(threadCount);
+    vector<Board>                        boards(threadCount);
+    vector<std::mutex>                   boardMutexes(threadCount);
+    atomic<bool>                         stop(false);
 
     for (auto& p : positions)
         p.store(0, std::memory_order_relaxed);

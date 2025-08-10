@@ -22,8 +22,8 @@ char Board::getPieceAt(int sq) const {
     assert(sq < 64);
     if (getPiece(sq) == NO_PIECE_TYPE)
         return ' ';
-    constexpr char whiteSymbols[] = {'P', 'N', 'B', 'R', 'Q', 'K'};
-    constexpr char blackSymbols[] = {'p', 'n', 'b', 'r', 'q', 'k'};
+    constexpr char whiteSymbols[] = { 'P', 'N', 'B', 'R', 'Q', 'K' };
+    constexpr char blackSymbols[] = { 'p', 'n', 'b', 'r', 'q', 'k' };
     if (((1ULL << sq) & byColor[WHITE]) != 0)
         return whiteSymbols[getPiece(sq)];
     return blackSymbols[getPiece(sq)];
@@ -120,10 +120,10 @@ void Board::resetZobrist() {
 
 // Updates checkers and pinners
 void Board::updateCheckPinAttack() {
-    attacking[stm] = Movegen::getAttacks(stm, *this);
+    attacking[stm]  = Movegen::getAttacks(stm, *this);
     attacking[~stm] = Movegen::getAttacks(~stm, *this);
 
-    const u64 kingBB = pieces(stm, KING);
+    const u64    kingBB = pieces(stm, KING);
     const Square kingSq = getLSB(kingBB);
 
     const u64 ourPieces         = pieces(stm);
@@ -135,7 +135,7 @@ void Board::updateCheckPinAttack() {
     // *** BISHOP ROOK QUEEN ATTACKS ***
     const u64 rookChecks   = Movegen::getRookAttacks(Square(kingSq), occ) & enemyRookQueens;
     const u64 bishopChecks = Movegen::getBishopAttacks(Square(kingSq), occ) & enemyBishopQueens;
-    u64 checks       = rookChecks | bishopChecks;
+    u64       checks       = rookChecks | bishopChecks;
 
     // *** KNIGHT ATTACKS ***
     const u64 knightAttacks = Movegen::KNIGHT_ATTACKS[kingSq] & pieces(~stm, KNIGHT);
@@ -163,10 +163,10 @@ void Board::updateCheckPinAttack() {
         checkMask = ~checkMask;  // If no checks, set to all ones
 
     // ****** PIN STUFF HERE ******
-    const u64 rookXrays    = Movegen::getXrayRookAttacks(Square(kingSq), pieces(), ourPieces) & enemyRookQueens;
-    const u64 bishopXrays  = Movegen::getXrayBishopAttacks(Square(kingSq), pieces(), ourPieces) & enemyBishopQueens;
-    u64 pinners      = rookXrays | bishopXrays;
-    pinnersPerC[stm] = pinners;
+    const u64 rookXrays   = Movegen::getXrayRookAttacks(Square(kingSq), pieces(), ourPieces) & enemyRookQueens;
+    const u64 bishopXrays = Movegen::getXrayBishopAttacks(Square(kingSq), pieces(), ourPieces) & enemyBishopQueens;
+    u64       pinners     = rookXrays | bishopXrays;
+    pinnersPerC[stm]      = pinners;
 
     pinned = 0;
     while (pinners)
@@ -253,7 +253,7 @@ void Board::reset() {
 
 
     stm      = WHITE;
-    castling = {a8, h8, a1, h1};
+    castling = { a8, h8, a1, h1 };
 
     epSquare = NO_SQUARE;
 
@@ -279,8 +279,8 @@ void Board::loadFromFEN(string fen) {
 
     int currIdx = 56;
 
-    const char whitePieces[6] = {'P', 'N', 'B', 'R', 'Q', 'K'};
-    const char blackPieces[6] = {'p', 'n', 'b', 'r', 'q', 'k'};
+    const char whitePieces[6] = { 'P', 'N', 'B', 'R', 'Q', 'K' };
+    const char blackPieces[6] = { 'p', 'n', 'b', 'r', 'q', 'k' };
 
     for (const string& rank : rankTokens) {
         for (const char c : rank) {
@@ -357,7 +357,7 @@ string Board::fen() const {
     for (i32 rank = 7; rank >= 0; rank--) {
         usize empty = 0;
         for (usize file = 0; file < 8; file++) {
-            i32 sq = rank * 8 + file;
+            i32  sq = rank * 8 + file;
             char pc = getPieceAt(sq);
             if (pc == ' ')
                 empty++;
@@ -380,10 +380,14 @@ string Board::fen() const {
 
     // Castling
     string castle;
-    if (castling[castleIndex(WHITE, true)] != NO_SQUARE)  castle += 'K';
-    if (castling[castleIndex(WHITE, false)] != NO_SQUARE) castle += 'Q';
-    if (castling[castleIndex(BLACK, true)] != NO_SQUARE)  castle += 'k';
-    if (castling[castleIndex(BLACK, false)] != NO_SQUARE) castle += 'q';
+    if (castling[castleIndex(WHITE, true)] != NO_SQUARE)
+        castle += 'K';
+    if (castling[castleIndex(WHITE, false)] != NO_SQUARE)
+        castle += 'Q';
+    if (castling[castleIndex(BLACK, true)] != NO_SQUARE)
+        castle += 'k';
+    if (castling[castleIndex(BLACK, false)] != NO_SQUARE)
+        castle += 'q';
     ss << ' ' << (castle.empty() ? "-" : castle);
 
     // En passant
@@ -547,7 +551,7 @@ bool Board::isGameOver(const vector<u64>& posHistory) const {
 
     // Threefold
     if (!posHistory.empty()) {
-        usize reps = 0;
+        usize     reps    = 0;
         const u64 current = posHistory.back();
 
         for (const u64 hash : posHistory)

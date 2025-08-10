@@ -29,7 +29,7 @@ struct ValueAccumulator {
     explicit ValueAccumulator(const Board& board);
 
     const i16& operator[](const usize& idx) const { return underlying[idx]; }
-    i16& operator[](const usize& idx) { return underlying[idx]; }
+    i16&       operator[](const usize& idx) { return underlying[idx]; }
 };
 
 struct ValueNN {
@@ -136,7 +136,7 @@ using Vectori32 = int32x4_t;
         #define max_epi16 vmaxq_s16
         #define madd_epi16 \
             [](Vectori16 a, Vectori16 b) { \
-                const Vectori16 low = vmull_s16(vget_low_s16(a), vget_low_s16(b)); \
+                const Vectori16 low  = vmull_s16(vget_low_s16(a), vget_low_s16(b)); \
                 const Vectori16 high = vmull_high_s16(a, b); \
                 return vpaddq_s32(low, high); \
             }
@@ -167,7 +167,7 @@ using Vectori32 = __m128i;
 i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     constexpr usize VECTOR_SIZE = sizeof(Vectori16) / sizeof(i16);
     static_assert(HL_SIZE_V % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
-    const Vectori16 VEC_QA_V   = set1_epi16(QA_V);
+    const Vectori16 VEC_QA_V = set1_epi16(QA_V);
     const Vectori16 VEC_ZERO = set1_epi16(0);
 
     Vectori32 ValueAccumulator{};
@@ -175,16 +175,16 @@ i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     #pragma unroll
     for (usize i = 0; i < HL_SIZE_V; i += VECTOR_SIZE) {
         // Load ValueAccumulator
-        const Vectori16 accumValues  = load_epi16(&accum[i]);
+        const Vectori16 accumValues = load_epi16(&accum[i]);
 
         // Clamp values
-        const Vectori16 clamped  = min_epi16(VEC_QA_V, max_epi16(accumValues, VEC_ZERO));
+        const Vectori16 clamped = min_epi16(VEC_QA_V, max_epi16(accumValues, VEC_ZERO));
 
         // Load weights
-        const Vectori16 weights  = load_epi16(reinterpret_cast<const Vectori16*>(&weightsToOut[i]));
+        const Vectori16 weights = load_epi16(reinterpret_cast<const Vectori16*>(&weightsToOut[i]));
 
         // SCReLU it
-        const Vectori32 activated  = madd_epi16(clamped, mullo_epi16(clamped, weights));
+        const Vectori32 activated = madd_epi16(clamped, mullo_epi16(clamped, weights));
 
         ValueAccumulator = add_epi32(ValueAccumulator, activated);
     }
@@ -206,15 +206,15 @@ i32 NN::vectorizedSCReLU(const ValueAccumulator& accum) const {
 
 // Finds the input feature
 usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
-    const bool enemy = stm != pieceColor;
-    const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
+    const bool enemy       = stm != pieceColor;
+    const int  squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
 
     return enemy * 64 * 6 + piece * 64 + squareIndex;
 }
 
 i32 evaluate(const Board& board) {
     const ValueAccumulator accum(board);
-    i32 eval = 0;
+    i32                    eval = 0;
 
     if constexpr (ACTIVATION_V != ::SCReLU) {
         for (usize i = 0; i < HL_SIZE_V; i++) {
