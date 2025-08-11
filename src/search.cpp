@@ -146,7 +146,7 @@ void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHa
 };
 
 // Remove all references to the other half
-void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
+void removeRefs(Tree& nodes, Node& node, const u8 currentHalf) {
     const NodeIndex startIdx = node.firstChild.load();
 
     if (startIdx.half() == currentHalf) {
@@ -154,11 +154,9 @@ void removeRefs(Tree& nodes, Node& node, u8 currentHalf) {
         for (usize idx = 0; idx < +node.numChildren; idx++)
             removeRefs(nodes, child[idx], currentHalf);
     }
-    else {
+    else
         node.numChildren = 0;
-        node.firstChild  = { 0, currentHalf };
-    }
-};
+}
 
 float searchNode(
   Tree& nodes, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const u8 currentHalf, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
@@ -230,7 +228,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<std::pair<u64, Move>>         bestMoves;
+    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max(getTerminalRows() - 29, 0));
     usize                                lastDepth    = 0;
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
@@ -260,6 +258,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         coloredProgBar(40, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";
 
+        cursor::clear();
         cout << Colors::GREY << "Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "\n";
         cursor::clear();
         cout << Colors::GREY << "Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
@@ -280,6 +279,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << Colors::GREY << "Best move: " << Colors::WHITE << pv[0] << "\n";
         cout << "\n\n";
         cout << "Best move history:" << "\n";
+        cursor::clearDown();
         for (const auto& m : bestMoves)
             cout << "    " << Colors::GREY << formatTime(m.first) << Colors::WHITE << " -> " << m.second << "\n";
 
@@ -334,7 +334,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
                 const MoveList pv = findPV(nodes, currentHalf);
                 if (pv[0] != lastMove)
-                    bestMoves.emplace_back(limits.commandTime.elapsed(), pv[0]);
+                    bestMoves.push({ limits.commandTime.elapsed(), pv[0] });
                 prettyPrint(pv);
 
                 lastDepth    = cumulativeDepth / iterations;
