@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+
 #include "types.h"
 
 // Using ms

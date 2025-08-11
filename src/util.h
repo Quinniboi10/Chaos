@@ -7,9 +7,18 @@
 #include <numbers>
 #include <vector>
 #include <sstream>
+#include <cstdlib>
 #include <cstring>
 #include <algorithm>
 #include <string_view>
+
+#ifdef _WIN32
+  #define NOMINMAX
+  #include <windows.h>
+#else
+  #include <sys/ioctl.h>
+  #include <unistd.h>
+#endif
 
 #include "types.h"
 #include "../external/fmt/fmt/color.h"
@@ -280,6 +289,48 @@ inline int findIndexOf(const auto arr, string entry) {
         return std::distance(arr.begin(), it);
     }
     return -1;
+}
+
+inline int getTerminalRows() {
+    auto env_lines = []() -> int {
+        if (const char* s = std::getenv("LINES")) {
+            char* end = nullptr;
+            long v = std::strtol(s, &end, 10);
+            if (end != s && v > 0 && v < 100000) return static_cast<int>(v);
+        }
+        return -1;
+    };
+
+    #ifdef _WIN32
+    // Try the visible window height of the current console.
+    if (HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+        h != nullptr && h != INVALID_HANDLE_VALUE) {
+        CONSOLE_SCREEN_BUFFER_INFO csbi{};
+        if (GetConsoleScreenBufferInfo(h, &csbi)) {
+            int win_rows = static_cast<int>(csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+            if (win_rows > 0)
+                return win_rows;
+
+            if (csbi.dwSize.Y > 0)
+                return static_cast<int>(csbi.dwSize.Y);
+        }
+    }
+
+    int r = env_lines();
+    return (r > 0) ? r : 24;
+
+    #else
+    winsize ws{};
+
+    if (isatty(STDOUT_FILENO) && ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
+        return ws.ws_row;
+
+    if (isatty(STDIN_FILENO) && ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
+        return ws.ws_row;
+
+    int r = env_lines();
+    return (r > 0) ? r : 24;
+    #endif
 }
 
 namespace cursor {

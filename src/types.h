@@ -6,8 +6,8 @@
 #include <string_view>
 #include <vector>
 #include <string>
-#include <limits>
 #include <atomic>
+#include <deque>
 #include <array>
 #include <bit>
 
@@ -167,6 +167,28 @@ struct Colors {
     static constexpr std::string_view BRIGHT_WHITE = "\033[97m";
 
     static constexpr std::string_view GREY = BRIGHT_BLACK;
+};
+
+template<typename T>
+struct RollingWindow {
+    std::deque<T> dq;
+    usize maxSize;
+
+    explicit RollingWindow(const usize maxSize) : maxSize(maxSize) {}
+
+    void push(const T& x) {
+        if (dq.size() == maxSize)
+            dq.pop_front();
+        dq.push_back(x);
+    }
+
+    const T& operator[](const usize i) const { return dq[i]; }
+    T& operator[](const usize i) { return dq[i]; }
+    usize size() const { return dq.size(); }
+    bool full() const { return dq.size() == maxSize; }
+
+    auto begin() { return dq.begin(); }
+    auto end() { return dq.end(); }
 };
 
 namespace internal {
