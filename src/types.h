@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdlib>
-#include <cstdint>
 #include <iostream>
 #include <string_view>
 #include <vector>
@@ -11,7 +9,22 @@
 #include <array>
 #include <bit>
 
-#undef assert
+#if defined(_MSC_VER)
+    #define ASSUME(cond) __assume(cond)
+#elif defined(__GNUC__) || defined(__clang__)
+    #define ASSUME(cond) \
+        do { \
+            if (!(cond)) \
+                __builtin_unreachable(); \
+        } while (0)
+#else
+    #define ASSUME(cond) \
+        do { \
+            if (!(cond)) \
+                *((int*) 0)(); \
+        } while (0)
+#endif
+
 #ifndef NDEBUG
     #include <boost/stacktrace.hpp>
     #undef assert
@@ -21,7 +34,7 @@
             std::terminate(); \
         }
 #else
-    #define assert(x) ;
+    #define assert(x) ASSUME(x)
 #endif
 
 using u64 = uint64_t;
@@ -189,6 +202,31 @@ struct RollingWindow {
 
     auto begin() { return dq.begin(); }
     auto end() { return dq.end(); }
+};
+
+template<typename T>
+class RelaxedAtomic {
+    atomic<T> underlying;
+  public:
+    RelaxedAtomic() = default;
+    explicit RelaxedAtomic(const T& value) {
+        underlying = atomic<T>(value);
+    }
+
+    T load() const {
+        return underlying.load(std::memory_order_relaxed);
+    }
+    void store(const T& value) {
+        underlying.store(value, std::memory_order_relaxed);
+    }
+
+    atomic<T>& getUnderlying() { return underlying; }
+
+    operator T() const { return load(); }
+    RelaxedAtomic& operator=(T v) {
+        store(v);
+        return *this;
+    }
 };
 
 namespace internal {

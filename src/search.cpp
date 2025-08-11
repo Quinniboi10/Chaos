@@ -4,14 +4,16 @@
 #include "eval.h"
 
 #include <cmath>
-#include <numeric>
 #include <functional>
+#include <stdatomic.h>
 
 // Return if a node is an unexplored or terminal node in the current half
 bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
 // Return if a node is threefold
 bool isThreefold(const vector<u64>& posHistory) {
+    assert(!posHistory.empty());
+
     usize     reps    = 0;
     const u64 current = posHistory.back();
 
@@ -23,15 +25,18 @@ bool isThreefold(const vector<u64>& posHistory) {
     return false;
 };
 
+// Return the parent portion of the PUCT score
+float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
+
 // Return the PUCT score of a node
-double puct(const Node& parent, const Node& child) {
+float puct(const float parentScore, const Node& child) {
     // V + C * P * (N.max(1).sqrt() / (n + 1))
     // V = Q = total score / visits
     // C = CPUCT
     // P = move policy score
     // N = parent visits
     // n = child visits
-    return -child.getScore() + CPUCT * child.policy * (std::sqrt(std::max<u64>(parent.visits, 1)) / (child.visits + 1));
+    return -child.getScore() + child.policy * parentScore / (child.visits + 1);
 };
 
 // Expand a node
@@ -58,15 +63,16 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     currentIndex += moves.length;
 
     fillPolicy(board, nodes, node, params.temp);
-};
+}
 
 // Find the best child node from a parent
-Node& findBestChild(Tree& nodes, const Node& node) {
-    double bestScore = puct(node, nodes[node.firstChild]);
-    Node*  bestChild = &nodes[node.firstChild];
-    Node*  child     = bestChild;
+Node& findBestChild(Tree& nodes, const Node& node, const SearchParameters& params) {
+    const float parentScore = parentPuct(node, params.cpuct);
+    Node*       bestChild   = &nodes[node.firstChild];
+    Node*       child       = bestChild;
+    float       bestScore   = puct(parentScore, *child);
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const double score = puct(node, child[idx]);
+        const float score = puct(parentScore, child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestChild = child + idx;
@@ -166,9 +172,10 @@ float searchNode(
 
     float score;
 
+actionBranch:
     // Selection
     if (!isLeaf(node, currentHalf)) {
-        Node& bestChild = findBestChild(nodes, node);
+        Node& bestChild = findBestChild(nodes, node, params);
         Board newBoard  = board;
         newBoard.move(bestChild.move);
 
@@ -180,7 +187,7 @@ float searchNode(
     else {
         if (node.firstChild.load().half() != currentHalf && node.numChildren > 0) {
             copyChildren(nodes, node, currentIndex, currentHalf);
-            score = searchNode(nodes, cumulativeDepth, seldepth, currentIndex, currentHalf, posHistory, board, node, params, ply);
+            goto actionBranch;
         }
         else if (node.visits == 0)
             score = cpToWDL(evaluate(board));
@@ -191,8 +198,8 @@ float searchNode(
     }
 
     // Backprop
-    node.totalScore += score;
-    node.visits++;
+    node.totalScore.getUnderlying().fetch_add(score, std::memory_order_relaxed);
+    node.visits.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
     cumulativeDepth++;
     seldepth = std::max(seldepth, ply);

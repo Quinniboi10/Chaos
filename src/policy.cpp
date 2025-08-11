@@ -172,15 +172,16 @@ void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float 
     }
 
     // Exponentiate and sum
+    const float tempMult = 1 / temperature;
     for (usize idx = 0; idx < numChildren; idx++) {
-        scores[idx] = std::exp((scores[idx] - maxScore) / temperature);
+        scores[idx] = std::exp((scores[idx] - maxScore) * tempMult);
         sum += scores[idx];
     }
 
     // Normalize
     for (usize idx = 0; idx < numChildren; idx++) {
-        atomic<float>& score = tree[{ idx + firstIdx, half }].policy;
-        const float    exp   = scores[idx];
+        RelaxedAtomic<float>& score = tree[{ idx + firstIdx, half }].policy;
+        const float           exp   = scores[idx];
         score.store(exp / sum);
     }
 }

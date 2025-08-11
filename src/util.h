@@ -13,11 +13,11 @@
 #include <string_view>
 
 #ifdef _WIN32
-  #define NOMINMAX
-  #include <windows.h>
+    #define NOMINMAX
+    #include <windows.h>
 #else
-  #include <sys/ioctl.h>
-  #include <unistd.h>
+    #include <sys/ioctl.h>
+    #include <unistd.h>
 #endif
 
 #include "types.h"
@@ -50,17 +50,17 @@ inline Square popLSB(auto& bb) {
 }
 
 template<int dir>
-inline u64 shift(u64 bb) {
+inline u64 shift(const u64 bb) {
     return dir > 0 ? bb << dir : bb >> -dir;
 }
 
-inline u64 shift(int dir, u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
+inline u64 shift(const int dir, const u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
 
 inline float sigmoid(const float x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
 inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
 
-inline float cpToWDL(int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
-inline i32   wdlToCP(float wdl) {
+inline float cpToWDL(const int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
+inline i32   wdlToCP(const float wdl) {
     assert(wdl > -1);
     assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
@@ -295,16 +295,16 @@ inline int getTerminalRows() {
     auto env_lines = []() -> int {
         if (const char* s = std::getenv("LINES")) {
             char* end = nullptr;
-            long v = std::strtol(s, &end, 10);
-            if (end != s && v > 0 && v < 100000) return static_cast<int>(v);
+            long  v   = std::strtol(s, &end, 10);
+            if (end != s && v > 0 && v < 100000)
+                return static_cast<int>(v);
         }
         return -1;
     };
 
-    #ifdef _WIN32
+#ifdef _WIN32
     // Try the visible window height of the current console.
-    if (HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-        h != nullptr && h != INVALID_HANDLE_VALUE) {
+    if (HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE); h != nullptr && h != INVALID_HANDLE_VALUE) {
         CONSOLE_SCREEN_BUFFER_INFO csbi{};
         if (GetConsoleScreenBufferInfo(h, &csbi)) {
             int win_rows = static_cast<int>(csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
@@ -319,7 +319,7 @@ inline int getTerminalRows() {
     int r = env_lines();
     return (r > 0) ? r : 24;
 
-    #else
+#else
     winsize ws{};
 
     if (isatty(STDOUT_FILENO) && ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
@@ -330,7 +330,7 @@ inline int getTerminalRows() {
 
     int r = env_lines();
     return (r > 0) ? r : 24;
-    #endif
+#endif
 }
 
 namespace cursor {
