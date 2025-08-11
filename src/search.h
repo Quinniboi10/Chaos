@@ -21,13 +21,13 @@ class NodeIndex {
     bool operator==(const NodeIndex& other) const { return idx == other.idx; }
 };
 struct Node {
-    atomic<float>     totalScore;
-    atomic<NodeIndex> firstChild;
-    atomic<u64>       visits;
-    atomic<float>     policy;
-    atomic<Move>      move;
-    atomic<GameState> state;
-    atomic<u8>        numChildren;
+    RelaxedAtomic<float>     totalScore;
+    RelaxedAtomic<NodeIndex> firstChild;
+    RelaxedAtomic<u64>       visits;
+    RelaxedAtomic<float>     policy;
+    RelaxedAtomic<Move>      move;
+    RelaxedAtomic<GameState> state;
+    RelaxedAtomic<u8>        numChildren;
 
     Node() {
         totalScore  = 0;
@@ -52,42 +52,43 @@ struct Node {
     Node& operator=(const Node& other) {
         if (this != &other) {
             totalScore  = other.totalScore.load();
-            visits      = other.visits.load();
             firstChild  = other.firstChild.load();
+            visits      = other.visits.load();
             state       = other.state.load();
+            policy      = other.policy.load();
             move        = other.move.load();
+            state       = other.state.load();
             numChildren = other.numChildren.load();
         }
         return *this;
     }
 
-    bool operator==(const Node& other) const {
-        return totalScore == other.totalScore.load() && visits == other.visits.load() && firstChild.load() == other.firstChild.load() && state == other.state.load() && move == other.move.load()
-            && numChildren == other.numChildren.load();
-    }
+    bool operator==(const Node& other) const { return visits == other.visits.load() && firstChild.load() == other.firstChild.load(); }
 
     float getScore() const {
-        if (state == DRAW)
+        const GameState s = state.load();
+        if (s == DRAW)
             return 0;
-        if (state == WIN)
+        if (s == WIN)
             return 1;
-        if (state == LOSS)
+        if (s == LOSS)
             return -1;
-        if (visits == 0)
+        const u64 v = visits.load();
+        if (v == 0)
             return FPU;
-        return totalScore.load() / visits.load();
+        return totalScore.load() / v;
     }
 };
 
 struct SearchParameters {
     const vector<u64>& positionHistory;
-    double             cpuct;
+    float              cpuct;
     float              temp;
 
     bool doReporting;
     bool doUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const double cpuct, const float temp, const bool doReporting, const bool doUci) :
+    SearchParameters(const vector<u64>& positionHistory, const float cpuct, const float temp, const bool doReporting, const bool doUci) :
         positionHistory(positionHistory),
         cpuct(cpuct),
         temp(temp),

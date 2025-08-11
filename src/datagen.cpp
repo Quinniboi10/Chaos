@@ -456,7 +456,6 @@ void datagen::genFens(const string& params) {
 
         Searcher searcher;
         searcher.start(board, params, limits);
-        assert(!m.isNull());
 
         return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= datagen::MAX_STARTPOS_SCORE;
     };
