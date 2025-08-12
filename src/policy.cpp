@@ -7,6 +7,7 @@
 #endif
 
 #include "movegen.h"
+#include "simd.h"
 #include "../external/incbin.h"
 
 #ifdef MSVC
@@ -124,7 +125,6 @@ void initPolicy() {
     OFFSETS[64] = curr;
 }
 
-
 usize moveIdx(const Color stm, const Move m) {
     const i32 flipper = stm == Color::BLACK ? 56 : 0;
     if (m.typeOf() == PROMOTION) {
@@ -142,12 +142,27 @@ usize moveIdx(const Color stm, const Move m) {
 }
 
 float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
-    const usize idx  = moveIdx(stm, m);
-    i32         eval = nn.outputBiases[idx];
-    for (usize i = 0; i < HL_SIZE_P; i++)
-        eval += policyAccumulator[i] * nn.weightsToOut[idx][i];
+    using namespace simd;
+    static_assert(HL_SIZE_P % VECTOR_SIZE<i16> == 0, "Policy HL size is not compatible with the size of this CPU's native register");
 
-    return static_cast<float>(eval) / (Q_P * Q_P);
+    const usize idx = moveIdx(stm, m);
+
+    Vector<i32> outputAccumulator{};
+
+    for (usize i = 0; i < HL_SIZE_P; i += VECTOR_SIZE<i16>) {
+        // Load values
+        const Vector<i16> accumValues = load_ep<i16>(&policyAccumulator[i]);
+
+        // Load weights
+        const Vector<i16> weights = load_ep<i8, i16>(&nn.weightsToOut[idx][i]);
+
+        // Apply weights
+        const Vector<i32> weighted = madd_epi16(accumValues, weights);
+
+        outputAccumulator = add_ep<i32>(outputAccumulator, weighted);
+    }
+
+    return static_cast<float>(reduce_ep<i32>(outputAccumulator) + nn.outputBiases[idx]) / (Q_P * Q_P);
 }
 
 void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float temperature) {
