@@ -92,7 +92,7 @@ i16 ValueNN::CReLU(const i16 x) {
         #include <immintrin.h>
     #endif
     #if defined(__AVX512F__)
-        #pragma message("Using AVX512 NNUE inference")
+        #pragma message("Using AVX512 NN inference")
 using Vectori16 = __m512i;
 using Vectori32 = __m512i;
         #define set1_epi16 _mm512_set1_epi16
@@ -104,7 +104,7 @@ using Vectori32 = __m512i;
         #define add_epi32 _mm512_add_epi32
         #define reduce_epi32 _mm512_reduce_add_epi32
     #elif defined(__AVX2__)
-        #pragma message("Using AVX2 NNUE inference")
+        #pragma message("Using AVX2 NN inference")
 using Vectori16 = __m256i;
 using Vectori32 = __m256i;
         #define set1_epi16 _mm256_set1_epi16
@@ -127,7 +127,7 @@ using Vectori32 = __m256i;
             }
     #elif defined(__ARM_NEON)
         #include <arm_neon.h>
-        #pragma message("Using NEON NNUE inference")
+        #pragma message("Using NEON NN inference")
 using Vectori16 = int16x8_t;
 using Vectori32 = int32x4_t;
         #define set1_epi16 vdupq_n_s16
@@ -144,7 +144,7 @@ using Vectori32 = int32x4_t;
         #define add_epi32 vaddq_s32
         #define reduce_epi32 vaddvq_s32
     #else
-        #pragma message("Using SSE NNUE inference")
+        #pragma message("Using SSE NN inference")
 // Assumes SSE support here
 using Vectori16 = __m128i;
 using Vectori32 = __m128i;
@@ -170,11 +170,11 @@ i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     const Vectori16 VEC_QA_V = set1_epi16(QA_V);
     const Vectori16 VEC_ZERO = set1_epi16(0);
 
-    Vectori32 ValueAccumulator{};
+    Vectori32 valueAccumulator{};
 
     #pragma unroll
     for (usize i = 0; i < HL_SIZE_V; i += VECTOR_SIZE) {
-        // Load ValueAccumulator
+        // Load accumulator
         const Vectori16 accumValues = load_epi16(&accum[i]);
 
         // Clamp values
@@ -186,13 +186,13 @@ i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
         // SCReLU it
         const Vectori32 activated = madd_epi16(clamped, mullo_epi16(clamped, weights));
 
-        ValueAccumulator = add_epi32(ValueAccumulator, activated);
+        valueAccumulator = add_epi32(valueAccumulator, activated);
     }
 
-    return reduce_epi32(ValueAccumulator);
+    return reduce_epi32(valueAccumulator);
 }
 #else
-    #pragma message("Using compiler optimized NNUE inference")
+    #pragma message("Using compiler optimized NN inference")
 i32 NN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     i32 res = 0;
 
