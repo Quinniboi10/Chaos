@@ -6,6 +6,7 @@
 
 # Engine build
 *.o
+*.d
 Chaos*
 
 # NNs

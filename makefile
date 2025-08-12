@@ -33,7 +33,9 @@ endif
 IS_ARM := $(filter ARM arm64 aarch64 arm%,$(ARCH))
 
 ifeq ($(IS_ARM),)
-  CXXFLAGS += -static -fuse-ld=lld
+  LINKFLAGS := -static -fuse-ld=lld
+else
+  LINKFLAGS :=
 endif
 
 
@@ -42,6 +44,7 @@ EXE      ?= Chaos$(EXE_EXT)
 
 # Source and object files
 SRCS     := $(wildcard ./src/*.cpp)
+SRCS     += ./external/fmt/format.cpp
 OBJS     := $(SRCS:.cpp=.o)
 
 # Default target
@@ -49,12 +52,20 @@ all: downloadV
 all: downloadP
 all: $(EXE)
 
+# Build the objects
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(GIT_HEAD_COMMIT_ID_DEF) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" -c $< -o $@
+
+CXXFLAGS += -MMD -MP
+DEPS := $(OBJS:.o=.d)
+-include $(DEPS)
+
 # Link the executable
-$(EXE): $(SRCS)
-	$(CXX) $(CXXFLAGS) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" $(SRCS) ./external/fmt/format.cc $(GIT_HEAD_COMMIT_ID_DEF) -o $@
+$(EXE): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) $(LINKFLAGS) -o $@
 
 # Download the net from the repository
-VALUEFILE ?= $(DEFAULT_VALUE_NET)
+VALUEFILE  ?= $(DEFAULT_VALUE_NET)
 POLICYFILE ?= $(DEFAULT_POLICY_NET)
 
 downloadV:
@@ -81,19 +92,18 @@ endif
 
 # Debug build
 .PHONY: debug
-debug: clean
 debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline -fno-inline-functions -ldl -ggdb -DDEBUG -fsanitize=address -no-pie -fno-pie  -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
 debug: all
 
 # Debug build
 .PHONY: profile
-profile: clean
 profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -fuse-ld=lld -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
 profile: all
 
 # Force rebuild
 .PHONY: force
-force: clean all
+force: clean
+force: all
 
 # Clean up
 .PHONY: clean
@@ -102,3 +112,5 @@ clean:
 	$(RM) Chaos.exp
 	$(RM) Chaos.lib
 	$(RM) Chaos.pdb
+	$(RM) $(OBJS)
+	$(RM) $(DEPS)
