@@ -117,6 +117,8 @@ struct MontyFormatMove {
         const Node& root     = searcher.nodes[{ 0, searcher.currentHalf }];
         const u64   firstIdx = root.firstChild.load().index();
 
+        visits.reserve(root.numChildren);
+
         bestMove = asMontyMove(searcher.rootPos, m);
         rootQ    = root.getScore();
 
@@ -129,12 +131,23 @@ struct MontyFormatMove {
     }
 };
 
-struct FileWriter {
+class FileWriter {
     Board                   board;
     MontyFormatBoard        compressedBoard;
     vector<MontyFormatMove> moves;
 
     std::ofstream file;
+
+    void writeU8(const u8 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u8)); }
+
+    void writeU16(const u16 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u16)); }
+
+    template<typename T>
+    void write(const T& value) {
+        file.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    }
+
+public:
 
     explicit FileWriter(const string& filePath) {
         board.reset();
@@ -154,15 +167,6 @@ struct FileWriter {
     }
 
     void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
-
-    void writeU8(const u8 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u8)); }
-
-    void writeU16(const u16 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u16)); }
-
-    template<typename T>
-    void write(const T& value) {
-        file.write(reinterpret_cast<const char*>(&value), sizeof(T));
-    }
 
     void writeGame(const usize wdl) {
         sigset_t set, oldset;
@@ -221,8 +225,8 @@ void makeRandomMove(Board& board) {
     const MoveList moves = Movegen::generateMoves(board);
     assert(moves.length > 0);
 
-    std::random_device                 rd;
-    std::mt19937_64                    engine(rd());
+    static std::random_device                 rd;
+    static std::mt19937_64                    engine(rd());
     std::uniform_int_distribution<int> dist(0, moves.length - 1);
 
     board.move(moves.moves[dist(engine)]);
@@ -275,6 +279,8 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
     const SearchParameters               params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
     const SearchLimits                   limits(stopwatch, 0, nodes, 0, 0);
 
+    usize localPositions = 0;
+
     searcher.setHash(datagen::HASH_PER_T);
 
 mainLoop:
@@ -303,10 +309,8 @@ mainLoop:
             const Move m = searcher.start(board, params, limits);
             assert(!m.isNull());
 
-            if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE) {
+            if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE)
                 goto mainLoop;
-                isFirstMove = false;
-            }
 
             fileWriter.addMove(searcher, m);
 
@@ -317,7 +321,7 @@ mainLoop:
 
             isFirstMove = false;
 
-            positions++;
+            localPositions++;
         }
 
         usize wdl;
@@ -328,8 +332,13 @@ mainLoop:
         else
             wdl = 2;
 
-        fileWriter.write(wdl);
+        fileWriter.writeGame(wdl);
         posHistory.clear();
+
+        if (localPositions >= 1'024) {
+            positions.fetch_add(localPositions, std::memory_order_relaxed);
+            localPositions = 0;
+        }
     }
 }
 
@@ -373,6 +382,9 @@ void datagen::run(const string& params) {
     cursor::hide();
 
     u64 totalPositions = 0;
+    RollingWindow<float> pastNPS(100);
+
+    cursor::clearAll();
 
     while (totalPositions < numPositions) {
         boardMutexes[0].lock();
@@ -383,7 +395,6 @@ void datagen::run(const string& params) {
             continue;
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        cursor::goTo(1, 10);
 
         totalPositions = 0;
         for (usize i = 0; i < threadCount; i++)
@@ -391,9 +402,12 @@ void datagen::run(const string& params) {
 
         totalPositions = std::max<u64>(1, totalPositions);
 
+        pastNPS.push(static_cast<double>(totalPositions) * 1000 / time.elapsed());
+        const float nps = std::accumulate(pastNPS.begin(), pastNPS.end(), 0.0f) / pastNPS.size();
+
         std::ostringstream ss{};
 
-        cursor::clearAll(ss);
+        cursor::home(ss);
         ss << "************ Chaos Datagen In Progress... ************" << "\n";
         ss << "\n";
         ss << "*** Parameters ***" << "\n";
@@ -403,16 +417,26 @@ void datagen::run(const string& params) {
         ss << "\n";
         ss << "\n";
         ss << "\n";
+        for (usize i = 0; i < 4; i++) {
+            cursor::down(ss);
+            cursor::clear(ss);
+        }
+        for (usize i = 0; i < 4; i++)
+            cursor::up(ss);
         ss << board << "\n";
         ss << "\n";
         ss << "\n";
         progressBar(50, static_cast<double>(totalPositions) / numPositions, Colors::GREEN, ss);
         ss << "\n";
+        cursor::clear(ss);
         ss << Colors::GREY << "Positions:            " << Colors::RESET << suffixNum(totalPositions) << "\n";
-        ss << Colors::GREY << "Positions per second: " << Colors::RESET << fmt::format(fmt::runtime("{:.2f}"), static_cast<float>(totalPositions) * 1000 / time.elapsed()) << "\n";
+        cursor::clear(ss);
+        ss << Colors::GREY << "Positions per second: " << Colors::RESET << suffixNum(nps) << "\n";
         ss << "\n";
+        cursor::clear(ss);
         ss << Colors::GREY << "Time elapsed:             " << Colors::RESET << formatTime(time.elapsed()) << "\n";
-        ss << Colors::GREY << "Estimated time remaining: " << Colors::RESET << formatTime(time.elapsed() * numPositions / std::min(totalPositions, numPositions) - time.elapsed()) << "\n";
+        cursor::clear(ss);
+        ss << Colors::GREY << "Estimated time remaining: " << Colors::RESET << formatTime(static_cast<double>(numPositions - std::min(totalPositions, numPositions)) / nps * 1000) << "\n";
 
         cout << ss.str() << std::flush;
 
@@ -420,6 +444,7 @@ void datagen::run(const string& params) {
     }
 
     cursor::home();
+    cursor::clear();
     cout << "************ Chaos Datagen Complete! ************" << endl;
 
     stop.store(true);
