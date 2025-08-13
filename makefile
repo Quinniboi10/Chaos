@@ -92,12 +92,12 @@ endif
 
 # Debug build
 .PHONY: debug
-debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline -fno-inline-functions -ldl -ggdb -DDEBUG -fsanitize=address -no-pie -fno-pie  -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
+debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline-functions -flto -ldl -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
 debug: all
 
 # Debug build
 .PHONY: profile
-profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -fuse-ld=lld -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
+profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
 profile: all
 
 # Force rebuild
