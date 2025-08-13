@@ -267,7 +267,7 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
 
     FileWriter fileWriter(filePath);
 
-    Searcher searcher;
+    Searcher searcher{};
 
     std::random_device                 rd;
     std::mt19937_64                    engine(rd());
@@ -306,7 +306,9 @@ mainLoop:
         bool isFirstMove = true;
 
         while (!board.isGameOver(posHistory)) {
-            const Move m = searcher.start(board, params, limits);
+            searcher.nodes[{ 0, searcher.currentHalf }] = Node();
+            searcher.rootPos = board;
+            const Move m = searcher.search(params, limits);
             assert(!m.isNull());
 
             if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE)
@@ -479,7 +481,7 @@ void datagen::genFens(const string& params) {
         const SearchParameters                     params(posHistory, CPUCT, datagen::TEMPERATURE, false, false);
         const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
 
-        Searcher searcher;
+        static Searcher searcher{};
         searcher.start(board, params, limits);
 
         return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= datagen::MAX_STARTPOS_SCORE;

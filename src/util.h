@@ -333,6 +333,30 @@ inline int getTerminalRows() {
 #endif
 }
 
+inline void printPV(const MoveList& pv, const usize numToShow = 12, const u8 colorDecay = 10, const u8 minColor = 96) {
+    fmt::rgb color(255, 255, 255);
+
+    const usize endIdx = std::min(numToShow, pv.length);
+
+    for (usize idx = 0; idx < endIdx; ++idx) {
+        fmt::print(fg(color), "{}", pv[idx].toString());
+        if (idx != endIdx - 1)
+            fmt::print(" ");
+
+        color.r -= colorDecay;
+        color.g -= colorDecay;
+        color.b -= colorDecay;
+
+        color.r = std::max(color.r, minColor);
+        color.g = std::max(color.g, minColor);
+        color.b = std::max(color.b, minColor);
+    }
+
+    const usize remaining = pv.length - endIdx;
+    if (remaining > 0)
+        fmt::print(fg(color), " ({} remaining)", remaining);
+}
+
 namespace cursor {
 static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
 static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }

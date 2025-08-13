@@ -5,7 +5,6 @@
 
 #include <cmath>
 #include <functional>
-#include <stdatomic.h>
 
 // Return if a node is an unexplored or terminal node in the current half
 bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
@@ -113,12 +112,13 @@ Move findPvMove(const Tree& nodes, const Node& node) {
 }
 
 // Search the tree for the PV line
+// This function will search across halves
 MoveList findPV(const Tree& nodes, const u8 currentHalf) {
     MoveList pv{};
 
     const Node* node = &nodes[{ 0, currentHalf }];
 
-    while (!isLeaf(*node, currentHalf)) {
+    while (node->numChildren != 0) {
         const NodeIndex startIdx  = node->firstChild.load();
         const Node*     child     = &nodes[startIdx];
         const Node*     bestChild = child;
@@ -208,8 +208,9 @@ actionBranch:
 };
 
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
-    // Reset worker
+    // Reset searcher
     this->nodeCount = 0;
+    this->stopSearching = false;
 
     u64 currentIndex = 1;
 
@@ -226,8 +227,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        return (limits.nodes > 0 && nodeCount.load() >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth)
-            || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend);
+        const u64 nodeCount = this->nodeCount.load();
+        if (nodeCount % 1024 == 0 && (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend)))
+            return true;
+        return (limits.nodes > 0 && nodeCount >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
     };
 
     // Positions from root to the leaf
@@ -261,31 +264,33 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::goTo(1, 14);
 
         cursor::clear();
-        cout << Colors::GREY << "Tree Usage: " << Colors::WHITE;
-        coloredProgBar(40, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
+        cout << Colors::GREY << " Tree Usage: " << Colors::WHITE;
+        coloredProgBar(50, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";
 
         cursor::clear();
-        cout << Colors::GREY << "Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "\n";
+        cout << Colors::GREY << " Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "\n";
         cursor::clear();
-        cout << Colors::GREY << "Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
+        cout << Colors::GREY << " Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
         cursor::clear();
-        cout << Colors::GREY << "Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "\n";
+        cout << Colors::GREY << " Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "\n";
         cout << "\n";
 
         cursor::clear();
-        cout << Colors::GREY << "Depth:     " << Colors::WHITE << cumulativeDepth / iterations << "\n";
-        cout << Colors::GREY << "Max depth: " << Colors::WHITE << seldepth << "\n\n";
+        cout << Colors::GREY << " Depth:     " << Colors::WHITE << cumulativeDepth / iterations << "\n";
+        cout << Colors::GREY << " Max depth: " << Colors::WHITE << seldepth << "\n\n";
 
         cursor::clear();
         const float rootWdl = nodes[{ 0, currentHalf }].getScore();
-        cout << Colors::GREY << "Score:     ";
+        cout << Colors::GREY << " Score:     ";
         printColoredScore(rootWdl);
         cout << "\n";
         cursor::clear();
-        cout << Colors::GREY << "Best move: " << Colors::WHITE << pv[0] << "\n";
-        cout << "\n\n";
-        cout << "Best move history:" << "\n";
+        cout << Colors::GREY << " PV line: ";
+        printPV(pv);
+        cout << "\n";
+        cout << "\n";
+        cout << " Best move history:" << "\n";
         cursor::clearDown();
         for (const auto& m : bestMoves)
             cout << "    " << Colors::GREY << formatTime(m.first) << Colors::WHITE << " -> " << m.second << "\n";
@@ -305,7 +310,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::home();
 
         cout << rootPos << "\n";
-        cout << Colors::GREY << "Tree Size:  " << Colors::WHITE << (nodes.nodes[0].size() + nodes.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
+        cout << Colors::GREY << " Tree Size:  " << Colors::WHITE << (nodes.nodes[0].size() + nodes.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
     }
 
     // Main search loop
@@ -324,7 +329,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             copyChildren(nodes, nodes[{ 0, currentHalf }], currentIndex, currentHalf);
         }
 
-        iterations++;
+        iterations.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
         // Check if UCI should be printed
         if (params.doReporting) {
@@ -365,6 +370,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cursor::show();
         }
     }
+
+    this->stopSearching = true;
 
     return pv[0];
 }

@@ -137,6 +137,8 @@ int main(int argc, char* argv[]) {
             if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
         }
+        else if (command == "stop")
+            searcher.stop();
         else if (command == "quit")
             break;
 

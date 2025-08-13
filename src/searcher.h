@@ -10,35 +10,38 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <thread>
 
 struct Searcher {
     Board        rootPos;
     Tree         nodes;
-    atomic<u64>  nodeCount;
-    atomic<bool> isSearching;
+    RelaxedAtomic<u64>  nodeCount;
+    RelaxedAtomic<bool> stopSearching;
     atomic<u8>   currentHalf;
+
+    std::thread searchThread;
 
 
     Searcher() {
         setHash(DEFAULT_HASH);
-        isSearching = false;
         currentHalf = 0;
     }
 
     void setHash(const u64 hash) {
-        assert(!isSearching);
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
         nodes.resize(maxNodes);
     }
 
-    Move start(const Board& board, const SearchParameters params, const SearchLimits limits) {
-        assert(!isSearching);
+    void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         nodes[{ 0, currentHalf }] = Node();
-        isSearching               = true;
-        rootPos                   = board;
-        const Move m              = search(params, limits);
-        isSearching               = false;
-        return m;
+        rootPos = board;
+        searchThread = std::thread(&Searcher::search, this, params, limits);
+    }
+
+    void stop() {
+        stopSearching = true;
+        if (searchThread.joinable())
+            searchThread.join();
     }
 
     void launchInteractiveTree() {
