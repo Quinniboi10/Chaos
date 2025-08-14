@@ -63,7 +63,7 @@ struct __attribute__((packed)) MontyFormatBoard {
 
         bbs           = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
         stm           = board.stm ^ 1;
-        epSquare      = board.epSquare;
+        epSquare      = board.epSquare == NO_SQUARE ? a1 : board.epSquare;
         castleRights  = flags;
         halfMoveClock = board.halfMoveClock;
         fullMoveClock = board.fullMoveClock;
