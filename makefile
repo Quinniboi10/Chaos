@@ -1,4 +1,4 @@
-DEFAULT_VALUE_NET = Vine_03.value
+DEFAULT_VALUE_NET = Chaos_01.value
 DEFAULT_POLICY_NET = Vine_00.policy
 
 # Detect Operating System
