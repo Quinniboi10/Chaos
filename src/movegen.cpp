@@ -108,7 +108,7 @@ void initializeRookAttacks() {
     u64 edges, subset, index;
 
     for (Square sq = a1; sq <= h8; ++sq) {
-        edges                  = ((MASK_RANK[AFILE] | MASK_RANK[HFILE]) & ~MASK_RANK[rankOf(sq)]) | ((MASK_FILE[AFILE] | MASK_FILE[HFILE]) & ~MASK_FILE[fileOf(sq)]);
+        edges                  = ((MASK_RANK[FILE_A] | MASK_RANK[FILE_H]) & ~MASK_RANK[rankOf(sq)]) | ((MASK_FILE[FILE_A] | MASK_FILE[FILE_H]) & ~MASK_FILE[fileOf(sq)]);
         ROOK_ATTACK_MASKS[sq]  = (MASK_RANK[rankOf(sq)] ^ MASK_FILE[fileOf(sq)]) & ~edges;
         ROOK_ATTACK_SHIFTS[sq] = 64 - popcount(ROOK_ATTACK_MASKS[sq]);
 
@@ -158,7 +158,7 @@ void initializeBishopAttacks() {
     u64 edges, subset, index;
 
     for (Square sq = a1; sq <= h8; ++sq) {
-        edges                    = ((MASK_RANK[AFILE] | MASK_RANK[HFILE]) & ~MASK_RANK[rankOf(sq)]) | ((MASK_FILE[AFILE] | MASK_FILE[HFILE]) & ~MASK_FILE[fileOf(sq)]);
+        edges                    = ((MASK_RANK[FILE_A] | MASK_RANK[FILE_H]) & ~MASK_RANK[rankOf(sq)]) | ((MASK_FILE[FILE_A] | MASK_FILE[FILE_H]) & ~MASK_FILE[fileOf(sq)]);
         BISHOP_ATTACK_MASKS[sq]  = (MASK_DIAGONAL[diagonalOf(sq)] ^ MASK_ANTI_DIAGONAL[antiDiagonalOf(sq)]) & ~edges;
         BISHOP_ATTACK_SHIFTS[sq] = 64 - popcount(BISHOP_ATTACK_MASKS[sq]);
 
@@ -241,9 +241,9 @@ u64 Movegen::pawnAttackBB(Color c, int sq) {
 
     const u64 sqBB = 1ULL << sq;
     if (c == WHITE) {
-        return shift<NORTH_EAST>(sqBB & ~MASK_FILE[HFILE]) | shift<NORTH_WEST>(sqBB & ~MASK_FILE[AFILE]);
+        return shift<NORTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<NORTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
     }
-    return shift<SOUTH_EAST>(sqBB & ~MASK_FILE[HFILE]) | shift<SOUTH_WEST>(sqBB & ~MASK_FILE[AFILE]);
+    return shift<SOUTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<SOUTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
 }
 
 u64 bulk(Board& board, usize depth) {
@@ -432,8 +432,8 @@ void Movegen::perftSuite(const string filePath) {
 u64 Movegen::pawnAttacks(Color c, const Board& board) {
     const Direction pushDir = c == WHITE ? NORTH : SOUTH;
     const u64 pawns = board.pieces(c, PAWN);
-    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[HFILE]);
-    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[AFILE]);
+    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[FILE_H]);
+    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[FILE_A]);
 
     return captureEast | captureWest;
 }
@@ -546,8 +546,8 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
     const u64 singlePush = shift(pushDir, pawns) & empty;
     const u64 doublePush = shift(pushDir, singlePush) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]) & empty;
     
-    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[HFILE]) & enemy;
-    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[AFILE]) & enemy;
+    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[FILE_H]) & enemy;
+    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[FILE_A]) & enemy;
 
     const auto getMoves = [&](Square from) {
         u64 res = 0;
@@ -561,10 +561,10 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
         if (res > 0 && doublePushSq >= 0 && doublePushSq < 64 && readBit(doublePush, doublePushSq))
             res |= (1ULL << doublePushSq);
         // Capture east
-        if (fileOf(from) != HFILE && readBit(captureEast, from + pushDir + EAST))
+        if (fileOf(from) != FILE_H && readBit(captureEast, from + pushDir + EAST))
             res |= 1ULL << (from + pushDir + EAST);
         // Capture west
-        if (fileOf(from) != AFILE && readBit(captureWest, from + pushDir + WEST))
+        if (fileOf(from) != FILE_A && readBit(captureWest, from + pushDir + WEST))
             res |= 1ULL << (from + pushDir + WEST);
 
         return res;
@@ -642,8 +642,8 @@ void Movegen::kingMoves(const Board& board, MoveList& moves) {
             return false;
 
 
-        const Square kingEndSq = toSquare(board.stm == WHITE ? RANK1 : RANK8, kingside ? GFILE : CFILE);
-        const Square rookEndSq = toSquare(board.stm == WHITE ? RANK1 : RANK8, kingside ? FFILE : DFILE);
+        const Square kingEndSq = toSquare(board.stm == WHITE ? RANK1 : RANK8, kingside ? FILE_G : FILE_C);
+        const Square rookEndSq = toSquare(board.stm == WHITE ? RANK1 : RANK8, kingside ? FILE_F : FILE_D);
 
         u64 betweenBB = (LINESEG[from][kingEndSq] | LINESEG[to][rookEndSq]) ^ (1ULL << from) ^ (1ULL << to);
 

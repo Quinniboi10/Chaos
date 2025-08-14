@@ -7,11 +7,27 @@
 
 #include <filesystem>
 #include <fstream>
+#include <numeric>
+#include <csignal>
 #include <random>
 #include <thread>
-#include <csignal>
 #include <mutex>
+
+#ifdef _WIN32
+#include <windows.h>
+
+static volatile bool ctrlCPressed = false;
+
+BOOL WINAPI CtrlHandler(const DWORD fdwCtrlType) {
+    if (fdwCtrlType == CTRL_C_EVENT) {
+        ctrlCPressed = true;
+        return TRUE; // Signal handled
+    }
+    return FALSE; // Pass to next handler
+}
+#else
 #include <pthread.h>
+#endif
 
 using VisitDistribution = vector<std::pair<u16, u32>>;
 
@@ -169,19 +185,24 @@ public:
     void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
 
     void writeGame(const usize wdl) {
+        #ifdef _WIN32
+        SetConsoleCtrlHandler(CtrlHandler, TRUE);
+        ctrlCPressed = false;
+        #else
         sigset_t set, oldset;
         sigemptyset(&set);
         sigaddset(&set, SIGINT);
         pthread_sigmask(SIG_BLOCK, &set, &oldset);
+        #endif
 
         write(compressedBoard);
 
         const auto getFile = [](const Square sq, const File fallback) { return sq == NO_SQUARE ? fallback : fileOf(sq); };
 
-        writeU8(getFile(board.castling[castleIndex(WHITE, false)], AFILE));
-        writeU8(getFile(board.castling[castleIndex(WHITE, true)], HFILE));
-        writeU8(getFile(board.castling[castleIndex(BLACK, false)], AFILE));
-        writeU8(getFile(board.castling[castleIndex(BLACK, true)], HFILE));
+        writeU8(getFile(board.castling[castleIndex(WHITE, false)], FILE_A));
+        writeU8(getFile(board.castling[castleIndex(WHITE, true)], FILE_H));
+        writeU8(getFile(board.castling[castleIndex(BLACK, false)], FILE_A));
+        writeU8(getFile(board.castling[castleIndex(BLACK, true)], FILE_H));
 
         writeU8(wdl);
 
@@ -208,6 +229,11 @@ public:
         writeU16(0);
         file.flush();
 
+        #ifdef _WIN32
+        SetConsoleCtrlHandler(CtrlHandler, FALSE); // Restore default behavior
+        if (ctrlCPressed)
+            raise(SIGINT);
+        #else
         sigset_t pending;
         sigpending(&pending);
         const bool hadSigint = sigismember(&pending, SIGINT);
@@ -216,6 +242,7 @@ public:
 
         if (hadSigint)
             raise(SIGINT);
+        #endif
 
         moves.clear();
     }

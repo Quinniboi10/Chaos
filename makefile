@@ -64,31 +64,40 @@ DEPS := $(OBJS:.o=.d)
 $(EXE): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) $(LINKFLAGS) -o $@
 
-# Download the net from the repository
+# Net repo URL
+NET_BASE_URL := https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main
+
+# Net file names
 VALUEFILE  ?= $(DEFAULT_VALUE_NET)
 POLICYFILE ?= $(DEFAULT_POLICY_NET)
 
-downloadV:
+# Downlaod if the net is not specified
 ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
-	@if [ ! -f "$(DEFAULT_VALUE_NET)" ]; then \
-		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_VALUE_NET); \
-	else \
-		echo "$(DEFAULT_VALUE_NET) already exists, skipping download."; \
-	fi
+downloadV: $(DEFAULT_VALUE_NET)
 else
+downloadV:
 	@echo "VALUEFILE is set to '$(VALUEFILE)', skipping download."
 endif
 
-downloadP:
 ifeq ($(POLICYFILE),$(DEFAULT_POLICY_NET))
-	@if [ ! -f "$(DEFAULT_POLICY_NET)" ]; then \
-		curl -O https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main/$(DEFAULT_POLICY_NET); \
-	else \
-		echo "$(DEFAULT_POLICY_NET) already exists, skipping download."; \
-	fi
+downloadP: $(DEFAULT_POLICY_NET)
 else
+downloadP:
 	@echo "POLICYFILE is set to '$(POLICYFILE)', skipping download."
 endif
+
+# Files for make clean
+CLEAN_STUFF := $(EXE) Chaos.exp Chaos.lib Chaos.pdb $(OBJS) $(DEPS)
+ifeq ($(OS),Windows_NT)
+    CLEAN_STUFF := $(subst /,\\,$(CLEAN_STUFF))
+endif
+
+# Rules to create the files if they don't exist
+$(DEFAULT_VALUE_NET):
+	curl -L -o $@ $(NET_BASE_URL)/$@
+
+$(DEFAULT_POLICY_NET):
+	curl -L -o $@ $(NET_BASE_URL)/$@
 
 # Debug build
 .PHONY: debug
@@ -108,9 +117,4 @@ force: all
 # Clean up
 .PHONY: clean
 clean:
-	$(RM) $(EXE)
-	$(RM) Chaos.exp
-	$(RM) Chaos.lib
-	$(RM) Chaos.pdb
-	$(RM) $(OBJS)
-	$(RM) $(DEPS)
+	$(RM) $(CLEAN_STUFF)

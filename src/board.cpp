@@ -143,12 +143,12 @@ void Board::updateCheckPinAttack() {
     // *** PAWN ATTACKS ***
     u64 checkingPawns = 0;
     if (stm == WHITE) {
-        checkingPawns |= shift<NORTH_WEST>(kingBB & ~MASK_FILE[AFILE]) & pieces(BLACK, PAWN);
-        checkingPawns |= shift<NORTH_EAST>(kingBB & ~MASK_FILE[HFILE]) & pieces(BLACK, PAWN);
+        checkingPawns |= shift<NORTH_WEST>(kingBB & ~MASK_FILE[FILE_A]) & pieces(BLACK, PAWN);
+        checkingPawns |= shift<NORTH_EAST>(kingBB & ~MASK_FILE[FILE_H]) & pieces(BLACK, PAWN);
     }
     else {
-        checkingPawns |= shift<SOUTH_WEST>(kingBB & ~MASK_FILE[AFILE]) & pieces(WHITE, PAWN);
-        checkingPawns |= shift<SOUTH_EAST>(kingBB & ~MASK_FILE[HFILE]) & pieces(WHITE, PAWN);
+        checkingPawns |= shift<SOUTH_WEST>(kingBB & ~MASK_FILE[FILE_A]) & pieces(WHITE, PAWN);
+        checkingPawns |= shift<SOUTH_EAST>(kingBB & ~MASK_FILE[FILE_H]) & pieces(WHITE, PAWN);
     }
 
     checkers  = knightAttacks | rookChecks | bishopChecks | checkingPawns;
@@ -455,7 +455,7 @@ void Board::move(Move m) {
     case STANDARD_MOVE:
         placePiece(stm, pt, to);
         if (pt == PAWN && (to + 16 == from || to - 16 == from)
-            && (pieces(~stm, PAWN) & (shift<EAST>((1ULL << to) & ~MASK_FILE[HFILE]) | shift<WEST>((1ULL << to) & ~MASK_FILE[AFILE]))))  // Only set EP square if it could be taken
+            && (pieces(~stm, PAWN) & (shift<EAST>((1ULL << to) & ~MASK_FILE[FILE_H]) | shift<WEST>((1ULL << to) & ~MASK_FILE[FILE_A]))))  // Only set EP square if it could be taken
             epSquare = Square(stm == WHITE ? from + NORTH : from + SOUTH);
         break;
     case EN_PASSANT:
