@@ -34,7 +34,7 @@ using VisitDistribution = vector<std::pair<u16, u32>>;
 struct __attribute__((packed)) MontyFormatBoard {
     array<u64, 4> bbs;
     u8            stm;
-    Square        epSquare;
+    u8            epSquare;
     u8            castleRights;
     u8            halfMoveClock;
     u16           fullMoveClock;
@@ -62,8 +62,8 @@ struct __attribute__((packed)) MontyFormatBoard {
             flags |= blackQ;
 
         bbs           = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
-        stm           = board.stm ^ 1;
-        epSquare      = board.epSquare == NO_SQUARE ? a1 : board.epSquare;
+        stm           = board.stm == WHITE ? 0 : 1;
+        epSquare      = board.epSquare == NO_SQUARE ? 0 : board.epSquare;
         castleRights  = flags;
         halfMoveClock = board.halfMoveClock;
         fullMoveClock = board.fullMoveClock;
@@ -89,11 +89,13 @@ u16 asMontyMove(const Board& board, const Move m) {
     };
 
     const u16 from = m.from();
-    const u16 to   = m.to();
+    u16       to   = m.to();
 
     MontyMoveType flag = QUIET;
-    if (m.typeOf() == MoveType::CASTLE)
+    if (m.typeOf() == MoveType::CASTLE) {
         flag = to > from ? CASTLE_K : CASTLE_Q;
+        to   = KING_CASTLE_END_SQ[castleIndex(board.stm, to > from)];
+    }
     else if (m.typeOf() == MoveType::EN_PASSANT)
         flag = EP;
     else if (m.typeOf() == MoveType::PROMOTION) {
@@ -149,7 +151,6 @@ struct MontyFormatMove {
 
 class FileWriter {
     Board                   board;
-    MontyFormatBoard        compressedBoard;
     vector<MontyFormatMove> moves;
 
     std::ofstream file;
@@ -166,7 +167,6 @@ class FileWriter {
    public:
     explicit FileWriter(const string& filePath) {
         board.reset();
-        compressedBoard = MontyFormatBoard(board);
 
         file = std::ofstream(filePath, std::ios::app | std::ios::binary);
 
@@ -176,10 +176,7 @@ class FileWriter {
         }
     }
 
-    void setStartpos(const Board& board) {
-        this->board     = board;
-        compressedBoard = MontyFormatBoard(board);
-    }
+    void setStartpos(const Board& board) { this->board = board; }
 
     void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
 
@@ -194,7 +191,7 @@ class FileWriter {
         pthread_sigmask(SIG_BLOCK, &set, &oldset);
 #endif
 
-        write(compressedBoard);
+        write(MontyFormatBoard(board));
 
         const auto getFile = [](const Square sq, const File fallback) { return sq == NO_SQUARE ? fallback : fileOf(sq); };
 
@@ -406,15 +403,16 @@ void datagen::run(const string& params) {
     constexpr std::string_view allowedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\\|;':\",.<>?/`~";
 
     // Array storing the order in which to fill
-    array<uint16_t, finishedText.size()> textFillOrder = [&]{
+    array<uint16_t, finishedText.size()> textFillOrder = [&] {
         array<uint16_t, finishedText.size()> a{};
-        for (uint16_t i = 0; i < a.size(); ++i) a[i] = static_cast<uint16_t>(i + 1);
-        std::mt19937 rng{static_cast<uint32_t>(std::time(nullptr))};
+        for (uint16_t i = 0; i < a.size(); ++i)
+            a[i] = static_cast<uint16_t>(i + 1);
+        std::mt19937 rng{ static_cast<uint32_t>(std::time(nullptr)) };
         std::shuffle(a.begin(), a.end(), rng);
         return a;
     }();
 
-    std::mt19937 rng{static_cast<uint32_t>(std::time(nullptr) ^ 0x9E3779B9)};
+    std::mt19937                          rng{ static_cast<uint32_t>(std::time(nullptr) ^ 0x9E3779B9) };
     std::uniform_int_distribution<size_t> randIndex(0, allowedChars.size() - 1);
 
     // Returns the string
@@ -422,12 +420,12 @@ void datagen::run(const string& params) {
         t = std::clamp(t, 0.0, 1.0);
 
         const double N = static_cast<double>(finishedText.size());
-        string out;
+        string       out;
         out.resize(finishedText.size());
 
         for (size_t i = 0; i < finishedText.size(); ++i) {
             const double threshold = static_cast<double>(textFillOrder[i]) / N;
-            const bool solved = (t >= threshold);
+            const bool   solved    = (t >= threshold);
 
             if (solved)
                 out[i] = finishedText[i];
