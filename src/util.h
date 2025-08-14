@@ -24,6 +24,8 @@
 #include "../external/fmt/fmt/color.h"
 #include "../external/fmt/fmt/format.h"
 
+#include <thread>
+
 #define ctzll(x) std::countr_zero(x)
 
 inline bool readBit(u64 bb, int sq) { return (1ULL << sq) & bb; }
@@ -355,6 +357,14 @@ inline void printPV(const MoveList& pv, const usize numToShow = 12, const u8 col
     const usize remaining = pv.length - endIdx;
     if (remaining > 0)
         fmt::print(fg(color), " ({} remaining)", remaining);
+}
+
+inline void slowPrint(string text, const usize delay = 30, std::ostream& out = cout) {
+    while (!text.empty()) {
+        out << text.front() << std::flush;
+        text = text.substr(1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+    }
 }
 
 namespace cursor {

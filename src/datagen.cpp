@@ -399,6 +399,44 @@ void datagen::run(const string& params) {
     vector<std::mutex>                   boardMutexes(threadCount);
     atomic<bool>                         stop(false);
 
+    // Order in which to fill the changing text
+    constexpr std::string_view finishedText = "Chaos Datagen Complete!";
+
+    // List of allowed characters
+    constexpr std::string_view allowedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\\|;':\",.<>?/`~";
+
+    // Array storing the order in which to fill
+    array<uint16_t, finishedText.size()> textFillOrder = [&]{
+        array<uint16_t, finishedText.size()> a{};
+        for (uint16_t i = 0; i < a.size(); ++i) a[i] = static_cast<uint16_t>(i + 1);
+        std::mt19937 rng{static_cast<uint32_t>(std::time(nullptr))};
+        std::shuffle(a.begin(), a.end(), rng);
+        return a;
+    }();
+
+    std::mt19937 rng{static_cast<uint32_t>(std::time(nullptr) ^ 0x9E3779B9)};
+    std::uniform_int_distribution<size_t> randIndex(0, allowedChars.size() - 1);
+
+    // Returns the string
+    static auto getFrame = [&](double t) -> string {
+        t = std::clamp(t, 0.0, 1.0);
+
+        const double N = static_cast<double>(finishedText.size());
+        string out;
+        out.resize(finishedText.size());
+
+        for (size_t i = 0; i < finishedText.size(); ++i) {
+            const double threshold = static_cast<double>(textFillOrder[i]) / N;
+            const bool solved = (t >= threshold);
+
+            if (solved)
+                out[i] = finishedText[i];
+            else
+                out[i] = allowedChars[randIndex(rng)];
+        }
+        return out;
+    };
+
     for (auto& p : positions)
         p.store(0, std::memory_order_relaxed);
     for (auto& b : boards)
@@ -435,8 +473,10 @@ void datagen::run(const string& params) {
 
         std::ostringstream ss{};
 
+        const double progress = static_cast<double>(totalPositions) / numPositions;
+
         cursor::home(ss);
-        ss << "************ Chaos Datagen In Progress... ************" << "\n";
+        ss << "************ " << getFrame(progress) << " ************" << "\n";
         ss << "\n";
         ss << "*** Parameters ***" << "\n";
         ss << "Threads:   " << threadCount << "\n";
@@ -454,7 +494,7 @@ void datagen::run(const string& params) {
         ss << board << "\n";
         ss << "\n";
         ss << "\n";
-        progressBar(50, static_cast<double>(totalPositions) / numPositions, Colors::GREEN, ss);
+        progressBar(50, progress, Colors::GREEN, ss);
         ss << "\n";
         cursor::clear(ss);
         ss << Colors::GREY << "Positions:            " << Colors::RESET << suffixNum(totalPositions) << "\n";
@@ -471,16 +511,29 @@ void datagen::run(const string& params) {
         cout.flush();
     }
 
-    cursor::home();
-    cursor::clear();
-    cout << "************ Chaos Datagen Complete! ************" << endl;
-
     stop.store(true);
     for (std::thread& thread : threads)
         if (thread.joinable())
             thread.join();
-    cursor::goTo(1, 30);
+
+    cout << "\n\n";
+
+    std::string dummy;
+    std::getline(std::cin, dummy);
+
+    cursor::home();
+    cursor::clearAll();
     cursor::show();
+    slowPrint("GREETINGS PROFESSOR FALKEN\n\n");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    slowPrint("HELLO\n\n");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    slowPrint("A STRANGE GAME.\n");
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    slowPrint("THE ONLY WINNING MOVE IS\nNOT TO PLAY.\n\n");
+    std::this_thread::sleep_for(std::chrono::seconds(4));
+    slowPrint("HOW ABOUT A NICE GAME OF CHESS?\n");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 }
 
 
