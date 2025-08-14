@@ -33,6 +33,7 @@ struct Searcher {
     }
 
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
+        stop();
         nodes[{ 0, currentHalf }] = Node();
         rootPos                   = board;
         searchThread              = std::thread(&Searcher::search, this, params, limits);

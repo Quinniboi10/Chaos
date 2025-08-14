@@ -33,7 +33,7 @@ endif
 IS_ARM := $(filter ARM arm64 aarch64 arm%,$(ARCH))
 
 ifeq ($(IS_ARM),)
-  LINKFLAGS := -static -fuse-ld=lld
+  LINKFLAGS := -fuse-ld=lld
 else
   LINKFLAGS :=
 endif
@@ -99,14 +99,19 @@ $(DEFAULT_VALUE_NET):
 $(DEFAULT_POLICY_NET):
 	curl -L -o $@ $(NET_BASE_URL)/$@
 
+# Release (static) build
+.PHONY: release
+release: CXXFLAGS += -static
+release: all
+
 # Debug build
 .PHONY: debug
-debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline-functions -flto -ldl -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
+debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
 debug: all
 
 # Debug build
 .PHONY: profile
-profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -static -DNDEBUG
+profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -DNDEBUG
 profile: all
 
 # Force rebuild
