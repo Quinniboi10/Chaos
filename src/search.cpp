@@ -57,11 +57,10 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
         child[i].move        = moves[i];
         child[i].state       = ONGOING;
         child[i].numChildren = 0;
+        child[i].policy = 1.0f / moves.length;
     }
 
     currentIndex += moves.length;
-
-    fillPolicy(board, nodes, node, params.temp);
 }
 
 // Find the best child node from a parent

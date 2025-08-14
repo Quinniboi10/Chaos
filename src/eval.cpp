@@ -213,28 +213,5 @@ usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType 
 }
 
 i32 evaluate(const Board& board) {
-    const ValueAccumulator accum(board);
-    i32                    eval = 0;
-
-    if constexpr (ACTIVATION_V != ::SCReLU) {
-        for (usize i = 0; i < HL_SIZE_V; i++) {
-            // First HL_SIZE_V weights are for STM
-            if constexpr (ACTIVATION_V == ::ReLU)
-                eval += nn.ReLU(accum[i]) * nn.weightsToOut[i];
-            if constexpr (ACTIVATION_V == ::CReLU)
-                eval += nn.CReLU(accum[i]) * nn.weightsToOut[i];
-        }
-    }
-    else
-        eval = nn.vectorizedSCReLU(accum);
-
-
-    // Dequantization
-    if constexpr (ACTIVATION_V == ::SCReLU)
-        eval /= QA_V;
-
-    eval += nn.outputBias;
-
-    // Apply output bias and scale the result
-    return (eval * EVAL_SCALE_V) / (QA_V * QB_V);
+    return board.zobrist % 200 - 100;
 }
