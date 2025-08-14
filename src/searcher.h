@@ -13,11 +13,11 @@
 #include <thread>
 
 struct Searcher {
-    Board        rootPos;
-    Tree         nodes;
+    Board               rootPos;
+    Tree                nodes;
     RelaxedAtomic<u64>  nodeCount;
     RelaxedAtomic<bool> stopSearching;
-    atomic<u8>   currentHalf;
+    atomic<u8>          currentHalf;
 
     std::thread searchThread;
 
@@ -34,8 +34,8 @@ struct Searcher {
 
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         nodes[{ 0, currentHalf }] = Node();
-        rootPos = board;
-        searchThread = std::thread(&Searcher::search, this, params, limits);
+        rootPos                   = board;
+        searchThread              = std::thread(&Searcher::search, this, params, limits);
     }
 
     void stop() {

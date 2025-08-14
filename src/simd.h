@@ -7,23 +7,23 @@
 // Based on Vine
 namespace simd {
 #if __x86_64__
-#if defined(__AVX512F__)
+    #if defined(__AVX512F__)
 constexpr usize ALIGNMENT = 64;
-#elif defined(__AVX2__)
+    #elif defined(__AVX2__)
 constexpr usize ALIGNMENT = 32;
-#elif defined(__SSE__)
+    #elif defined(__SSE__)
 constexpr usize ALIGNMENT = 16;
-#else
-#error Unsupported CPU architecture. At least SEE is required.
-#endif
+    #else
+        #error Unsupported CPU architecture. At least SEE is required.
+    #endif
 #elif defined(__arm__) || defined(__aarch64__)
-#if defined(__ARM_NEON)
+    #if defined(__ARM_NEON)
 constexpr usize ALIGNMENT = 16;
-#else
+    #else
 constexpr usize ALIGNMENT = 0;
-#endif
+    #endif
 #else
-#error Unsupported CPU architecture
+    #error Unsupported CPU architecture
 #endif
 
 constexpr usize VECTOR_BYTES = ALIGNMENT;
@@ -71,7 +71,7 @@ inline T reduce_ep(const Vector<T> v) {
 }
 
 #ifdef __x86_64__
-#include <immintrin.h>
+    #include <immintrin.h>
 inline Vector<i32> madd_epi16(const Vector<i16> a, const Vector<i16> b) {
     #if defined(__AVX512F__)
     return _mm512_madd_epi16(a, b);
@@ -82,16 +82,16 @@ inline Vector<i32> madd_epi16(const Vector<i16> a, const Vector<i16> b) {
     #endif
 }
 #elif defined(__arm__) || defined(__aarch64__)
-#if defined(__ARM_NEON)
-#include <arm_neon.h>
+    #if defined(__ARM_NEON)
+        #include <arm_neon.h>
 
 inline Vector<i32> madd_epi16(const Vector<i16> a, const Vector<i16> b) {
-    int32x4_t mul_low = vmull_s16(vget_low_s16(a), vget_low_s16(b));
+    int32x4_t mul_low  = vmull_s16(vget_low_s16(a), vget_low_s16(b));
     int32x4_t mul_high = vmull_s16(vget_high_s16(a), vget_high_s16(b));
 
     return vaddq_s32(mul_low, mul_high);
 }
 
-#endif
+    #endif
 #endif
 }

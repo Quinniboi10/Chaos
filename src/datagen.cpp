@@ -14,19 +14,19 @@
 #include <mutex>
 
 #ifdef _WIN32
-#include <windows.h>
+    #include <windows.h>
 
 static volatile bool ctrlCPressed = false;
 
 BOOL WINAPI CtrlHandler(const DWORD fdwCtrlType) {
     if (fdwCtrlType == CTRL_C_EVENT) {
         ctrlCPressed = true;
-        return TRUE; // Signal handled
+        return TRUE;  // Signal handled
     }
-    return FALSE; // Pass to next handler
+    return FALSE;  // Pass to next handler
 }
 #else
-#include <pthread.h>
+    #include <pthread.h>
 #endif
 
 using VisitDistribution = vector<std::pair<u16, u32>>;
@@ -163,8 +163,7 @@ class FileWriter {
         file.write(reinterpret_cast<const char*>(&value), sizeof(T));
     }
 
-public:
-
+   public:
     explicit FileWriter(const string& filePath) {
         board.reset();
         compressedBoard = MontyFormatBoard(board);
@@ -185,15 +184,15 @@ public:
     void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
 
     void writeGame(const usize wdl) {
-        #ifdef _WIN32
+#ifdef _WIN32
         SetConsoleCtrlHandler(CtrlHandler, TRUE);
         ctrlCPressed = false;
-        #else
+#else
         sigset_t set, oldset;
         sigemptyset(&set);
         sigaddset(&set, SIGINT);
         pthread_sigmask(SIG_BLOCK, &set, &oldset);
-        #endif
+#endif
 
         write(compressedBoard);
 
@@ -229,11 +228,11 @@ public:
         writeU16(0);
         file.flush();
 
-        #ifdef _WIN32
-        SetConsoleCtrlHandler(CtrlHandler, FALSE); // Restore default behavior
+#ifdef _WIN32
+        SetConsoleCtrlHandler(CtrlHandler, FALSE);  // Restore default behavior
         if (ctrlCPressed)
             raise(SIGINT);
-        #else
+#else
         sigset_t pending;
         sigpending(&pending);
         const bool hadSigint = sigismember(&pending, SIGINT);
@@ -242,7 +241,7 @@ public:
 
         if (hadSigint)
             raise(SIGINT);
-        #endif
+#endif
 
         moves.clear();
     }
@@ -252,8 +251,8 @@ void makeRandomMove(Board& board) {
     const MoveList moves = Movegen::generateMoves(board);
     assert(moves.length > 0);
 
-    static std::random_device                 rd;
-    static std::mt19937_64                    engine(rd());
+    static std::random_device          rd;
+    static std::mt19937_64             engine(rd());
     std::uniform_int_distribution<int> dist(0, moves.length - 1);
 
     board.move(moves.moves[dist(engine)]);
@@ -334,8 +333,8 @@ mainLoop:
 
         while (!board.isGameOver(posHistory)) {
             searcher.nodes[{ 0, searcher.currentHalf }] = Node();
-            searcher.rootPos = board;
-            const Move m = searcher.search(params, limits);
+            searcher.rootPos                            = board;
+            const Move m                                = searcher.search(params, limits);
             assert(!m.isNull());
 
             if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE)
@@ -410,7 +409,7 @@ void datagen::run(const string& params) {
 
     cursor::hide();
 
-    u64 totalPositions = 0;
+    u64                  totalPositions = 0;
     RollingWindow<float> pastNPS(100);
 
     cursor::clearAll();
@@ -509,9 +508,11 @@ void datagen::genFens(const string& params) {
         const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
 
         static Searcher searcher{};
-        searcher.start(board, params, limits);
+        searcher.rootPos                            = board;
+        searcher.nodes[{ 0, searcher.currentHalf }] = Node();
+        searcher.search(params, limits);
 
-        return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= datagen::MAX_STARTPOS_SCORE;
+        return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= MAX_STARTPOS_SCORE;
     };
 
     const u64 numFens = std::stoull(getValueFollowing("genfens", 1));
@@ -525,7 +526,8 @@ void datagen::genFens(const string& params) {
     const vector<u64> posHistory;
     u64               fens = 0;
     while (fens < numFens) {
-        Board board;
+startLoop:
+        Board board{};
         board.reset();
         const usize randomMoves = datagen::RAND_MOVES + randBool();
         for (usize i = 0; i < randomMoves; i++) {
@@ -533,7 +535,7 @@ void datagen::genFens(const string& params) {
             std::uniform_int_distribution<int> dist(0, moves.length - 1);
             board.move(moves.moves[dist(eng)]);
             if (board.isGameOver(posHistory))
-                break;
+                goto startLoop;
         }
 
         if (!isValidPosition(board))
@@ -542,4 +544,6 @@ void datagen::genFens(const string& params) {
         cout << "info string genfens " << board.fen() << endl;
         fens++;
     }
+
+    cout << "info string Generated " << fens << " positions" << endl;
 }

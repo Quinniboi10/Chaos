@@ -209,7 +209,7 @@ actionBranch:
 
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     // Reset searcher
-    this->nodeCount = 0;
+    this->nodeCount     = 0;
     this->stopSearching = false;
 
     u64 currentIndex = 1;
