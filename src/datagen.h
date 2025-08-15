@@ -13,6 +13,8 @@ constexpr i32 MAX_STARTPOS_SCORE = 400;
 
 constexpr u64 GENFENS_VERIF_NODES = 2'000;
 
+constexpr u64 POSITION_COUNT_BUFFER = 1024;
+
 void run(const string& params);
 void genFens(const string& params);
 }

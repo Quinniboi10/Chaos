@@ -329,12 +329,13 @@ mainLoop:
         bool isFirstMove = true;
 
         while (!board.isGameOver(posHistory)) {
-            searcher.nodes[{ 0, searcher.currentHalf }] = Node();
-            searcher.rootPos                            = board;
-            const Move m                                = searcher.search(params, limits);
+            Node& root       = searcher.nodes[{ 0, searcher.currentHalf }];
+            root             = Node();
+            searcher.rootPos = board;
+            const Move m     = searcher.search(params, limits);
             assert(!m.isNull());
 
-            if (isFirstMove && std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) > datagen::MAX_STARTPOS_SCORE)
+            if (isFirstMove && std::abs(wdlToCP(root.getScore())) > datagen::MAX_STARTPOS_SCORE)
                 goto mainLoop;
 
             fileWriter.addMove(searcher, m);
@@ -360,7 +361,7 @@ mainLoop:
         fileWriter.writeGame(wdl);
         posHistory.clear();
 
-        if (localPositions >= 1'024) {
+        if (localPositions >= datagen::POSITION_COUNT_BUFFER) {
             positions.fetch_add(localPositions, std::memory_order_relaxed);
             localPositions = 0;
         }
