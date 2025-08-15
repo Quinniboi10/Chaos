@@ -52,13 +52,13 @@ struct __attribute__((packed)) MontyFormatBoard {
 
         usize flags = 0;
 
-        if (board.castling[castleIndex(WHITE, true)])
+        if (board.castling[castleIndex(WHITE, true)] != NO_SQUARE)
             flags |= whiteK;
-        if (board.castling[castleIndex(WHITE, false)])
+        if (board.castling[castleIndex(WHITE, false)] != NO_SQUARE)
             flags |= whiteQ;
-        if (board.castling[castleIndex(BLACK, true)])
+        if (board.castling[castleIndex(BLACK, true)] != NO_SQUARE)
             flags |= blackK;
-        if (board.castling[castleIndex(BLACK, false)])
+        if (board.castling[castleIndex(BLACK, false)] != NO_SQUARE)
             flags |= blackQ;
 
         bbs           = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
@@ -371,6 +371,11 @@ mainLoop:
 void datagen::run(const string& params) {
     if (params.empty())
         return;
+
+    if (!IS_LITTLE_ENDIAN) {
+        cout << "ERROR: DATAGEN REQUIRES A LITTLE ENDIAN SYSTEM." << endl;
+        std::abort();
+    }
 
     vector<string> tokens = split(params, ' ');
 
