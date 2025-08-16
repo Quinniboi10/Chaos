@@ -6,6 +6,8 @@
 #include <cmath>
 #include <functional>
 
+bool switchHalves = false;
+
 // Return if a node is an unexplored or terminal node in the current half
 bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
@@ -45,6 +47,11 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     // Mates aren't handled until the simulation/rollout stage
     if (moves.length == 0)
         return;
+
+    if (currentIndex + moves.length >= nodes.nodes[currentHalf].size() - 256) {
+        switchHalves = true;
+        return;
+    }
 
     node.firstChild  = { currentIndex, currentHalf };
     node.numChildren = moves.length;
@@ -140,10 +147,16 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
 
 // Copy children from the constant half to the current one
 void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
+    const u8 numChildren = node.numChildren;
+    if (currentIndex + numChildren > nodes.nodes[currentHalf].size() - 256) {
+        switchHalves = true;
+        return;
+    }
+
     const Node* oldChild = &nodes[node.firstChild.load()];
     Node*       newChild = &nodes[{ currentIndex, currentHalf }];
 
-    for (usize i = 0; i < node.numChildren; i++)
+    for (usize i = 0; i < numChildren; i++)
         newChild[i] = oldChild[i];
 
     node.firstChild.store({ currentIndex, currentHalf });
@@ -186,6 +199,8 @@ actionBranch:
     // Expansion + simulation
     else {
         if (node.firstChild.load().half() != currentHalf && node.numChildren > 0) {
+            if (switchHalves)
+                return 0;
             copyChildren(nodes, node, currentIndex, currentHalf);
             goto actionBranch;
         }
@@ -196,6 +211,9 @@ actionBranch:
             score = simulate(board, posHistory, node);
         }
     }
+
+    if (switchHalves)
+        return 0;
 
     // Backprop
     node.totalScore.getUnderlying().fetch_add(score, std::memory_order_relaxed);
@@ -238,7 +256,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max(getTerminalRows() - 29, 0));
+    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max(getTerminalRows() - 29, 1));
     usize                                lastDepth    = 0;
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
@@ -264,7 +282,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::goTo(1, 14);
 
         cursor::clear();
-        cout << Colors::GREY << " Tree Usage: " << Colors::WHITE;
+        cout << Colors::GREY << " Half Usage: " << Colors::WHITE;
         coloredProgBar(50, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
         cout << "\n\n";
 
@@ -321,14 +339,14 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         searchNode(nodes, cumulativeDepth, seldepth, currentIndex, currentHalf, posHistory, rootPos, nodes[{ 0, currentHalf }], params, 0);
 
         // Switch halves
-        if (currentIndex >= nodes.nodes[0].size() - 256) {
+        if (switchHalves) {
+            switchHalves = false;
             nodes[{ 0, static_cast<u8>(currentHalf ^ 1) }] = nodes[{ 0, currentHalf }];
             removeRefs(nodes, nodes[{ 0, currentHalf }], currentHalf);
             currentIndex = 1;
             currentHalf ^= 1;
             copyChildren(nodes, nodes[{ 0, currentHalf }], currentIndex, currentHalf);
         }
-
         iterations.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
         // Check if UCI should be printed

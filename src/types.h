@@ -190,6 +190,7 @@ struct RollingWindow {
     explicit RollingWindow(const usize maxSize) : maxSize(maxSize) {}
 
     void push(const T& x) {
+        assert(maxSize > 0);
         if (dq.size() == maxSize)
             dq.pop_front();
         dq.push_back(x);
