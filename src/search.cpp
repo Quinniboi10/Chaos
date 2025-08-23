@@ -30,14 +30,15 @@ bool isThreefold(const vector<u64>& posHistory) {
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
 
 // Return the PUCT score of a node
-float puct(const float parentScore, const Node& child) {
+float puct(const float parentScore, const float parentQ, const Node& child) {
     // V + C * P * (N.max(1).sqrt() / (n + 1))
     // V = Q = total score / visits
     // C = CPUCT
     // P = move policy score
     // N = parent visits
     // n = child visits
-    return -child.getScore() + child.policy * parentScore / (child.visits + 1);
+    const u64 v = child.visits.load();
+    return (v > 0 ? -child.getScore(v) : parentQ) + child.policy * parentScore / (v + 1);
 };
 
 // Expand a node
@@ -74,11 +75,12 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
 // Find the best child node from a parent
 Node& findBestChild(Tree& nodes, const Node& node, const SearchParameters& params) {
     const float parentScore = parentPuct(node, params.cpuct);
+    const float parentQ = node.getScore();
     Node*       bestChild   = &nodes[node.firstChild];
     Node*       child       = bestChild;
-    float       bestScore   = puct(parentScore, *child);
+    float       bestScore   = puct(parentScore, parentQ, *child);
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const float score = puct(parentScore, child[idx]);
+        const float score = puct(parentScore, parentQ, child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestChild = child + idx;

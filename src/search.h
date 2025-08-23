@@ -67,16 +67,31 @@ struct Node {
 
     float getScore() const {
         const GameState s = state.load();
+        const u64 v = visits.load();
+
+        assert(v > 0);
+
         if (s == DRAW)
             return 0;
         if (s == WIN)
             return 1;
         if (s == LOSS)
             return -1;
-        const u64 v = visits.load();
-        if (v == 0)
-            return FPU;
         return totalScore.load() / v;
+    }
+
+    float getScore(const u64 visits) const {
+        const GameState s = state.load();
+
+        assert(visits > 0);
+
+        if (s == DRAW)
+            return 0;
+        if (s == WIN)
+            return 1;
+        if (s == LOSS)
+            return -1;
+        return totalScore.load() / visits;
     }
 };
 
