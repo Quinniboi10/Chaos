@@ -48,7 +48,7 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     if (moves.length == 0)
         return;
 
-    if (currentIndex + moves.length >= nodes.nodes[currentHalf].size() - 256) {
+    if (currentIndex + moves.length >= nodes.nodes[currentHalf].size()) {
         switchHalves = true;
         return;
     }
@@ -148,7 +148,7 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
 // Copy children from the constant half to the current one
 void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
     const u8 numChildren = node.numChildren;
-    if (currentIndex + numChildren > nodes.nodes[currentHalf].size() - 256) {
+    if (currentIndex + numChildren > nodes.nodes[currentHalf].size()) {
         switchHalves = true;
         return;
     }

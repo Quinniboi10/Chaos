@@ -118,10 +118,17 @@ struct Tree {
     Tree() { resize(DEFAULT_HASH); }
 
     void resize(const u64 size) {
-        nodes[0].resize(size / 2 + 256);
-        nodes[1].resize(size / 2 + 256);
+        nodes[0].resize(size / 2);
+        nodes[1].resize(size / 2);
     }
 
-    const Node& operator[](const NodeIndex& idx) const { return nodes[idx.half()][idx.index()]; }
-    Node&       operator[](const NodeIndex& idx) { return nodes[idx.half()][idx.index()]; }
+    const Node& operator[](const NodeIndex& idx) const {
+        assert(idx.index() < nodes[0].size());
+        return nodes[idx.half()][idx.index()];
+    }
+
+    Node& operator[](const NodeIndex& idx) {
+        assert(idx.index() < nodes[0].size());
+        return nodes[idx.half()][idx.index()];
+    }
 };
