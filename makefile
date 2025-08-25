@@ -22,7 +22,7 @@ endif
 
 # Compiler and flags
 CXX      := clang++
-CXXFLAGS := -O3 -march=native -fno-finite-math-only -funroll-loops -flto -std=c++20 -DNDEBUG
+CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++20 -DNDEBUG
 
 ifeq ($(OS),Windows_NT)
   ARCH := $(PROCESSOR_ARCHITECTURE)
@@ -34,8 +34,10 @@ IS_ARM := $(filter ARM arm64 aarch64 arm%,$(ARCH))
 
 ifeq ($(IS_ARM),)
   LINKFLAGS := -fuse-ld=lld
+  ARCHFLAGS := -march=native
 else
   LINKFLAGS :=
+  ARCHFLAGS := -mcpu=native
 endif
 
 
@@ -54,7 +56,7 @@ all: $(EXE)
 
 # Build the objects
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(GIT_HEAD_COMMIT_ID_DEF) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(ARCHFLAGS) $(GIT_HEAD_COMMIT_ID_DEF) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" -c $< -o $@
 
 CXXFLAGS += -MMD -MP
 DEPS := $(OBJS:.o=.d)
@@ -106,12 +108,12 @@ release: all
 
 # Debug build
 .PHONY: debug
-debug: CXXFLAGS = -march=native -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
+debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
 debug: all
 
 # Debug build
 .PHONY: profile
-profile: CXXFLAGS = -O3 -g -march=native -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -DNDEBUG
+profile: CXXFLAGS = -O3 -g -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -DNDEBUG
 profile: all
 
 # Force rebuild
