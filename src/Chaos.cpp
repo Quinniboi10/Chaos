@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 4);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 5);
         else if (args[1] == "datagen") {
             std::ostringstream ss{};
             for (usize idx = 2; idx < argc; idx++) {
