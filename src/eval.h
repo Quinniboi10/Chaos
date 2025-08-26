@@ -8,6 +8,6 @@ constexpr i16   QB_V         = 64;
 constexpr i16   EVAL_SCALE_V = 400;
 constexpr usize HL_SIZE_V    = 64;
 
-constexpr int ACTIVATION_V = CReLU;
+constexpr int ACTIVATION_V = SCReLU;
 
 i32 evaluate(const Board& board);
