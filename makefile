@@ -73,6 +73,12 @@ NET_BASE_URL := https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/ma
 VALUEFILE  ?= $(DEFAULT_VALUE_NET)
 POLICYFILE ?= $(DEFAULT_POLICY_NET)
 
+# Files for make clean
+CLEAN_STUFF := $(EXE) Chaos.exp Chaos.lib Chaos.pdb $(OBJS) $(DEPS) $(DEFAULT_POLICY_NET) $(DEFAULT_VALUE_NET)
+ifeq ($(OS),Windows_NT)
+    CLEAN_STUFF := $(subst /,\\,$(CLEAN_STUFF))
+endif
+
 # Downlaod if the net is not specified
 ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
 downloadV: $(DEFAULT_VALUE_NET)
@@ -86,12 +92,6 @@ downloadP: $(DEFAULT_POLICY_NET)
 else
 downloadP:
 	@echo "POLICYFILE is set to '$(POLICYFILE)', skipping download."
-endif
-
-# Files for make clean
-CLEAN_STUFF := $(EXE) Chaos.exp Chaos.lib Chaos.pdb $(OBJS) $(DEPS)
-ifeq ($(OS),Windows_NT)
-    CLEAN_STUFF := $(subst /,\\,$(CLEAN_STUFF))
 endif
 
 # Rules to create the files if they don't exist
