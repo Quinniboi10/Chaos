@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-constexpr float CPUCT        = 2.4;
+constexpr float CPUCT        = 1.75;
 constexpr float FPU          = 0.5;
 constexpr float TEMPERATURE  = 1.0;
 constexpr float EVAL_DIVISOR = 400;
