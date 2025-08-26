@@ -72,9 +72,16 @@ void expandNode(Tree& nodes, const Board& board, Node& node, u64& currentIndex, 
     fillPolicy(board, nodes, node, params.temp);
 }
 
+float computeCpuct(const Node& node, const SearchParameters& params) {
+    float cpuct = params.cpuct;
+    cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
+    return cpuct;
+}
+
 // Find the best child node from a parent
 Node& findBestChild(Tree& nodes, const Node& node, const SearchParameters& params) {
-    const float parentScore = parentPuct(node, params.cpuct);
+    const float cpuct = computeCpuct(node, params);
+    const float parentScore = parentPuct(node, cpuct);
     const float parentQ = node.getScore();
     Node*       bestChild   = &nodes[node.firstChild];
     Node*       child       = bestChild;
