@@ -213,7 +213,7 @@ inline string padStr(string str, i64 target, u64 minPadding = 2) {
 
 // Score color
 inline void printColoredScore(double wdl) {
-    double colorWdl = std::clamp(wdl, -1.0, 1.0);
+    double colorWdl = std::clamp(wdl * 1.5f, -1.0, 1.0);
     int    r, g, b;
 
     const auto lerp = [](const double a, const double b, const double t) { return a + t * (b - a); };
@@ -225,7 +225,7 @@ inline void printColoredScore(double wdl) {
         b        = static_cast<int>(lerp(0, 255, t));    // blue rises
     }
     else {
-        double t = colorWdl;                             // maps 0 → 1
+        double t = colorWdl;                             // maps 0 -> 1
         r        = static_cast<int>(lerp(255, 0, t));    // red drops
         g        = static_cast<int>(lerp(255, 255, t));  // green stays max
         b        = static_cast<int>(lerp(255, 0, t));    // blue drops
@@ -255,7 +255,7 @@ inline void heatColor(float t, const string& text) {
 // Colored progress bar
 inline void coloredProgBar(const usize length, const float fill) {
     if (length == 0) {
-        fmt::print("[] 0%\n");
+        fmt::print("[] 0%");
         return;
     }
     fmt::print("[");
@@ -268,7 +268,7 @@ inline void coloredProgBar(const usize length, const float fill) {
             fmt::print(".");
         }
     }
-    fmt::print("] {}%\n", static_cast<usize>(fill * 100));
+    fmt::print("] {}%", static_cast<usize>(fill * 100));
 }
 
 // Colorless progress bar

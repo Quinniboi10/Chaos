@@ -241,6 +241,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     u64 currentIndex = 1;
 
+    u64 halfChanges = 0;
+
     auto& iterations      = this->nodeCount;
     u64   cumulativeDepth = 0;
 
@@ -290,17 +292,14 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     const auto prettyPrint = [&](const MoveList& pv) {
         cursor::goTo(1, 14);
 
-        cursor::clear();
-        cout << Colors::GREY << " Half Usage: " << Colors::WHITE;
+        cout << Colors::GREY << " Half Usage:   " << Colors::WHITE;
         coloredProgBar(50, static_cast<float>(currentIndex) / nodes.nodes[currentHalf].size());
-        cout << "\n\n";
+        cout << "  \n";
+        cout << Colors::GREY << " Half Changes: " << Colors::WHITE << formatNum(halfChanges) << "\n\n";
 
-        cursor::clear();
-        cout << Colors::GREY << " Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "\n";
-        cursor::clear();
-        cout << Colors::GREY << " Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "\n";
-        cursor::clear();
-        cout << Colors::GREY << " Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "\n";
+        cout << Colors::GREY << " Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "   \n";
+        cout << Colors::GREY << " Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "   \n";
+        cout << Colors::GREY << " Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "   \n";
         cout << "\n";
 
         cursor::clear();
@@ -318,9 +317,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << "\n";
         cout << "\n";
         cout << " Best move history:" << "\n";
-        cursor::clearDown();
-        for (const auto& m : bestMoves)
-            cout << "    " << Colors::GREY << formatTime(m.first) << Colors::WHITE << " -> " << m.second << "\n";
+        for (const auto& m : bestMoves) {
+            cout << "    " << Colors::GREY << formatTime(m.first) << Colors::WHITE << " -> " << m.second << "     \n";
+        }
 
 
         cout << Colors::RESET;
@@ -337,7 +336,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::home();
 
         cout << rootPos << "\n";
-        cout << Colors::GREY << " Tree Size:  " << Colors::WHITE << (nodes.nodes[0].size() + nodes.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
+        cout << Colors::GREY << " Tree Size:    " << Colors::WHITE << (nodes.nodes[0].size() + nodes.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
     }
 
     // Main search loop
@@ -355,6 +354,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             currentIndex = 1;
             currentHalf ^= 1;
             copyChildren(nodes, nodes[{ 0, currentHalf }], currentIndex, currentHalf);
+            halfChanges++;
         }
         iterations.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
