@@ -54,19 +54,24 @@ ValueAccumulator::ValueAccumulator(const Board& board) {
 
     underlying = nn.hiddenLayerBias;
 
-    while (whitePieces) {
-        const Square sq = popLSB(whitePieces);
+    const Square stmKing = getLSB(board.pieces(board.stm, KING));
+    const int flip = (fileOf(stmKing) >= FILE_E) * 0b000111;
 
-        const usize feature = ValueNN::feature(board.stm, WHITE, board.getPiece(sq), sq);
+    while (whitePieces) {
+        const auto rawSq = popLSB(whitePieces);
+        const auto sq = static_cast<Square>(rawSq ^ flip);
+
+        const usize feature = ValueNN::feature(board.stm, WHITE, board.getPiece(rawSq), sq);
 
         for (usize i = 0; i < HL_SIZE_V; i++)
             underlying[i] += nn.weightsToHL[feature * HL_SIZE_V + i];
     }
 
     while (blackPieces) {
-        const Square sq = popLSB(blackPieces);
+        const auto rawSq = popLSB(blackPieces);
+        const auto sq = static_cast<Square>(rawSq ^ flip);
 
-        const usize feature = ValueNN::feature(board.stm, BLACK, board.getPiece(sq), sq);
+        const usize feature = ValueNN::feature(board.stm, BLACK, board.getPiece(rawSq), sq);
 
         for (usize i = 0; i < HL_SIZE_V; i++)
             underlying[i] += nn.weightsToHL[feature * HL_SIZE_V + i];
