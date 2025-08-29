@@ -16,6 +16,7 @@
 usize hash = DEFAULT_HASH;
 
 bool chess960 = false;
+usize multiPV = 1;
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
@@ -87,6 +88,7 @@ int main(int argc, char* argv[]) {
             cout << "id author Quinniboi10" << endl;
             cout << "option name Threads type spin default 1 min 1 max 1" << endl;
             cout << "option name Hash type spin default " << DEFAULT_HASH << " min 1 max 1048576" << endl;
+            cout << "option name MultiPV type spin default 1 min 1 max 255" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "uciok" << endl;
         }
@@ -136,6 +138,10 @@ int main(int argc, char* argv[]) {
         else if (tokens[0] == "setoption") {
             if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
+            if (tokens[2] == "MultiPV")
+                multiPV = getValueFollowing("value", 1);
+            if (tokens[2] == "UCI_Chess960")
+                chess960 = tokens[findIndexOf(tokens, "value")] == "true";
         }
         else if (command == "stop")
             searcher.stop();

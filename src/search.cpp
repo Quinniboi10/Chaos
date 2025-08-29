@@ -2,6 +2,7 @@
 #include "movegen.h"
 #include "policy.h"
 #include "eval.h"
+#include "globals.h"
 
 #include <cmath>
 #include <functional>
@@ -129,10 +130,16 @@ Move findPvMove(const Tree& nodes, const Node& node) {
 
 // Search the tree for the PV line
 // This function will search across halves
-MoveList findPV(const Tree& nodes, const u8 currentHalf) {
+MoveList findPV(const Tree& nodes, const u8 currentHalf, const Node* initialNode = nullptr) {
     MoveList pv{};
 
-    const Node* node = &nodes[{ 0, currentHalf }];
+    const Node* node;
+    if (initialNode == nullptr)
+        node = &nodes[{ 0, currentHalf }];
+    else {
+        node = initialNode;
+        pv.add(node->move);
+    }
 
     while (node->numChildren != 0) {
         const NodeIndex startIdx  = node->firstChild.load();
@@ -152,7 +159,7 @@ MoveList findPV(const Tree& nodes, const u8 currentHalf) {
     }
 
     return pv;
-};
+}
 
 // Copy children from the constant half to the current one
 void copyChildren(Tree& nodes, Node& node, u64& currentIndex, const u8 currentHalf) {
@@ -239,6 +246,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     this->nodeCount     = 0;
     this->stopSearching = false;
 
+    usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
+
     u64 currentIndex = 1;
 
     u64 halfChanges = 0;
@@ -267,29 +276,48 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max(getTerminalRows() - 29, 1));
+    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 28 - multiPV, 1));
     usize                                lastDepth    = 0;
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
 
-    const auto printUCI = [&](const MoveList& pv) {
-        cout << "info depth " << cumulativeDepth / iterations;
-        cout << " seldepth " << seldepth;
-        cout << " time " << limits.commandTime.elapsed();
-        cout << " nodes " << nodeCount.load();
-        if (limits.commandTime.elapsed() > 0)
-            cout << " nps " << nodeCount.load() * 1000 / limits.commandTime.elapsed();
-        if (nodes[{ 0, currentHalf }].state == ONGOING || nodes[{ 0, currentHalf }].state == DRAW)
-            cout << " score cp " << wdlToCP(nodes[{ 0, currentHalf }].getScore());
-        else
-            cout << " score mate " << (pv.length + 1) / 2 * (nodes[{ 0, currentHalf }].state == WIN ? 1 : -1);
-        cout << " pv";
-        for (Move m : pv)
-            cout << " " << m;
-        cout << endl;
+    const auto printUCI = [&]() {
+        vector<Node> children;
+        const Node root = nodes[{ 0, currentHalf }];
+        const Node* child = &nodes[root.firstChild];
+        const Node* end = child + root.numChildren;
+        for (const Node* idx = child; idx != end; idx++)
+            children.push_back(*idx);
+
+        std::ranges::sort(children, std::greater{}, [](const Node& n) { return n.getScore(); });
+
+        const u64 time = limits.commandTime.elapsed();
+
+        for (usize i = 1; i <= multiPV; i++) {
+            const Node& n = children[i - 1];
+            const MoveList pv = findPV(nodes, currentHalf, &n);
+
+            cout << "info depth " << cumulativeDepth / iterations;
+            cout << " seldepth " << seldepth;
+            cout << " time " << time;
+            cout << " nodes " << nodeCount.load();
+            if (time > 0)
+                cout << " nps " << nodeCount.load() * 1000 / time;
+            cout << " hswitches " << halfChanges;
+            cout << " multipv " << i;
+            if (n.state == ONGOING || n.state == DRAW)
+                cout << " score cp " << wdlToCP(n.getScore());
+            else
+                cout << " score mate " << (pv.length + 1) / 2 * (n.state == WIN ? 1 : -1);
+            cout << " pv";
+            for (Move m : pv)
+                cout << " " << m;
+            cout << endl;
+        }
     };
 
-    const auto prettyPrint = [&](const MoveList& pv) {
+    const auto prettyPrint = [&]() {
+        const MoveList pv = findPV(nodes, currentHalf);
         cursor::goTo(1, 14);
 
         cout << Colors::GREY << " Half Usage:   " << Colors::WHITE;
@@ -362,43 +390,43 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         if (params.doReporting) {
             const Move bestMove = findPvMove(nodes, nodes[{ 0, currentHalf }]);
             if (params.doUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
-                const MoveList pv = findPV(nodes, currentHalf);
-                printUCI(pv);
+                const Move bestMove = findPvMove(nodes, nodes[{ 0, currentHalf }]);
+                printUCI();
 
                 lastDepth    = cumulativeDepth / iterations;
                 lastSeldepth = seldepth;
-                lastMove     = pv[0];
+                lastMove     = bestMove;
                 stopwatch.reset();
             }
             else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
-                const MoveList pv = findPV(nodes, currentHalf);
-                if (pv[0] != lastMove)
-                    bestMoves.push({ limits.commandTime.elapsed(), pv[0] });
-                prettyPrint(pv);
+                const Move bestMove = findPvMove(nodes, nodes[{ 0, currentHalf }]);
+                if (bestMove != lastMove)
+                    bestMoves.push({ limits.commandTime.elapsed(), bestMove });
+                prettyPrint();
 
                 lastDepth    = cumulativeDepth / iterations;
                 lastSeldepth = seldepth;
-                lastMove     = pv[0];
+                lastMove     = bestMove;
                 stopwatch.reset();
             }
         }
     } while (!stopSearching());
 
-    const MoveList pv = findPV(nodes, currentHalf);
+    const Move bestMove = findPvMove(nodes, nodes[{ 0, currentHalf }]);
 
     if (params.doReporting) {
         if (params.doUci) {
-            printUCI(pv);
-            cout << "bestmove " << pv[0] << endl;
+            printUCI();
+            cout << "bestmove " << bestMove << endl;
         }
         else {
-            prettyPrint(pv);
-            cout << "\n\nBest move: " << Colors::BRIGHT_BLUE << pv[0] << Colors::RESET << endl;
+            prettyPrint();
+            cout << "\n\nBest move: " << Colors::BRIGHT_BLUE << bestMove << Colors::RESET << endl;
             cursor::show();
         }
     }
 
     this->stopSearching = true;
 
-    return pv[0];
+    return bestMove;
 }
