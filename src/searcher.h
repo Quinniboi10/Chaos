@@ -18,6 +18,7 @@ struct Searcher {
     RelaxedAtomic<u64>  nodeCount;
     RelaxedAtomic<bool> stopSearching;
     atomic<u8>          currentHalf;
+    SearchMode          searchMode;
 
     std::thread searchThread;
 
@@ -25,6 +26,7 @@ struct Searcher {
     Searcher() {
         setHash(DEFAULT_HASH);
         currentHalf = 0;
+        searchMode = FULL_SEARCH;
     }
 
     void setHash(const u64 hash) {
@@ -36,7 +38,18 @@ struct Searcher {
         stop();
         nodes[{ 0, currentHalf }] = Node();
         rootPos                   = board;
-        searchThread              = std::thread(&Searcher::search, this, params, limits);
+
+        switch (searchMode) {
+        case POLICY_ONLY:
+            searchPolicy(params);
+            break;
+        case VALUE_ONLY:
+            searchValue(params);
+            break;
+        case FULL_SEARCH:
+            searchThread = std::thread(&Searcher::search, this, params, limits);
+            break;
+        }
     }
 
     void stop() {
@@ -147,11 +160,12 @@ struct Searcher {
         cout << "Returning to UCI loop" << endl;
     }
 
-    void printRootPolicy(const Board& board) {
-        if (rootPos != board) {
-            rootPos                   = board;
-            nodes[{ 0, currentHalf }] = Node();
-        }
+    void fillRootPolicy(const Board& board) {
+        if (rootPos == board && nodes[{ 0, currentHalf }].visits > 0)
+            return;
+
+        rootPos                   = board;
+        nodes[{ 0, currentHalf }] = Node();
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         const vector<u64>                          posHistory;
@@ -159,6 +173,10 @@ struct Searcher {
         const SearchLimits                         limits(stopwatch, 0, 1, 0, 0);
 
         search(params, limits);
+    }
+
+    void printRootPolicy(const Board& board) {
+        fillRootPolicy(board);
 
         const Node& root = nodes[{ 0, currentHalf }];
         for (usize idx = root.firstChild.load().index(); idx < root.firstChild.load().index() + root.numChildren; idx++) {
@@ -168,6 +186,8 @@ struct Searcher {
     }
 
     Move search(const SearchParameters params, const SearchLimits limits);
+    Move searchPolicy(const SearchParameters params);
+    Move searchValue(const SearchParameters params);
 
     void bench(const usize depth) {
         static array<string, 50> fens = { "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",

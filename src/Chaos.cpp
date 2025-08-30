@@ -90,6 +90,7 @@ int main(int argc, char* argv[]) {
             cout << "option name Hash type spin default " << DEFAULT_HASH << " min 1 max 1048576" << endl;
             cout << "option name MultiPV type spin default 1 min 1 max 255" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
+            cout << "option name SearchMode type string default full" << endl;
             cout << "uciok" << endl;
         }
         else if (command == "ucinewgame") {
@@ -138,10 +139,19 @@ int main(int argc, char* argv[]) {
         else if (tokens[0] == "setoption") {
             if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
-            if (tokens[2] == "MultiPV")
+            else if (tokens[2] == "MultiPV")
                 multiPV = getValueFollowing("value", 1);
-            if (tokens[2] == "UCI_Chess960")
+            else if (tokens[2] == "UCI_Chess960")
                 chess960 = tokens[findIndexOf(tokens, "value")] == "true";
+            else if (tokens[2] == "SearchMode") {
+                const string value = tokens[findIndexOf(tokens, "value") + 1];
+                if (value == "policy")
+                    searcher.searchMode = POLICY_ONLY;
+                else if (value == "value")
+                    searcher.searchMode = VALUE_ONLY;
+                else
+                    searcher.searchMode = FULL_SEARCH;
+            }
         }
         else if (command == "stop")
             searcher.stop();

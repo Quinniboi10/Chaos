@@ -430,3 +430,47 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     return bestMove;
 }
+
+Move Searcher::searchPolicy(const SearchParameters params) {
+    fillRootPolicy(rootPos);
+
+    const Node root = nodes[{ 0, currentHalf }];
+    const Node* child = &nodes[root.firstChild];
+    const Node* end = child + root.numChildren;
+
+    const Node* bestNode = child;
+
+    for (const Node* idx = child + 1; idx != end; idx++)
+        if (idx->policy > bestNode->policy)
+            bestNode = idx;
+
+    if (params.doReporting)
+        cout << "bestmove " << bestNode->move << endl;
+
+    return bestNode->move;
+}
+
+Move Searcher::searchValue(const SearchParameters params) {
+    struct MoveEvalPair {
+        Move move;
+        i32 eval;
+    };
+
+    vector<MoveEvalPair> moves;
+
+    const MoveList legalMoves = Movegen::generateMoves(rootPos);
+
+    for (const Move m : legalMoves) {
+        Board b = rootPos;
+        b.move(m);
+        const i32 score = evaluate(b);
+        moves.emplace_back(m, score);
+    }
+
+    const Move best = std::ranges::max_element(moves, {},  [](const MoveEvalPair& m) { return m.eval; })->move;
+
+    if (params.doReporting)
+        cout << "bestmove " << best << endl;
+
+    return best;
+}
