@@ -454,6 +454,9 @@ Move Searcher::searchValue(const SearchParameters params) {
     struct MoveEvalPair {
         Move move;
         i32 eval;
+
+        MoveEvalPair() = default;
+        MoveEvalPair(const Move move, const i32 eval) : move(move), eval(eval) {};
     };
 
     vector<MoveEvalPair> moves;
