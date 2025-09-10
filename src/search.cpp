@@ -306,7 +306,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << " hswitches " << halfChanges;
             cout << " multipv " << i;
             if (n.state == ONGOING || n.state == DRAW)
-                cout << " score cp " << wdlToCP(n.getScore());
+                cout << " score cp " << wdlToCP(-n.getScore());
             else
                 cout << " score mate " << (pv.length + 1) / 2 * (n.state == WIN ? 1 : -1);
             cout << " pv";
