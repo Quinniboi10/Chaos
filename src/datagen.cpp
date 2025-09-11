@@ -132,7 +132,7 @@ struct MontyFormatMove {
     VisitDistribution visits;
 
     explicit MontyFormatMove(const Searcher& searcher, const Move m) {
-        const Node& root     = searcher.nodes[{ 0, searcher.currentHalf }];
+        const Node& root     = searcher.tree.root();
         const u64   firstIdx = root.firstChild.load().index();
 
         visits.reserve(root.numChildren);
@@ -141,7 +141,7 @@ struct MontyFormatMove {
         rootQ    = root.getScore();
 
         for (u64 idx = firstIdx; idx < firstIdx + root.numChildren; idx++) {
-            const Node& node = searcher.nodes[{ idx, searcher.currentHalf }];
+            const Node& node = searcher.tree.activeTree()[idx];
             const u16   move = asMontyMove(searcher.rootPos, node.move);
 
             visits.emplace_back(move, node.visits);
@@ -329,7 +329,7 @@ mainLoop:
         bool isFirstMove = true;
 
         while (!board.isGameOver(posHistory)) {
-            Node& root       = searcher.nodes[{ 0, searcher.currentHalf }];
+            Node& root       = searcher.tree.root();
             root             = Node();
             searcher.rootPos = board;
             const Move m     = searcher.search(params, limits);
@@ -566,10 +566,10 @@ void datagen::genFens(const string& params) {
 
         static Searcher searcher{};
         searcher.rootPos                            = board;
-        searcher.nodes[{ 0, searcher.currentHalf }] = Node();
+        searcher.tree.root() = Node();
         searcher.search(params, limits);
 
-        return std::abs(wdlToCP(searcher.nodes[{ 0, searcher.currentHalf }].getScore())) <= MAX_STARTPOS_SCORE;
+        return std::abs(wdlToCP(searcher.tree.root().getScore())) <= MAX_STARTPOS_SCORE;
     };
 
     const u64 numFens = std::stoull(getValueFollowing("genfens", 1));

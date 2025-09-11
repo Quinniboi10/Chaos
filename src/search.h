@@ -4,7 +4,6 @@
 #include "types.h"
 #include "move.h"
 #include "stopwatch.h"
-#include "tunable.h"
 
 constexpr i32 MATE_SCORE = 32767;
 
@@ -67,7 +66,7 @@ struct Node {
 
     float getScore() const {
         const GameState s = state.load();
-        const u64 v = visits.load();
+        const u64       v = visits.load();
 
         if (s == DRAW)
             return 0;
@@ -127,15 +126,32 @@ struct SearchLimits {
     }
 };
 
-struct Tree {
+class Tree {
+    u8 currentHalf;
+
+   public:
     array<vector<Node>, 2> nodes;
 
-    Tree() { resize(DEFAULT_HASH); }
+    Tree() {
+        resize(DEFAULT_HASH);
+        currentHalf = 0;
+    }
 
     void resize(const u64 size) {
         nodes[0].resize(size / 2);
         nodes[1].resize(size / 2);
     }
+
+    u8 activeHalf() const { return currentHalf; }
+    void switchHalf() { currentHalf ^= 1; }
+
+    Node&       root() { return nodes[currentHalf][0]; }
+    const Node& root() const { return nodes[currentHalf][0]; }
+
+    vector<Node>& activeTree() { return nodes[currentHalf]; }
+    const vector<Node>& activeTree() const { return nodes[currentHalf]; }
+    vector<Node>& inactiveTree() { return nodes[currentHalf ^ 1]; }
+    const vector<Node>& inactiveTree() const { return nodes[currentHalf ^ 1]; }
 
     const Node& operator[](const NodeIndex& idx) const {
         assert(idx.index() < nodes[0].size());

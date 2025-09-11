@@ -15,8 +15,8 @@
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
 
-bool chess960 = false;
-usize multiPV = 1;
+bool  chess960 = false;
+usize multiPV  = 1;
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
@@ -118,6 +118,13 @@ int main(int argc, char* argv[]) {
                     positionHistory.push_back(board.zobrist);
                 }
             }
+
+            cout << "info string Attempting tree reuse" << endl;
+            searcher.attemptTreeReuse(board);
+            if (searcher.tree.inactiveTree()[0] != Node())
+                cout << "info string Found subtree!" << endl;
+            else
+                cout << "info string Failed to find subtree" << endl;
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);

@@ -14,7 +14,7 @@
 
 #ifdef _WIN32
     #ifndef NOMINMAX
-    #define NOMINMAX
+        #define NOMINMAX
     #endif
     #include <windows.h>
 #else
@@ -22,6 +22,7 @@
     #include <unistd.h>
 #endif
 
+#include "tunable.h"
 #include "types.h"
 #include "../external/fmt/fmt/color.h"
 #include "../external/fmt/fmt/format.h"
