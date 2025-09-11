@@ -289,7 +289,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         for (const Node* idx = child; idx != end; idx++)
             children.push_back(*idx);
 
-        std::ranges::sort(children, std::greater{}, [](const Node& n) { return n.getScore(); });
+        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -n.getScore(); });
 
         const u64 time = limits.commandTime.elapsed();
 
