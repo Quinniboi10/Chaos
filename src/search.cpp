@@ -303,6 +303,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << " nodes " << nodeCount.load();
             if (time > 0)
                 cout << " nps " << nodeCount.load() * 1000 / time;
+            cout << " hashfull " << currentIndex * 1000 / nodes.nodes[currentHalf].size();
             cout << " hswitches " << halfChanges;
             cout << " multipv " << i;
             if (n.state == ONGOING || n.state == DRAW)
