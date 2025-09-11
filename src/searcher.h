@@ -14,10 +14,9 @@
 
 struct Searcher {
     Board               rootPos;
-    Tree                nodes;
+    Tree                tree;
     RelaxedAtomic<u64>  nodeCount;
     RelaxedAtomic<bool> stopSearching;
-    atomic<u8>          currentHalf;
     SearchMode          searchMode;
 
     std::thread searchThread;
@@ -25,19 +24,20 @@ struct Searcher {
 
     Searcher() {
         setHash(DEFAULT_HASH);
-        currentHalf = 0;
-        searchMode = FULL_SEARCH;
+        searchMode  = FULL_SEARCH;
     }
 
     void setHash(const u64 hash) {
         const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        nodes.resize(maxNodes);
+        tree.resize(maxNodes);
     }
+
+    void attemptTreeReuse(const Board& board);
 
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         stop();
-        nodes[{ 0, currentHalf }] = Node();
-        rootPos                   = board;
+
+        attemptTreeReuse(board);
 
         switch (searchMode) {
         case POLICY_ONLY:
@@ -60,7 +60,7 @@ struct Searcher {
 
     void launchInteractiveTree() {
         usize         ply     = 0;
-        Node*         parent  = &nodes[{ 0, currentHalf }];
+        Node*         parent  = &tree.root();
         vector<Node*> parents = { parent };
 
         const auto rootString = [&](const Node& node, const usize ply) {
@@ -75,10 +75,10 @@ struct Searcher {
 
         const auto childString = [&](const Node& node) {
             return fmt::format(fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"), node.firstChild.load().index(), node.move.load().toString(),
-                               static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
-                                                   : node.state == WIN                         ? MATE_SCORE
-                                                                                               : -MATE_SCORE)
-                                                  / 100),
+                               (node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
+                                : node.state == WIN                         ? MATE_SCORE
+                                                                            : -MATE_SCORE)
+                                 / 100.0f,
                                node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state]);
         };
 
@@ -108,13 +108,13 @@ struct Searcher {
             for (u64 idx = node.firstChild.load().index(); idx < node.firstChild.load().index() + node.numChildren - 1; idx++) {
                 for (usize i = 0; i < parents.size() + 1; i++)
                     cout << "    ";
-                cout << "├─> " << childString(nodes[{ idx, currentHalf }]) << endl;
+                cout << "├─> " << childString(tree.activeTree()[idx]) << endl;
                 // assert(*nodes[{ idx, currentHalf }].parent == node);
             }
 
             for (usize i = 0; i < parents.size() + 1; i++)
                 cout << "    ";
-            const Node& child = nodes[{ node.firstChild.load().index() + node.numChildren - 1, currentHalf }];
+            const Node& child = tree.activeTree()[node.firstChild.load().index() + node.numChildren - 1];
             cout << "└─> " << childString(child) << endl;
             // assert(*nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }].parent == node);
         };
@@ -148,9 +148,9 @@ struct Searcher {
                 break;
             else {
                 for (u64 idx = parent->firstChild.load().index(); idx < parent->firstChild.load().index() + parent->numChildren; idx++) {
-                    if (nodes[{ idx, currentHalf }].move.load().toString() == tokens[0]) {
+                    if (tree.activeTree()[idx].move.load().toString() == tokens[0]) {
                         parents.push_back(parent);
-                        parent = &nodes[{ idx, currentHalf }];
+                        parent = &tree.activeTree()[idx];
                         ply++;
                         break;
                     }
@@ -161,11 +161,11 @@ struct Searcher {
     }
 
     void fillRootPolicy(const Board& board) {
-        if (rootPos == board && nodes[{ 0, currentHalf }].visits > 0)
+        if (rootPos == board && tree.root().visits > 0)
             return;
 
-        rootPos                   = board;
-        nodes[{ 0, currentHalf }] = Node();
+        rootPos     = board;
+        tree.root() = Node();
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         const vector<u64>                          posHistory;
@@ -178,9 +178,9 @@ struct Searcher {
     void printRootPolicy(const Board& board) {
         fillRootPolicy(board);
 
-        const Node& root = nodes[{ 0, currentHalf }];
+        const Node root = tree.root();
         for (usize idx = root.firstChild.load().index(); idx < root.firstChild.load().index() + root.numChildren; idx++) {
-            const Node& node = nodes[{ idx, currentHalf }];
+            const Node& node = tree.activeTree()[idx];
             cout << fmt::format("{}: {:.2f}%", node.move.load().toString(), node.policy * 100) << endl;
         }
     }
