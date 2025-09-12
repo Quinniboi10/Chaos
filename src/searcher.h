@@ -66,8 +66,8 @@ struct Searcher {
         const auto rootString = [&](const Node& node, const usize ply) {
             const string plyStr = fmt::format(fmt::runtime("({} ply)"), ply);
             return fmt::format(fmt::runtime("{:>11} {:>+7.2f} {:>10} visits"), plyStr,
-                               static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
-                                                   : node.state == WIN                         ? MATE_SCORE
+                               static_cast<float>((node.state.load().state() == ONGOING || node.state.load().state() == DRAW ? wdlToCP(node.getScore())
+                                                   : node.state.load().state() == WIN                         ? MATE_SCORE
                                                                                                : -MATE_SCORE)
                                                   / 100),
                                node.visits.load());
@@ -75,11 +75,11 @@ struct Searcher {
 
         const auto childString = [&](const Node& node) {
             return fmt::format(fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"), node.firstChild.load().index(), node.move.load().toString(),
-                               (node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
-                                : node.state == WIN                         ? MATE_SCORE
+                               (node.state.load().state() == ONGOING || node.state.load().state() == DRAW ? wdlToCP(node.getScore())
+                                : node.state.load().state() == WIN                         ? MATE_SCORE
                                                                             : -MATE_SCORE)
                                  / 100.0f,
-                               node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state]);
+                               node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state.load().state()]);
         };
 
         const auto printParents = [&]() {
@@ -190,14 +190,14 @@ struct Searcher {
     Move searchValue(const SearchParameters params);
 
     void bench(const usize depth) {
-        static array<string, 50> fens = { "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
+        static array fens = { "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
                                           "4rrk1/2p1b1p1/p1p3q1/4p3/2P2n1p/1P1NR2P/PB3PP1/3R1QK1 b - - 2 24",
-                                          "r3qbrk/6p1/2b2pPp/p3pP1Q/PpPpP2P/3P1B2/2PB3K/R5R1 w - - 16 42",
+                                          // "r3qbrk/6p1/2b2pPp/p3pP1Q/PpPpP2P/3P1B2/2PB3K/R5R1 w - - 16 42",
                                           "6k1/1R3p2/6p1/2Bp3p/3P2q1/P7/1P2rQ1K/5R2 b - - 4 44",
                                           "8/8/1p2k1p1/3p3p/1p1P1P1P/1P2PK2/8/8 w - - 3 54",
                                           "7r/2p3k1/1p1p1qp1/1P1Bp3/p1P2r1P/P7/4R3/Q4RK1 w - - 0 36",
                                           "r1bq1rk1/pp2b1pp/n1pp1n2/3P1p2/2P1p3/2N1P2N/PP2BPPP/R1BQ1RK1 b - - 2 10",
-                                          "3r3k/2r4p/1p1b3q/p4P2/P2Pp3/1B2P3/3BQ1RP/6K1 w - - 3 87",
+                                          // "3r3k/2r4p/1p1b3q/p4P2/P2Pp3/1B2P3/3BQ1RP/6K1 w - - 3 87",
                                           "2r4r/1p4k1/1Pnp4/3Qb1pq/8/4BpPp/5P2/2RR1BK1 w - - 0 42",
                                           "4q1bk/6b1/7p/p1p4p/PNPpP2P/KN4P1/3Q4/4R3 b - - 0 37",
                                           "2q3r1/1r2pk2/pp3pp1/2pP3p/P1Pb1BbP/1P4Q1/R3NPP1/4R1K1 w - - 2 34",
@@ -207,7 +207,7 @@ struct Searcher {
                                           "1r4k1/4ppb1/2n1b1qp/pB4p1/1n1BP1P1/7P/2PNQPK1/3RN3 w - - 8 29",
                                           "8/p2B4/PkP5/4p1pK/4Pb1p/5P2/8/8 w - - 29 68",
                                           "3r4/ppq1ppkp/4bnp1/2pN4/2P1P3/1P4P1/PQ3PBP/R4K2 b - - 2 20",
-                                          "5rr1/4n2k/4q2P/P1P2n2/3B1p2/4pP2/2N1P3/1RR1K2Q w - - 1 49",
+                                          // "5rr1/4n2k/4q2P/P1P2n2/3B1p2/4pP2/2N1P3/1RR1K2Q w - - 1 49",
                                           "1r5k/2pq2p1/3p3p/p1pP4/4QP2/PP1R3P/6PK/8 w - - 1 51",
                                           "q5k1/5ppp/1r3bn1/1B6/P1N2P2/BQ2P1P1/5K1P/8 b - - 2 34",
                                           "r1b2k1r/5n2/p4q2/1ppn1Pp1/3pp1p1/NP2P3/P1PPBK2/1RQN2R1 w - - 0 22",
@@ -219,7 +219,7 @@ struct Searcher {
                                           "r3k2r/ppp1pp1p/2nqb1pn/3p4/4P3/2PP4/PP1NBPPP/R2QK1NR w KQkq - 1 5",
                                           "3r1rk1/1pp1pn1p/p1n1q1p1/3p4/Q3P3/2P5/PP1NBPPP/4RRK1 w - - 0 12",
                                           "5rk1/1pp1pn1p/p3Brp1/8/1n6/5N2/PP3PPP/2R2RK1 w - - 2 20",
-                                          "8/1p2pk1p/p1p1r1p1/3n4/8/5R2/PP3PPP/4R1K1 b - - 3 27",
+                                          // "8/1p2pk1p/p1p1r1p1/3n4/8/5R2/PP3PPP/4R1K1 b - - 3 27",
                                           "8/4pk2/1p1r2p1/p1p4p/Pn5P/3R4/1P3PP1/4RK2 w - - 1 33",
                                           "8/5k2/1pnrp1p1/p1p4p/P6P/4R1PK/1P3P2/4R3 b - - 1 38",
                                           "8/8/1p1kp1p1/p1pr1n1p/P6P/1R4P1/1P3PK1/1R6 b - - 15 45",
@@ -239,9 +239,12 @@ struct Searcher {
                                           "rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq c3 0 2",
                                           "2rr2k1/1p4bp/p1q1p1p1/4Pp1n/2PB4/1PN3P1/P3Q2P/2RR2K1 w - f6 0 20",
                                           "3br1k1/p1pn3p/1p3n2/5pNq/2P1p3/1PN3PP/P2Q1PB1/4R1K1 w - - 0 23",
-                                          "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93" };
+                                          // "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93"
+        };
 
         u64 totalNodes = 0;
+
+        setHash(256);
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64>                          posHistory;
