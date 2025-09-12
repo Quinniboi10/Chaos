@@ -57,21 +57,6 @@ void Searcher::attemptTreeReuse(const Board& board) {
 // Return if a node is an unexplored or terminal node in the current half
 bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
-// Return if a node is threefold
-bool isThreefold(const vector<u64>& posHistory) {
-    assert(!posHistory.empty());
-
-    usize     reps    = 0;
-    const u64 current = posHistory.back();
-
-    for (const u64 hash : posHistory)
-        if (hash == current)
-            if (++reps == 3)
-                return true;
-
-    return false;
-};
-
 // Return the parent portion of the PUCT score
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
 
@@ -144,10 +129,10 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
 };
 
 // Evaluate node
-float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
+float simulate(const Board& board, Node& node) {
     assert(node.state == ONGOING);
 
-    if (board.isDraw() || isThreefold(posHistory) || (node.numChildren == 0 && !board.inCheck()))
+    if (board.isDraw() || (node.numChildren == 0 && !board.inCheck()))
         node.state = DRAW;
     else if (node.numChildren == 0)
         node.state = LOSS;
@@ -239,7 +224,7 @@ void removeRefs(Tree& tree, Node& node) {
 }
 
 float searchNode(
-  Tree& tree, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+  Tree& tree, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
     if (node.state != ONGOING)
         return node.getScore();
@@ -253,9 +238,7 @@ actionBranch:
         Board newBoard  = board;
         newBoard.move(bestChild.move);
 
-        posHistory.push_back(newBoard.zobrist);
-        score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, newBoard, bestChild, params, ply + 1);
-        posHistory.pop_back();
+        score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, newBoard, bestChild, params, ply + 1);
     }
     // Expansion + simulation
     else {
@@ -269,7 +252,7 @@ actionBranch:
             score = cpToWDL(evaluate(board));
         else {
             expandNode(tree, board, node, currentIndex, params);
-            score = simulate(board, posHistory, node);
+            score = simulate(board, node);
         }
     }
 
@@ -315,9 +298,6 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             return true;
         return (limits.nodes > 0 && nodeCount >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
     };
-
-    // Positions from root to the leaf
-    vector<u64> posHistory;
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
@@ -415,10 +395,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Main search loop
     do {
-        // Reset zobrist history
-        posHistory = params.positionHistory;
-
-        searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, rootPos, tree.root(), params, 0);
+        searchNode(tree, cumulativeDepth, seldepth, currentIndex, rootPos, tree.root(), params, 0);
 
         // Switch halves
         if (switchHalves) {

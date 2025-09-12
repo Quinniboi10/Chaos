@@ -30,8 +30,6 @@ int main(int argc, char* argv[]) {
     Board    board{};
     Searcher searcher{};
 
-    vector<u64> positionHistory;
-
     string         command;
     vector<string> tokens;
 
@@ -95,14 +93,10 @@ int main(int argc, char* argv[]) {
         }
         else if (command == "ucinewgame") {
             board.reset();
-            positionHistory.clear();
-            positionHistory.push_back(board.zobrist);
         }
         else if (command == "isready")
             cout << "readyok" << endl;
         else if (tokens[0] == "position") {
-            positionHistory.clear();
-
             if (tokens[1] == "startpos")
                 board.reset();
             else if (tokens[1] == "kiwipete")
@@ -110,14 +104,9 @@ int main(int argc, char* argv[]) {
             else if (tokens[1] == "fen")
                 board.loadFromFEN(command.substr(13));
 
-            positionHistory.push_back(board.zobrist);
-
-            if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1) {
-                for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++) {
+            if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1)
+                for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++)
                     board.move(tokens[mIdx]);
-                    positionHistory.push_back(board.zobrist);
-                }
-            }
 
             cout << "info string Attempting tree reuse" << endl;
             searcher.attemptTreeReuse(board);
@@ -139,7 +128,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, CPUCT, TEMPERATURE, true, doUci);
+            const SearchParameters params(CPUCT, TEMPERATURE, true, doUci);
             const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }

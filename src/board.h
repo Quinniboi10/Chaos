@@ -36,6 +36,8 @@ struct Board {
     usize halfMoveClock;
     usize fullMoveClock;
 
+    vector<u64> posHistory;
+
    private:
     char getPieceAt(int i) const;
 
@@ -86,7 +88,7 @@ struct Board {
     bool isUnderAttack(Color c, Square square) const;
 
     bool isDraw() const;
-    bool isGameOver(const vector<u64>& posHistory) const;
+    bool isGameOver() const;
 
     bool operator==(const Board& other) const = default;
 

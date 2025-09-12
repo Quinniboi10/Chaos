@@ -95,15 +95,13 @@ struct Node {
 };
 
 struct SearchParameters {
-    const vector<u64>& positionHistory;
     float              cpuct;
     float              temp;
 
     bool doReporting;
     bool doUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const float cpuct, const float temp, const bool doReporting, const bool doUci) :
-        positionHistory(positionHistory),
+    SearchParameters(const float cpuct, const float temp, const bool doReporting, const bool doUci) :
         cpuct(cpuct),
         temp(temp),
         doReporting(doReporting),

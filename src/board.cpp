@@ -263,6 +263,8 @@ void Board::reset() {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
+
+    posHistory = { zobrist };
 }
 
 // Load a board from the FEN
@@ -348,6 +350,8 @@ void Board::loadFromFEN(string fen) {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
+
+    posHistory = { zobrist };
 }
 
 string Board::fen() const {
@@ -440,6 +444,8 @@ void Board::move(Move m) {
     if (isCapture(m)) {
         toPT          = getPiece(to);
         halfMoveClock = 0;
+        posHistory.clear();
+
         if (mt != EN_PASSANT) {
             removePiece(~stm, toPT, to);
         }
@@ -515,6 +521,8 @@ void Board::move(Move m) {
 
     fullMoveClock += stm == WHITE;
 
+    posHistory.push_back(zobrist);
+
     updateCheckPinAttack();
 }
 
@@ -542,10 +550,20 @@ bool Board::isDraw() const {
         && popcount(pieces(KNIGHT)) < 2)                   // Under 2 knights
         return true;
 
+    // Threefold
+    u8 reps = 0;
+    for (const u64 hash : posHistory) {
+        if (hash == zobrist) {
+            reps++;
+            if (reps >= 3)
+                return true;
+        }
+    }
+
     return false;
 }
 
-bool Board::isGameOver(const vector<u64>& posHistory) const {
+bool Board::isGameOver() const {
     if (isDraw())
         return true;
 
