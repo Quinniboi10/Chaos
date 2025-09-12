@@ -14,16 +14,6 @@ bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren ==
 
 // Return if a node is threefold
 bool isThreefold(const vector<u64>& posHistory) {
-    assert(!posHistory.empty());
-
-    usize     reps    = 0;
-    const u64 current = posHistory.back();
-
-    for (const u64 hash : posHistory)
-        if (hash == current)
-            if (++reps == 3)
-                return true;
-
     return false;
 };
 
