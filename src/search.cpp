@@ -10,7 +10,6 @@
 bool switchHalves = false;
 
 // Try to reuse the tree before searching
-// Try to reuse the tree before searching
 void Searcher::attemptTreeReuse(const Board& board) {
     if (board != rootPos) {
         Node* reusedNode = nullptr;
@@ -45,12 +44,11 @@ void Searcher::attemptTreeReuse(const Board& board) {
         }
 
         if (reusedNode != nullptr)
-            tree.inactiveTree()[0] = *reusedNode;
+            tree.activeTree()[0] = *reusedNode;
         else
-            tree.inactiveTree()[0] = Node();
+            tree.activeTree()[0] = Node();
     }
 
-    tree.root() = Node();
     rootPos     = board;
 }
 
