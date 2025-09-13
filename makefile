@@ -1,4 +1,4 @@
-DEFAULT_VALUE_NET = Chaos_07.value
+DEFAULT_VALUE_NET = net34.vn
 DEFAULT_POLICY_NET = Chaos_06.policy
 
 # Detect Operating System
@@ -96,7 +96,7 @@ endif
 
 # Rules to create the files if they don't exist
 $(DEFAULT_VALUE_NET):
-	curl -L -o $@ $(NET_BASE_URL)/$@
+	curl -L -o $@ https://github.com/vine-chess/vine-networks/raw/refs/heads/main/value/$@
 
 $(DEFAULT_POLICY_NET):
 	curl -L -o $@ $(NET_BASE_URL)/$@
