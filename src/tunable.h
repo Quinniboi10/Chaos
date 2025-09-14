@@ -4,7 +4,7 @@
 
 constexpr float CPUCT             = 1.1;
 constexpr float FPU               = 0.5;
-constexpr float TEMPERATURE       = 1.0;
+constexpr float TEMPERATURE       = 1.3;
 constexpr float EVAL_DIVISOR      = 400;
 constexpr float CPUCT_VISIT_SCALE = 8192;
 
