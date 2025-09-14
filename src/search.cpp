@@ -10,7 +10,6 @@
 bool switchHalves = false;
 
 // Try to reuse the tree before searching
-// Try to reuse the tree before searching
 void Searcher::attemptTreeReuse(const Board& board) {
     if (board != rootPos) {
         Node* reusedNode = nullptr;
@@ -70,7 +69,7 @@ bool isThreefold(const vector<u64>& posHistory) {
                 return true;
 
     return false;
-};
+}
 
 // Return the parent portion of the PUCT score
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
@@ -85,7 +84,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // n = child visits
     const u64 v = child.visits.load();
     return (v > 0 ? -child.getScore(v) : parentQ) + child.policy * parentScore / (v + 1);
-};
+}
 
 // Expand a node
 void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
@@ -119,7 +118,7 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
-    float cpuct = params.cpuct;
+    float cpuct = node.move.load().isNull() ? params.rootCPUCT : params.cpuct;
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
     return cpuct;
 }
@@ -141,7 +140,7 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
     }
 
     return *bestChild;
-};
+}
 
 // Evaluate node
 float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
@@ -154,7 +153,7 @@ float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
     if (node.state != ONGOING)
         return node.getScore();
     return cpToWDL(evaluate(board));
-};
+}
 
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& tree, const Node& node) {
@@ -223,7 +222,7 @@ void copyChildren(Tree& tree, Node& node, u64& currentIndex) {
     node.firstChild.store({ currentIndex, tree.activeHalf() });
 
     currentIndex += node.numChildren;
-};
+}
 
 // Remove all references to the other half
 void removeRefs(Tree& tree, Node& node) {
@@ -284,12 +283,15 @@ actionBranch:
     seldepth = std::max(seldepth, ply);
 
     return score;
-};
+}
 
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     // Reset searcher
     this->nodeCount     = 0;
     this->stopSearching = false;
+
+    tree.root().move            = Move::null();
+    tree.inactiveTree()[0].move = Move::null();
 
     usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
 

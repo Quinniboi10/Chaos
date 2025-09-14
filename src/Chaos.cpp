@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, CPUCT, TEMPERATURE, true, doUci);
+            const SearchParameters params(positionHistory, ROOT_CPUCT, CPUCT, TEMPERATURE, true, doUci);
             const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
