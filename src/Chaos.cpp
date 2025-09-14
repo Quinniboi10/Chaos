@@ -201,6 +201,10 @@ int main(int argc, char* argv[]) {
             printBitboard(board.checkers);
         else if (command == "debug.checkmask")
             printBitboard(board.checkMask);
+        else if (tokens[0] == "wdl")
+            cout << cpToWDL(stoi(tokens[1])) << endl;
+        else if (tokens[0] == "cp")
+            cout << wdlToCP(stof(tokens[1])) << endl;
 
         else
             cout << "Unknown command: " << command << endl;
