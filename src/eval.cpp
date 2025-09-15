@@ -218,6 +218,21 @@ usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType 
 }
 
 i32 evaluate(const Board& board) {
+    const Color stm = board.stm;
+    const Color nstm = ~stm;
+
+    return popcount(board.pieces(stm, PAWN)) * PIECE_VALUES[PAWN]
+    + popcount(board.pieces(stm, KNIGHT)) * PIECE_VALUES[KNIGHT]
+    + popcount(board.pieces(stm, BISHOP)) * PIECE_VALUES[BISHOP]
+    + popcount(board.pieces(stm, ROOK)) * PIECE_VALUES[ROOK]
+    + popcount(board.pieces(stm, QUEEN)) * PIECE_VALUES[QUEEN]
+
+    - popcount(board.pieces(nstm, PAWN)) * PIECE_VALUES[PAWN]
+    - popcount(board.pieces(nstm, KNIGHT)) * PIECE_VALUES[KNIGHT]
+    - popcount(board.pieces(nstm, BISHOP)) * PIECE_VALUES[BISHOP]
+    - popcount(board.pieces(nstm, ROOK)) * PIECE_VALUES[ROOK]
+    - popcount(board.pieces(nstm, QUEEN)) * PIECE_VALUES[QUEEN];
+
     const ValueAccumulator accum(board);
     i32                    eval = 0;
 
