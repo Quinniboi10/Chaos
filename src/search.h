@@ -68,11 +68,11 @@ struct Node {
         const GameState s = state.load();
         const u64       v = visits.load();
 
-        if (s == DRAW)
+        if (s.state() == DRAW)
             return 0;
-        if (s == WIN)
+        if (s.state() == WIN)
             return 1;
-        if (s == LOSS)
+        if (s.state() == LOSS)
             return -1;
         if (v == 0)
             return 0;
@@ -84,11 +84,11 @@ struct Node {
 
         assert(visits > 0);
 
-        if (s == DRAW)
+        if (s.state() == DRAW)
             return 0;
-        if (s == WIN)
+        if (s.state() == WIN)
             return 1;
-        if (s == LOSS)
+        if (s.state() == LOSS)
             return -1;
         return totalScore.load() / visits;
     }

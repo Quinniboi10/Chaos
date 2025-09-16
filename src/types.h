@@ -70,13 +70,6 @@ enum Color : i8 {
     BLACK = 0,
 };
 
-enum GameState : i8 {
-    ONGOING,
-    LOSS,
-    DRAW,
-    WIN
-};
-
 enum Activations {
     ReLU,
     CReLU,
@@ -90,8 +83,6 @@ enum SearchMode {
 };
 
 constexpr array<std::string_view, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW", "WIN" };
-
-constexpr auto operator<=>(const GameState a, const GameState b) { return static_cast<int>(a) <=> static_cast<int>(b); }
 
 //Inverts the color (WHITE -> BLACK) and (BLACK -> WHITE)
 constexpr Color operator~(Color c) { return Color(c ^ 1); }
@@ -159,6 +150,32 @@ static inline const bool IS_LITTLE_ENDIAN = *reinterpret_cast<const char*>(&Le) 
 
 enum MoveType {
     STANDARD_MOVE = 0, EN_PASSANT = 0x4000, CASTLE = 0x8000, PROMOTION = 0xC000
+};
+
+enum RawGameState : u8 {
+    ONGOING,
+    LOSS,
+    DRAW,
+    WIN
+};
+
+class GameState {
+    u16 underlying;
+
+public:
+    GameState() { underlying = 0; }
+    GameState(const RawGameState state, const u16 distance = 0) {
+        assert(distance <= 0b0011111111111111);
+        underlying = state << 14 | distance;
+    }
+
+    RawGameState state() const {
+        return static_cast<RawGameState>(underlying >> 14);
+    }
+
+    u16 distance() const {
+        return underlying & 0b0011111111111111;
+    }
 };
 
 struct Colors {

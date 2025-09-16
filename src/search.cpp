@@ -130,25 +130,37 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
 
 // Evaluate node
 float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
-    assert(node.state == ONGOING);
+    assert(node.state.load().state() == ONGOING);
 
     if (board.isDraw(posHistory) || (node.numChildren == 0 && !board.inCheck()))
         node.state = DRAW;
     else if (node.numChildren == 0)
         node.state = LOSS;
-    if (node.state != ONGOING)
+    if (node.state.load().state() != ONGOING)
         return node.getScore();
     return cpToWDL(evaluate(board));
+}
+
+// Returns the cp score of a move, including mate distance
+i32 scoreNode(const Node& node) {
+    const GameState state = node.state.load();
+    const i32 score = wdlToCP(node.getScore());
+
+    if (state.state() == WIN)
+        return MATE_SCORE - state.distance();
+    if (state.state() == LOSS)
+        return -MATE_SCORE + state.distance();
+    return score;
 }
 
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& tree, const Node& node) {
     const Node* child = &tree[node.firstChild.load()];
 
-    float bestScore = -child->getScore();
+    i32 bestScore = -scoreNode(*child);
     Move  bestMove  = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const float score = -child[idx].getScore();
+        const i32 score = -scoreNode(child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestMove  = child[idx].move;
@@ -175,9 +187,9 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
         const NodeIndex startIdx  = node->firstChild.load();
         const Node*     child     = &tree[startIdx];
         const Node*     bestChild = child;
-        float           bestScore = -child->getScore();
+        i32             bestScore = -scoreNode(*child);
         for (usize idx = 1; idx < node->numChildren; idx++) {
-            const float score = -child[idx].getScore();
+            const i32 score = -scoreNode(child[idx]);
             if (score > bestScore) {
                 bestScore = score;
                 bestChild = child + idx;
@@ -226,7 +238,7 @@ void removeRefs(Tree& tree, Node& node) {
 float searchNode(
   Tree& tree, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
-    if (node.state != ONGOING)
+    if (node.state.load().state() != ONGOING)
         return node.getScore();
 
     float score;
@@ -241,6 +253,30 @@ actionBranch:
         posHistory.push_back(newBoard.zobrist);
         score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, newBoard, bestChild, params, ply + 1);
         posHistory.pop_back();
+
+        // Mate backprop
+        const GameState childState = bestChild.state.load();
+        if (childState.state() == LOSS)
+            node.state = GameState(WIN, childState.distance() + 1);
+        else if (childState.state() == WIN) {
+            bool isLoss = true;
+            u16 maxLen = childState.distance();
+
+            const Node* firstChild = &tree[node.firstChild.load()];
+            const Node* end = firstChild + node.numChildren;
+            for (const Node* child = firstChild; child != end; child++) {
+                if (child->state.load().state() == WIN) {
+                    maxLen = std::max(maxLen, child->state.load().distance());
+                }
+                else {
+                    isLoss = false;
+                    break;
+                }
+            }
+
+            if (isLoss)
+            node.state = GameState(LOSS, maxLen + 1);
+        }
     }
     // Expansion + simulation
     else {
@@ -322,7 +358,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         for (const Node* idx = child; idx != end; idx++)
             children.push_back(*idx);
 
-        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -n.getScore(); });
+        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -scoreNode(n); });
 
         const u64 time = limits.commandTime.elapsed();
 
@@ -339,10 +375,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << " hashfull " << currentIndex * 1000 / tree.activeTree().size();
             cout << " hswitches " << halfChanges;
             cout << " multipv " << i;
-            if (n.state == ONGOING || n.state == DRAW)
+            if (n.state.load().state() == ONGOING || n.state.load().state() == DRAW)
                 cout << " score cp " << wdlToCP(-n.getScore());
             else
-                cout << " score mate " << (pv.length + 1) / 2 * (n.state == WIN ? 1 : -1);
+                cout << " score mate " << (n.state.load().distance() + 1) / 2 * (n.state.load().state() == WIN ? 1 : -1);
             cout << " pv";
             for (Move m : pv)
                 cout << " " << m;
@@ -370,8 +406,11 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
         cursor::clear();
         const float rootWdl = tree.root().getScore();
-        cout << Colors::GREY << " Score:     ";
-        printColoredScore(rootWdl);
+        cout << Colors::GREY << " Score:   ";
+        if (tree.root().state.load().state() == ONGOING || tree.root().state.load().state() == DRAW)
+            printColoredScore(rootWdl);
+        else
+            cout << Colors::WHITE << "M in " << (tree.root().state.load().distance() + 1) / 2 * (tree.root().state.load().state() == WIN ? 1 : -1);
         cout << "\n";
         cursor::clear();
         cout << Colors::GREY << " PV line: ";

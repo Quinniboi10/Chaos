@@ -66,8 +66,8 @@ struct Searcher {
         const auto rootString = [&](const Node& node, const usize ply) {
             const string plyStr = fmt::format(fmt::runtime("({} ply)"), ply);
             return fmt::format(fmt::runtime("{:>11} {:>+7.2f} {:>10} visits"), plyStr,
-                               static_cast<float>((node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
-                                                   : node.state == WIN                         ? MATE_SCORE
+                               static_cast<float>((node.state.load().state() == ONGOING || node.state.load().state() == DRAW ? wdlToCP(node.getScore())
+                                                   : node.state.load().state() == WIN                         ? MATE_SCORE
                                                                                                : -MATE_SCORE)
                                                   / 100),
                                node.visits.load());
@@ -75,11 +75,11 @@ struct Searcher {
 
         const auto childString = [&](const Node& node) {
             return fmt::format(fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"), node.firstChild.load().index(), node.move.load().toString(),
-                               (node.state == ONGOING || node.state == DRAW ? wdlToCP(node.getScore())
-                                : node.state == WIN                         ? MATE_SCORE
+                               (node.state.load().state() == ONGOING || node.state.load().state() == DRAW ? wdlToCP(node.getScore())
+                                : node.state.load().state() == WIN                         ? MATE_SCORE
                                                                             : -MATE_SCORE)
                                  / 100.0f,
-                               node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state]);
+                               node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state.load().state()]);
         };
 
         const auto printParents = [&]() {
@@ -190,7 +190,7 @@ struct Searcher {
     Move searchValue(const SearchParameters params);
 
     void bench(const usize depth) {
-        static array<string, 50> fens = { "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
+        static array fens = { "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
                                           "4rrk1/2p1b1p1/p1p3q1/4p3/2P2n1p/1P1NR2P/PB3PP1/3R1QK1 b - - 2 24",
                                           "r3qbrk/6p1/2b2pPp/p3pP1Q/PpPpP2P/3P1B2/2PB3K/R5R1 w - - 16 42",
                                           "6k1/1R3p2/6p1/2Bp3p/3P2q1/P7/1P2rQ1K/5R2 b - - 4 44",
@@ -239,9 +239,12 @@ struct Searcher {
                                           "rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq c3 0 2",
                                           "2rr2k1/1p4bp/p1q1p1p1/4Pp1n/2PB4/1PN3P1/P3Q2P/2RR2K1 w - f6 0 20",
                                           "3br1k1/p1pn3p/1p3n2/5pNq/2P1p3/1PN3PP/P2Q1PB1/4R1K1 w - - 0 23",
-                                          "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93" };
+                                          "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93"
+        };
 
         u64 totalNodes = 0;
+
+        setHash(256);
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64>                          posHistory;
