@@ -56,21 +56,6 @@ void Searcher::attemptTreeReuse(const Board& board) {
 // Return if a node is an unexplored or terminal node in the current half
 bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
-// Return if a node is threefold
-bool isThreefold(const vector<u64>& posHistory) {
-    assert(!posHistory.empty());
-
-    usize     reps    = 0;
-    const u64 current = posHistory.back();
-
-    for (const u64 hash : posHistory)
-        if (hash == current)
-            if (++reps == 3)
-                return true;
-
-    return false;
-}
-
 // Return the parent portion of the PUCT score
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
 
@@ -147,7 +132,7 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
 float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
     assert(node.state == ONGOING);
 
-    if (board.isDraw() || isThreefold(posHistory) || (node.numChildren == 0 && !board.inCheck()))
+    if (board.isDraw(posHistory) || (node.numChildren == 0 && !board.inCheck()))
         node.state = DRAW;
     else if (node.numChildren == 0)
         node.state = LOSS;

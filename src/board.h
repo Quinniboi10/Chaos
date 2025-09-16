@@ -85,7 +85,7 @@ struct Board {
     bool inCheck(Color c) const;
     bool isUnderAttack(Color c, Square square) const;
 
-    bool isDraw() const;
+    bool isDraw(const vector<u64>& posHistory) const;
     bool isGameOver(const vector<u64>& posHistory) const;
 
     bool operator==(const Board& other) const = default;

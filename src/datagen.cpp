@@ -351,7 +351,7 @@ mainLoop:
         }
 
         usize wdl;
-        if (board.isDraw() || !board.inCheck())
+        if (board.isDraw(posHistory) || !board.inCheck())
             wdl = 1;
         else if (board.stm == WHITE)
             wdl = 0;
