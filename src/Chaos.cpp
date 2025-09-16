@@ -202,6 +202,11 @@ int main(int argc, char* argv[]) {
         else if (command == "debug.checkmask")
             printBitboard(board.checkMask);
 
+        else if (command == "debug.isdraw")
+            cout << board.isDraw(positionHistory) << endl;
+        else if (command == "debug.isover")
+            cout << board.isGameOver(positionHistory) << endl;
+
         else
             cout << "Unknown command: " << command << endl;
     }

@@ -527,7 +527,7 @@ bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
 
 
-bool Board::isDraw() const {
+bool Board::isDraw(const vector<u64>& posHistory) const {
     // 50 move rule
     if (halfMoveClock >= 100)
         return !inCheck();
@@ -538,15 +538,8 @@ bool Board::isDraw() const {
         && pieces(ROOK) == 0                               // No rooks
         && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0            // No light sq bishops
             || (pieces(BISHOP) & DARK_SQ_BB) == 0)         // OR no dark sq bishops
-        && ((pieces(BISHOP) == 0 || pieces(KNIGHT)) == 0)  // Not bishop + knight
+        && (pieces(BISHOP) == 0 || pieces(KNIGHT) == 0)    // Not bishop + knight
         && popcount(pieces(KNIGHT)) < 2)                   // Under 2 knights
-        return true;
-
-    return false;
-}
-
-bool Board::isGameOver(const vector<u64>& posHistory) const {
-    if (isDraw())
         return true;
 
     // Threefold
@@ -559,6 +552,13 @@ bool Board::isGameOver(const vector<u64>& posHistory) const {
                 if (++reps == 3)
                     return true;
     }
+
+    return false;
+}
+
+bool Board::isGameOver(const vector<u64>& posHistory) const {
+    if (isDraw(posHistory))
+        return true;
 
     return Movegen::generateMoves(*this).length == 0;
 }
