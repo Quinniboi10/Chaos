@@ -236,7 +236,7 @@ void removeRefs(Tree& tree, Node& node) {
 }
 
 float searchNode(
-  Tree& tree, u64& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+  Tree& tree, RelaxedAtomic<u64>& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
     if (node.state.load().state() != ONGOING)
         return node.getScore();
@@ -301,7 +301,7 @@ actionBranch:
     node.totalScore.getUnderlying().fetch_add(score, std::memory_order_relaxed);
     node.visits.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
-    cumulativeDepth++;
+    cumulativeDepth.getUnderlying().fetch_add(1, std::memory_order_relaxed);
     seldepth = std::max(seldepth, ply);
 
     return score;
@@ -321,8 +321,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     u64 halfChanges = 0;
 
-    auto& iterations      = this->nodeCount;
-    u64   cumulativeDepth = 0;
+    u64 iterations        = 0;
+    auto& cumulativeDepth = this->nodeCount;
 
     usize seldepth = 0;
 
@@ -457,7 +457,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             copyChildren(tree, tree.root(), currentIndex);
             halfChanges++;
         }
-        iterations.getUnderlying().fetch_add(1, std::memory_order_relaxed);
+        iterations++;
 
         // Check if UCI should be printed
         if (params.doReporting) {
