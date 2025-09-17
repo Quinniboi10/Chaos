@@ -334,6 +334,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
+        if (tree.root().state.load().state() != ONGOING)
+            return true;
         const u64 nodeCount = this->nodeCount.load();
         if (nodeCount % 1024 == 0 && (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend)))
             return true;
