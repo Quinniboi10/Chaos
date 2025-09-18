@@ -89,18 +89,17 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
 
     Node* child = &tree.activeTree()[currentIndex];
 
-    const float policy = 1.0f / moves.length;
-
     for (usize i = 0; i < moves.length; i++) {
         child[i].totalScore  = 0;
         child[i].visits      = 0;
         child[i].move        = moves[i];
         child[i].state       = ONGOING;
         child[i].numChildren = 0;
-        child[i].policy      = policy;
     }
 
     currentIndex += moves.length;
+
+    fillPolicy(board, tree, node, params.temp);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
