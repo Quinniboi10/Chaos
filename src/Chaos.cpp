@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
     vector<string> tokens;
 
     bool doUci = false;
+    bool uciMinimal = false;
 
     board.reset();
 
@@ -88,6 +89,7 @@ int main(int argc, char* argv[]) {
             cout << "id author Quinniboi10" << endl;
             cout << "option name Threads type spin default 1 min 1 max 1" << endl;
             cout << "option name Hash type spin default " << DEFAULT_HASH << " min 1 max 1048576" << endl;
+            cout << "option name Minimal type check default false" << endl;
             cout << "option name MultiPV type spin default 1 min 1 max 255" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "option name SearchMode type string default full" << endl;
@@ -139,17 +141,19 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, ROOT_CPUCT, CPUCT, TEMPERATURE, true, doUci);
+            const SearchParameters params(positionHistory, ROOT_CPUCT, CPUCT, TEMPERATURE, true, doUci, uciMinimal);
             const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
             if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
+            else if (tokens[2] == "Minimal")
+                uciMinimal = tokens[findIndexOf(tokens, "value") + 1] == "true";
             else if (tokens[2] == "MultiPV")
                 multiPV = getValueFollowing("value", 1);
             else if (tokens[2] == "UCI_Chess960")
-                chess960 = tokens[findIndexOf(tokens, "value")] == "true";
+                chess960 = tokens[findIndexOf(tokens, "value") + 1] == "true";
             else if (tokens[2] == "SearchMode") {
                 const string value = tokens[findIndexOf(tokens, "value") + 1];
                 if (value == "policy")

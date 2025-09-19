@@ -463,7 +463,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         // Check if UCI should be printed
         if (params.doReporting) {
             const Move bestMove = findPvMove(tree, tree.root());
-            if (params.doUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
+            if (params.doUci && !params.minimalUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
                 const Move bestMove = findPvMove(tree, tree.root());
                 printUCI();
 
