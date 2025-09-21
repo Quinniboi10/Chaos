@@ -97,13 +97,13 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
         child[i].numChildren = 0;
     }
 
-    currentIndex += moves.length;
+    fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
 
-    fillPolicy(board, tree, node, params.temp);
+    currentIndex += moves.length;
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
-    float cpuct = node.move.load().isNull() ? params.rootCPUCT : params.cpuct;
+    float cpuct = node.move.load().isNull() ? params.rootCpuct : params.cpuct;
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
     return cpuct;
 }

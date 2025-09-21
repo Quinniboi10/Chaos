@@ -96,19 +96,21 @@ struct Node {
 
 struct SearchParameters {
     const vector<u64>& positionHistory;
-    float              rootCPUCT;
+    float              rootCpuct;
     float              cpuct;
-    float              temp;
+    float              policyTemp;
+    float              rootPolicyTemp;
 
     bool doReporting;
     bool doUci;
     bool minimalUci;
 
-    SearchParameters(const vector<u64>& positionHistory, const float rootCPUCT, const float cpuct, const float temp, const bool doReporting, const bool doUci, const bool minimalUci) :
+    SearchParameters(const vector<u64>& positionHistory, const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
         positionHistory(positionHistory),
-        rootCPUCT(rootCPUCT),
+        rootCpuct(rootCpuct),
         cpuct(cpuct),
-        temp(temp),
+        rootPolicyTemp(rootPolicyTemp),
+        policyTemp(policyTemp),
         doReporting(doReporting),
         doUci(doUci),
         minimalUci(minimalUci) {}

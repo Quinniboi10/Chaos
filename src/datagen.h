@@ -7,9 +7,10 @@ constexpr usize OUTPUT_BUFFER_GAMES = 50;
 constexpr usize RAND_MOVES          = 8;
 constexpr usize HASH_PER_T          = 128;
 
-constexpr float CPUCT       = 1.25;
-constexpr float ROOT_CPUCT  = 3.75;
-constexpr float TEMPERATURE = 1.05;
+constexpr float CPUCT                   = 1.25;
+constexpr float ROOT_CPUCT              = 3.75;
+constexpr float POLICY_TEMPERATURE      = 1.05;
+constexpr float ROOT_POLICY_TEMPERATURE = 1.25;
 
 constexpr i32 MAX_STARTPOS_SCORE = 400;
 

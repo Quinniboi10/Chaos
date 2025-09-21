@@ -169,7 +169,7 @@ struct Searcher {
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         const vector<u64>                          posHistory;
-        const SearchParameters                     params(posHistory, ROOT_CPUCT, CPUCT, 1.0, false, false, true);
+        const SearchParameters                     params(posHistory, ROOT_CPUCT, CPUCT, 1.0, 1.0, false, false, true);
         const SearchLimits                         limits(stopwatch, 0, 1, 0, 0);
 
         search(params, limits);
@@ -248,7 +248,7 @@ struct Searcher {
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64>                          posHistory;
-        const SearchParameters               params(posHistory, ROOT_CPUCT, CPUCT, TEMPERATURE, false, false, true);
+        const SearchParameters               params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, false, false, true);
         const SearchLimits                   limits(stopwatch, depth, 0, 0, 0);
 
         for (auto fen : fens) {
