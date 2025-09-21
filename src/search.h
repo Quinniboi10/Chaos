@@ -82,14 +82,14 @@ struct Node {
     float getScore(const u64 visits) const {
         const GameState s = state.load();
 
-        assert(visits > 0);
-
         if (s.state() == DRAW)
             return 0;
         if (s.state() == WIN)
             return 1;
         if (s.state() == LOSS)
             return -1;
+        if (visits == 0)
+            return 0;
         return totalScore.load() / visits;
     }
 };

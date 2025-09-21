@@ -102,15 +102,23 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
     fillPolicy(board, tree, node, params.temp);
 }
 
-float computeCpuct(const Node& node, const SearchParameters& params) {
-    float cpuct = node.move.load().isNull() ? params.rootCPUCT : params.cpuct;
-    cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
+float computeCpuct(const Node* parent, const Node& node, const SearchParameters& params) {
+    const u64 visits = node.visits.load();
+
+    const bool qDeclining = parent != nullptr && -parent->getScore() - node.getScore(visits) > 0.05;
+    // Root CPUCT
+    float cpuct = parent == nullptr ? params.rootCPUCT : params.cpuct;
+    // CPUCT visit scaling
+    cpuct *= 1.0f + std::log((visits + CPUCT_VISIT_SCALE) / 8192);
+    // Q declining
+    cpuct -= qDeclining * Q_DECLINING_FACTOR;
+
     return cpuct;
 }
 
 // Find the best child node from a parent
-Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params) {
-    const float cpuct       = computeCpuct(node, params);
+Node& findBestChild(Tree& tree, const Node* parent, const Node& node, const SearchParameters& params) {
+    const float cpuct       = computeCpuct(parent, node, params);
     const float parentScore = parentPuct(node, cpuct);
     const float parentQ     = node.getScore();
     Node*       bestChild   = &tree[node.firstChild];
@@ -235,7 +243,7 @@ void removeRefs(Tree& tree, Node& node) {
 }
 
 float searchNode(
-  Tree& tree, RelaxedAtomic<u64>& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
+  Tree& tree, RelaxedAtomic<u64>& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, vector<Node*>& stack, const Board& board, Node& node, const SearchParameters& params, usize ply) {
     // Check for an early return
     if (node.state.load().state() != ONGOING)
         return node.getScore();
@@ -245,13 +253,15 @@ float searchNode(
 actionBranch:
     // Selection
     if (!isLeaf(node, tree.activeHalf())) {
-        Node& bestChild = findBestChild(tree, node, params);
+        Node& bestChild = findBestChild(tree, stack.back(), node, params);
         Board newBoard  = board;
         newBoard.move(bestChild.move);
 
         posHistory.push_back(newBoard.zobrist);
-        score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, newBoard, bestChild, params, ply + 1);
+        stack.push_back(&bestChild);
+        score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, stack, newBoard, bestChild, params, ply + 1);
         posHistory.pop_back();
+        stack.pop_back();
 
         // Mate backprop
         const GameState childState = bestChild.state.load();
@@ -343,6 +353,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Positions from root to the leaf
     vector<u64> posHistory;
+    // Stack
+    vector<Node*> stack;
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
@@ -445,8 +457,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     do {
         // Reset zobrist history
         posHistory = params.positionHistory;
+        // Reset stack
+        stack = { nullptr };
 
-        searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, rootPos, tree.root(), params, 0);
+        searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, stack, rootPos, tree.root(), params, 0);
 
         // Switch halves
         if (switchHalves) {
