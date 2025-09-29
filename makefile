@@ -106,6 +106,12 @@ $(DEFAULT_POLICY_NET):
 release: CXXFLAGS += -static
 release: all
 
+# TUI build
+.PHONY: tui
+tui: CXXFLAGS  += -DENABLE_TUI
+tui: LINKFLAGS += -lncursesw
+tui: all
+
 # Debug build
 .PHONY: debug
 debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -rdynamic -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra

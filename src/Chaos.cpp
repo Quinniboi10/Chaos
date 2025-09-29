@@ -6,6 +6,7 @@
 #include "constants.h"
 #include "datagen.h"
 #include "policy.h"
+#include "tui.h"
 #ifdef _WIN32
     #define NOMINMAX
     #include <windows.h>
@@ -187,6 +188,8 @@ int main(int argc, char* argv[]) {
             Movegen::perft(board, std::stoi(tokens[1]), true);
         else if (tokens[0] == "perftsuite")
             Movegen::perftSuite(tokens[1]);
+        else if (command == "tui")
+            launchTui();
 
         //************  DEBUG  ************
 

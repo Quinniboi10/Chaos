@@ -37,8 +37,6 @@ struct Board {
     usize fullMoveClock;
 
    private:
-    char getPieceAt(int i) const;
-
     void placePiece(Color c, PieceType pt, int sq);
     void removePiece(Color c, PieceType pt, int sq);
     void removePiece(Color c, int sq);
@@ -70,6 +68,8 @@ struct Board {
 
     void   loadFromFEN(string fen);
     string fen() const;
+
+    char getPieceAt(int i) const;
 
     PieceType getPiece(int sq) const;
     bool      isCapture(Move m) const;

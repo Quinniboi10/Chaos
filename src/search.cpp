@@ -484,6 +484,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                 stopwatch.reset();
             }
         }
+        if (iterations % 1024)
+            currentMove = findPvMove(tree, tree.root());
     } while (!stopSearching());
 
     const Move bestMove = findPvMove(tree, tree.root());
@@ -501,6 +503,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     }
 
     this->stopSearching = true;
+
+    currentMove = findPvMove(tree, tree.root());
 
     return bestMove;
 }

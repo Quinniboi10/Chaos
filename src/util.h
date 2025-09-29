@@ -27,6 +27,7 @@
 #include "../external/fmt/fmt/color.h"
 #include "../external/fmt/fmt/format.h"
 
+#include <codecvt>
 #include <thread>
 
 #define ctzll(x) std::countr_zero(x)

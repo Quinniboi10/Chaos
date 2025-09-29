@@ -19,6 +19,8 @@ struct Searcher {
     RelaxedAtomic<bool> stopSearching;
     SearchMode          searchMode;
 
+    RelaxedAtomic<Move> currentMove;
+
     std::thread searchThread;
 
 
