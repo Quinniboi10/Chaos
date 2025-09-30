@@ -227,23 +227,37 @@ void initializeLine() {
     }
 }
 
-//Initializes lookup tables for rook moves, bishop moves, in-between squares, aligned squares and pseudolegal moves
+u64 pawnAttackBBs[2][64];
+
+void initializePawnAttackBB() {
+    const auto fillByColor = [&](Color c) {
+        for (u8 sq = 0; sq < 64; sq++) {
+            const u64 sqBB = 1ULL << sq;
+            if (c == WHITE) {
+                pawnAttackBBs[WHITE][sq] = shift<NORTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<NORTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
+            }
+            pawnAttackBBs[BLACK][sq] =  shift<SOUTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<SOUTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
+        }
+    };
+
+    fillByColor(WHITE);
+    fillByColor(BLACK);
+}
+
+//Initializes lookup tables for rook moves, bishop moves, in-between squares, aligned squares, pawn attacks, and pseudolegal moves
 void Movegen::initializeAllDatabases() {
     initializeRookAttacks();
     initializeBishopAttacks();
     initializeSquaresBetween();
     initializeLine();
+    initializePawnAttackBB();
 }
 
 u64 Movegen::pawnAttackBB(Color c, int sq) {
     assert(sq >= a1);
     assert(sq < NO_SQUARE);
 
-    const u64 sqBB = 1ULL << sq;
-    if (c == WHITE) {
-        return shift<NORTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<NORTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
-    }
-    return shift<SOUTH_EAST>(sqBB & ~MASK_FILE[FILE_H]) | shift<SOUTH_WEST>(sqBB & ~MASK_FILE[FILE_A]);
+    return pawnAttackBBs[c][sq];
 }
 
 u64 bulk(Board& board, usize depth) {
@@ -545,7 +559,7 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
 
     const u64 singlePush = shift(pushDir, pawns) & empty;
     const u64 doublePush = shift(pushDir, singlePush) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]) & empty;
-    
+
     const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[FILE_H]) & enemy;
     const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[FILE_A]) & enemy;
 

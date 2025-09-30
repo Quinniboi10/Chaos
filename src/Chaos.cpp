@@ -55,6 +55,10 @@ int main(int argc, char* argv[]) {
 
         if (args[1] == "bench")
             searcher.bench(argc > 2 ? std::stoi(argv[2]) : 5);
+        else if (args[1] == "perft")
+            Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 5, false);
+        else if (args[1] == "bulk")
+            Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
         else if (args[1] == "datagen") {
             std::ostringstream ss{};
             for (usize idx = 2; idx < argc; idx++) {
