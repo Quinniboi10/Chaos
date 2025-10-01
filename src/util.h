@@ -124,6 +124,7 @@ constexpr Rank rankOf(Square s) { return Rank(s >> 3); }
 constexpr File fileOf(Square s) { return File(s & 0b111); }
 
 constexpr Square flipRank(Square s) { return Square(s ^ 0b111000); }
+constexpr Square flipFile(Square s) { return Square(s ^ 0b000111); }
 
 constexpr Square toSquare(Rank rank, File file) { return static_cast<Square>((static_cast<int>(rank) << 3) | file); }
 

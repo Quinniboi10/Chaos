@@ -227,7 +227,7 @@ void initializeLine() {
     }
 }
 
-u64 pawnAttackBBs[2][64];
+MultiArray<u64, 2, 64> pawnAttackBBs;
 
 void initializePawnAttackBB() {
     const auto fillByColor = [&](Color c) {
@@ -360,7 +360,7 @@ void Movegen::perft(Board& board, usize depth, bool bulk) {
 
     cout << "Total nodes: " << formatNum(nodes) << endl;
     cout << "Time spent (ms): " << elapsedTime << endl;
-    cout << "Nodes per second: " << formatNum(nodes * 1000 / elapsedTime) << endl;
+    cout << "Nodes per second: " << formatNum(nodes * 1000 / std::max<u64>(elapsedTime, 1)) << endl;
 }
 
 void Movegen::perftSuite(const string filePath) {
@@ -421,7 +421,7 @@ void Movegen::perftSuite(const string filePath) {
         }
 
         u64 elapsed = sw.elapsed();
-        usize nps = nodes * 1000 / elapsed;
+        usize nps = totalNodes * 1000 / std::max<u64>(elapsed, 1);
 
         cout << "Time elapsed: " << formatTime(elapsed) << endl;
         cout << "Found " << formatNum(nodes) << " nodes at " << formatNum(nps) << " nodes per second" << endl;
@@ -437,7 +437,7 @@ void Movegen::perftSuite(const string filePath) {
 
     cout << "Perft Suite Completed: " << passedTests << " / " << testsDone << " tests passed." << endl;
     u64 elapsed = sw.elapsed();
-    usize nps = totalNodes * 1000 / elapsed;
+    usize nps = totalNodes * 1000 / std::max<u64>(elapsed, 1);
 
     cout << "Time elapsed: " << formatTime(elapsed) << endl;
     cout << "Found a total of " << formatNum(totalNodes) << " nodes at " << formatNum(nps) << " nodes per second" << endl;
@@ -499,21 +499,6 @@ void deserializeNormal(MoveList& moves, Square from, u64 toBB) {
         moves.add(from, popLSB(toBB));
 }
 
-void deserializePromo(MoveList& moves, Square from, u64 toBB) {
-    u64 promoBB = toBB & (MASK_RANK[RANK1] | MASK_RANK[RANK8]);
-    u64 normalBB = toBB ^ promoBB;
-
-    deserializeNormal(moves, from, normalBB);
-
-    while (promoBB) {
-        const Square to = popLSB(promoBB);
-        moves.add(from, to, QUEEN);
-        moves.add(from, to, ROOK);
-        moves.add(from, to, BISHOP);
-        moves.add(from, to, KNIGHT);
-    }
-}
-
 // Non-king moves and non-EP moves
 template<PieceType pt>
 void generateStandard(const Board& board, MoveList& moves, const auto& movegenFunction) {
@@ -531,10 +516,7 @@ void generateStandard(const Board& board, MoveList& moves, const auto& movegenFu
 
         const u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask;
 
-        if constexpr (pt == PAWN)
-            deserializePromo(moves, from, toBB);
-        else
-            deserializeNormal(moves, from, toBB);
+        deserializeNormal(moves, from, toBB);
     }
 
     while (pinnedBB) {
@@ -542,10 +524,7 @@ void generateStandard(const Board& board, MoveList& moves, const auto& movegenFu
 
         const u64 toBB = movegenFunction(from) & ~board.pieces(board.stm) & board.checkMask & LINE[kingSq][from];
 
-        if constexpr (pt == PAWN)
-            deserializePromo(moves, from, toBB);
-        else
-            deserializeNormal(moves, from, toBB);
+        deserializeNormal(moves, from, toBB);
     }
 }
 
@@ -557,37 +536,55 @@ void Movegen::pawnMoves(const Board& board, MoveList& moves) {
 
     const u64 pawns = board.pieces(board.stm, PAWN);
 
-    const u64 singlePush = shift(pushDir, pawns) & empty;
-    const u64 doublePush = shift(pushDir, singlePush) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]) & empty;
+    const auto handleMoves = [&](const bool canPromo, const Direction dir, u64 bb) {
+        if (canPromo) {
+            u64 promoBB = bb & (MASK_RANK[RANK1] | MASK_RANK[RANK8]);
+            bb ^= promoBB;
+            while (promoBB) {
+                const Square to = popLSB(promoBB);
+                const Square from = to - dir;
+                moves.add(from, to, QUEEN);
+                moves.add(from, to, ROOK);
+                moves.add(from, to, BISHOP);
+                moves.add(from, to, KNIGHT);
+            }
 
-    const u64 captureEast = shift(pushDir + EAST, pawns & ~MASK_FILE[FILE_H]) & enemy;
-    const u64 captureWest = shift(pushDir + WEST, pawns & ~MASK_FILE[FILE_A]) & enemy;
-
-    const auto getMoves = [&](Square from) {
-        u64 res = 0;
-
-        const int doublePushSq = from + 2 * pushDir;
-
-        // Single push
-        if (readBit(singlePush, from + pushDir))
-            res |= 1ULL << (from + pushDir);
-        // Double push
-        if (res > 0 && doublePushSq >= 0 && doublePushSq < 64 && readBit(doublePush, doublePushSq))
-            res |= (1ULL << doublePushSq);
-        // Capture east
-        if (fileOf(from) != FILE_H && readBit(captureEast, from + pushDir + EAST))
-            res |= 1ULL << (from + pushDir + EAST);
-        // Capture west
-        if (fileOf(from) != FILE_A && readBit(captureWest, from + pushDir + WEST))
-            res |= 1ULL << (from + pushDir + WEST);
-
-        return res;
+            while (bb) {
+                const Square to = popLSB(bb);
+                moves.add(to - dir, to, STANDARD_MOVE);
+            }
+        }
+        else {
+            while (bb) {
+                const Square to = popLSB(bb);
+                moves.add(to - dir, to, STANDARD_MOVE);
+            }
+        }
     };
 
-    generateStandard<PAWN>(board, moves, getMoves);
+    const Square kingSq = getLSB(board.pieces(board.stm, KING));
+
+    const u64 singlePushPawns = (pawns & ~board.pinned) | (pawns & MASK_FILE[fileOf(kingSq)]);
+    const u64 singlePush = shift(pushDir, singlePushPawns) & empty;
+
+    const u64 doublePush = shift(pushDir, singlePush) & (board.stm == WHITE ? MASK_RANK[RANK4] : MASK_RANK[RANK5]) & empty;
+
+    const auto eastCapMask = board.stm == WHITE ? [](const Square sq) { return MASK_DIAGONAL[diagonalOf(sq)]; } : [](const Square sq) { return MASK_ANTI_DIAGONAL[antiDiagonalOf(sq)]; };
+    const auto westCapMask = board.stm == WHITE ? [](const Square sq) { return MASK_ANTI_DIAGONAL[antiDiagonalOf(sq)]; } : [](const Square sq) { return MASK_DIAGONAL[diagonalOf(sq)]; };
+
+    const u64 captureEastPawns = (pawns & ~board.pinned) | (pawns & eastCapMask(kingSq));
+    const u64 captureWestPawns = (pawns & ~board.pinned) | (pawns & westCapMask(kingSq));
+
+    const u64 captureEast = shift(pushDir + EAST, captureEastPawns & ~MASK_FILE[FILE_H]) & enemy;
+    const u64 captureWest = shift(pushDir + WEST, captureWestPawns & ~MASK_FILE[FILE_A]) & enemy;
+
+    handleMoves(true, pushDir, singlePush & board.checkMask);
+    handleMoves(false, static_cast<Direction>(pushDir * 2), doublePush & board.checkMask);
+
+    handleMoves(true, static_cast<Direction>(pushDir + EAST), captureEast & board.checkMask);
+    handleMoves(true, static_cast<Direction>(pushDir + WEST), captureWest & board.checkMask);
 
     if (board.epSquare != NO_SQUARE) {
-        const Square kingSq = getLSB(board.pieces(board.stm, KING));
         u64 epMoves = pawnAttackBB(~board.stm, board.epSquare) & board.pieces(board.stm, PAWN);
 
         while (epMoves) {
