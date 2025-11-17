@@ -563,34 +563,51 @@ bool Board::isGameOver(const vector<u64>& posHistory) const {
     return Movegen::generateMoves(*this).length == 0;
 }
 
-// Print the board
-std::ostream& operator<<(std::ostream& os, const Board& board) {
+std::string Board::asString(const Move m) const {
+    std::ostringstream os;
     const auto printInfo = [&](const usize line) {
         std::ostringstream ss;
         if (line == 1)
-            ss << "FEN: " << board.fen();
+            ss << "FEN: " << fen();
         else if (line == 2)
-            ss << "Hash: 0x" << std::hex << std::uppercase << board.zobrist << std::dec;
+            ss << "Hash: 0x" << std::hex << std::uppercase << zobrist << std::dec;
         else if (line == 3)
-            ss << "Side to move: " << (board.stm == WHITE ? "WHITE" : "BLACK");
+            ss << "Side to move: " << (stm == WHITE ? "WHITE" : "BLACK");
         else if (line == 4)
-            ss << "En passant: " << (board.epSquare == NO_SQUARE ? "-" : squareToAlgebraic(board.epSquare));
+            ss << "En passant: " << (epSquare == NO_SQUARE ? "-" : squareToAlgebraic(epSquare));
         return ss.str();
     };
 
     os << "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n";
 
+    const auto from = m.isNull() ? NO_SQUARE : m.from();
+    const auto to   = m.isNull() ? NO_SQUARE : m.to();
+
+    const auto fromColor = fmt::color::dim_gray;
+    const auto toColor   = isCapture(m) ? fmt::color::dark_red : fmt::color::dim_gray;
+
     usize line = 1;
-    for (i32 rank = (board.stm == WHITE) * 7; (board.stm == WHITE) ? rank >= 0 : rank < 8; (board.stm == WHITE) ? rank-- : rank++) {
+    for (i32 rank = (stm == WHITE) * 7; (stm == WHITE) ? rank >= 0 : rank < 8; (stm == WHITE) ? rank-- : rank++) {
         os << "\u2502 ";
         for (usize file = 0; file < 8; file++) {
             const auto sq    = static_cast<Square>(rank * 8 + file);
-            const auto color = ((1ULL << sq) & board.pieces(WHITE)) ? Colors::YELLOW : Colors::BLUE;
-            os << color << board.getPieceAt(sq) << Colors::RESET << " ";
+            const auto fgColor = ((1ULL << sq) & pieces(WHITE)) ? fmt::color::orange : fmt::color::dark_blue;
+            const auto bgColor = sq == to ? toColor : fromColor;
+
+            if (from == sq || to == sq)
+                os << fmt::format(fmt::fg(fgColor) | fmt::bg(bgColor), "{}", getPieceAt(sq)) << " ";
+            else
+                os << fmt::format(fmt::fg(fgColor), "{}", getPieceAt(sq)) << " ";
         }
         os << "\u2502 " << rank + 1 << "    " << printInfo(line++) << "\n";
     }
     os << "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n";
     os << "  a b c d e f g h\n";
+    return os.str();
+}
+
+// Print the board
+std::ostream& operator<<(std::ostream& os, const Board& board) {
+    os << board.asString();
     return os;
 }

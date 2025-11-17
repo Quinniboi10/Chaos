@@ -88,6 +88,9 @@ struct Board {
     bool isDraw(const vector<u64>& posHistory) const;
     bool isGameOver(const vector<u64>& posHistory) const;
 
+    // If the move isn't move::null(), highlight the move
+    std::string asString(const Move m = Move::null()) const;
+
     bool operator==(const Board& other) const = default;
 
     friend std::ostream& operator<<(std::ostream& os, const Board& board);

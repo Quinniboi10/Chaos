@@ -389,8 +389,11 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     const auto prettyPrint = [&]() {
         const MoveList pv = findPV(tree);
-        cursor::goTo(1, 14);
+        cursor::goTo(1, 1);
 
+        cout << rootPos.asString(pv[0]) << "\n";
+
+        cout << Colors::GREY << " Tree Size:    " << Colors::WHITE << (tree.nodes[0].size() + tree.nodes[1].size() + 2) * sizeof(Node) / 1024 / 1024 << "MB\n";
         cout << Colors::GREY << " Half Usage:   " << Colors::WHITE;
         coloredProgBar(50, static_cast<float>(currentIndex) / tree.activeTree().size());
         cout << "  \n";
@@ -436,9 +439,6 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cursor::clearAll();
         cursor::hide();
         cursor::home();
-
-        cout << rootPos << "\n";
-        cout << Colors::GREY << " Tree Size:    " << Colors::WHITE << (tree.nodes[0].size() + tree.nodes[1].size()) * sizeof(Node) / 1024 / 1024 << "MB\n";
     }
 
     // Main search loop
