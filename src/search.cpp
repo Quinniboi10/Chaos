@@ -1,61 +1,95 @@
 #include "searcher.h"
+#include "globals.h"
 #include "movegen.h"
 #include "policy.h"
 #include "eval.h"
-#include "globals.h"
 
-#include <cmath>
-#include <functional>
+// This file aims to implement the 4 main steps to MCTS search
+// 1 - SELECTION  - Select a node to expand
+// 2 - EXPANSION  - Expand the node and add its children to the tree
+// 3 - SIMULATION - Traditionally a random playout, use the
+// 4 - BACKPROP   - Propagate the score of the selected node all the way back to root
 
-bool switchHalves = false;
 
-// Try to reuse the tree before searching
-void Searcher::attemptTreeReuse(const Board& board) {
-    if (board != rootPos) {
-        Node* reusedNode = nullptr;
+// ======================== HELPERS ========================
+// Get the state of a position
+RawGameState stateOf(const Board& board, const vector<u64>& posHistory) {
+    if (board.isDraw(posHistory))
+        return DRAW;
+    if (Movegen::generateMoves(board).length == 0) {
+        if (board.inCheck())
+            return LOSS;
+        return DRAW;
+    }
+    return ONGOING;
+}
 
-        Node& oldRoot = tree.inactiveTree()[0];
-        if (oldRoot.numChildren > 0) {
-            Node* child = &tree[oldRoot.firstChild.load()];
+float getAdjustedScore(const Node& node) {
+    const RawGameState s = node.state.load().state();
 
-            for (usize i = 0; i < oldRoot.numChildren && reusedNode == nullptr; i++) {
-                Board b1 = rootPos;
-                b1.move(child[i].move);
+    if (s == DRAW)
+        return 0;
+    if (s == WIN)
+        return 1;
+    if (s == LOSS)
+        return -1;
+    if (node.visits.load() > 0)
+        return node.getScore();
+    return 0;
+}
 
-                if (b1 == board) {
-                    reusedNode = &child[i];
-                    break;
-                }
+// Find the PV (best Q) move for a node
+Move findPvMove(const Tree& tree, const Node& node) {
+    const Node* child = &tree[node.firstChild.load()];
 
-                if (child[i].numChildren > 0) {
-                    Node* grandchild = &tree[child[i].firstChild.load()];
+    float bestScore = -getAdjustedScore(*child);
+    Move  bestMove  = child->move;
+    for (usize idx = 1; idx < node.numChildren; idx++) {
+        const float score = -getAdjustedScore(child[idx]);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove  = child[idx].move;
+        }
+    }
 
-                    for (usize j = 0; j < child[i].numChildren; j++) {
-                        Board b2 = b1;
-                        b2.move(grandchild[j].move);
+    return bestMove;
+}
 
-                        if (b2 == board) {
-                            reusedNode = &grandchild[j];
-                            break;
-                        }
-                    }
-                }
+// Search the tree for the PV line
+// This function will search across halves
+MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
+    MoveList pv{};
+
+    const Node* node;
+    if (initialNode == nullptr)
+        node = &tree.root();
+    else {
+        node = initialNode;
+        pv.add(node->move);
+    }
+
+    while (node->numChildren != 0) {
+        const NodeIndex startIdx  = node->firstChild.load();
+        const Node*     child     = &tree[startIdx];
+        const Node*     bestChild = child;
+        float           bestScore = -getAdjustedScore(*child);
+        for (usize idx = 1; idx < node->numChildren; idx++) {
+            const float score = -getAdjustedScore(child[idx]);
+            if (score > bestScore) {
+                bestScore = score;
+                bestChild = child + idx;
             }
         }
 
-        if (reusedNode != nullptr)
-            tree.inactiveTree()[0] = *reusedNode;
-        else
-            tree.inactiveTree()[0] = Node();
+        pv.add(bestChild->move);
+        node = bestChild;
     }
 
-    tree.root() = Node();
-    rootPos     = board;
+    return pv;
 }
 
-// Return if a node is an unexplored or terminal node in the current half
-bool isLeaf(const Node& node, const u8 currentHalf) { return node.numChildren == 0 || node.firstChild.load().half() != currentHalf; }
 
+// ======================== SELECTION ========================
 // Return the parent portion of the PUCT score
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
 
@@ -68,38 +102,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore(v) : parentQ) + child.policy * parentScore / (v + 1);
-}
-
-// Expand a node
-void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
-    MoveList moves = Movegen::generateMoves(board);
-
-    // Mates aren't handled until the simulation/rollout stage
-    if (moves.length == 0)
-        return;
-
-    if (currentIndex + moves.length >= tree.activeTree().size()) {
-        switchHalves = true;
-        return;
-    }
-
-    node.firstChild  = { currentIndex, tree.activeHalf() };
-    node.numChildren = moves.length;
-
-    Node* child = &tree.activeTree()[currentIndex];
-
-    for (usize i = 0; i < moves.length; i++) {
-        child[i].totalScore  = 0;
-        child[i].visits      = 0;
-        child[i].move        = moves[i];
-        child[i].state       = ONGOING;
-        child[i].numChildren = 0;
-    }
-
-    fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
-
-    currentIndex += moves.length;
+    return (v > 0 ? -child.getScore() : parentQ) + child.policy * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
@@ -127,86 +130,45 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
     return *bestChild;
 }
 
-// Evaluate node
-float simulate(const Board& board, const vector<u64>& posHistory, Node& node) {
-    assert(node.state.load().state() == ONGOING);
 
-    if (board.isDraw(posHistory) || (node.numChildren == 0 && !board.inCheck()))
-        node.state = DRAW;
-    else if (node.numChildren == 0)
-        node.state = LOSS;
-    if (node.state.load().state() != ONGOING)
-        return node.getScore();
-    return cpToWDL(evaluate(board));
-}
+// ======================== EXPANSION ========================
+// Expand a node, adding the new nodes to the tree
+void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
+    MoveList moves = Movegen::generateMoves(board);
 
-// Returns the cp score of a move, including mate distance
-i32 scoreNode(const Node& node) {
-    const GameState state = node.state.load();
-    const i32 score = wdlToCP(node.getScore());
+    // Mates aren't handled until the simulation/rollout stage
+    if (moves.length == 0)
+        return;
 
-    if (state.state() == WIN)
-        return MATE_SCORE - state.distance();
-    if (state.state() == LOSS)
-        return -MATE_SCORE + state.distance();
-    return score;
-}
-
-// Find the PV (best Q) move for a node
-Move findPvMove(const Tree& tree, const Node& node) {
-    const Node* child = &tree[node.firstChild.load()];
-
-    i32 bestScore = -scoreNode(*child);
-    Move  bestMove  = child->move;
-    for (usize idx = 1; idx < node.numChildren; idx++) {
-        const i32 score = -scoreNode(child[idx]);
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove  = child[idx].move;
-        }
+    if (currentIndex + moves.length >= tree.activeTree().size()) {
+        tree.switchHalves = true;
+        return;
     }
 
-    return bestMove;
-}
+    node.firstChild  = { currentIndex, tree.activeHalf() };
+    node.numChildren = moves.length;
 
-// Search the tree for the PV line
-// This function will search across halves
-MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
-    MoveList pv{};
+    Node* child = &tree.activeTree()[currentIndex];
 
-    const Node* node;
-    if (initialNode == nullptr)
-        node = &tree.root();
-    else {
-        node = initialNode;
-        pv.add(node->move);
+    for (usize i = 0; i < moves.length; i++) {
+        child[i].totalScore  = 0;
+        child[i].visits      = 0;
+        child[i].move        = moves[i];
+        child[i].state       = ONGOING;
+        child[i].numChildren = 0;
     }
 
-    while (node->numChildren != 0) {
-        const NodeIndex startIdx  = node->firstChild.load();
-        const Node*     child     = &tree[startIdx];
-        const Node*     bestChild = child;
-        i32             bestScore = -scoreNode(*child);
-        for (usize idx = 1; idx < node->numChildren; idx++) {
-            const i32 score = -scoreNode(child[idx]);
-            if (score > bestScore) {
-                bestScore = score;
-                bestChild = child + idx;
-            }
-        }
+    fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
 
-        pv.add(bestChild->move);
-        node = bestChild;
-    }
-
-    return pv;
+    currentIndex += moves.length;
 }
 
-// Copy children from the constant half to the current one
+// Copy children from the inactive half to the current one
 void copyChildren(Tree& tree, Node& node, u64& currentIndex) {
     const u8 numChildren = node.numChildren;
+
     if (currentIndex + numChildren > tree.activeTree().size()) {
-        switchHalves = true;
+        tree.switchHalves = true;
         return;
     }
 
@@ -219,6 +181,21 @@ void copyChildren(Tree& tree, Node& node, u64& currentIndex) {
     node.firstChild.store({ currentIndex, tree.activeHalf() });
 
     currentIndex += node.numChildren;
+}
+
+
+// ======================== SIMULATION ========================
+// Evaluate a position
+float evaluateNode(const Node& node, const Board& board) {
+    const RawGameState s = node.state.load().state();
+
+    if (s == DRAW)
+        return 0;
+    if (s == WIN)
+        return 1;
+    if (s == LOSS)
+        return -1;
+    return cpToWDL(evaluate(board));
 }
 
 // Remove all references to the other half
@@ -234,69 +211,53 @@ void removeRefs(Tree& tree, Node& node) {
         node.numChildren = 0;
 }
 
-float searchNode(
-  Tree& tree, RelaxedAtomic<u64>& cumulativeDepth, usize& seldepth, u64& currentIndex, vector<u64>& posHistory, const Board& board, Node& node, const SearchParameters& params, usize ply) {
-    // Check for an early return
-    if (node.state.load().state() != ONGOING)
-        return node.getScore();
-
+// A recursive implementation of the MCTS algorithm
+// based on implementations from Monty and Jackal
+float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
     float score;
 
-actionBranch:
-    // Selection
-    if (!isLeaf(node, tree.activeHalf())) {
+    // If the node is terminal (W/D/L) then return the score right away
+    if (node.isTerminal())
+        score = evaluateNode(node, board);
+    // Otherwise if the node is being visited for the first time, set the state, then backprop
+    // either the state's score or the NN's score
+    else if (node.visits == 0) {
+        node.state.store(stateOf(board, posHistory));
+        score = evaluateNode(node, board);
+    }
+    else {
+        const bool inCurrentHalf = node.firstChild.load().half() == tree.activeHalf();
+        const u8 numChildren = node.numChildren.load();
+
+        // If the node has no children, expand it
+        if (numChildren == 0)
+            expandNode(tree, board, node, currentIndex, params);
+        // Otherwise, if the node's children are in the other
+        // half, copy them across
+        else if (!inCurrentHalf && numChildren > 0)
+            copyChildren(tree, node, currentIndex);
+
+        // A half switch means expansion/copy aborted
+        // so avoid dereferencing bad children
+        // Also guard against failing to create children when the half is full
+        if (tree.switchHalves || node.numChildren == 0)
+            return 0;
+
+        // Now that the children are either expanded or in the current half,
+        // travel deeper into the tree
         Node& bestChild = findBestChild(tree, node, params);
-        Board newBoard  = board;
+        Board newBoard = board;
         newBoard.move(bestChild.move);
 
         posHistory.push_back(newBoard.zobrist);
-        score = -searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, newBoard, bestChild, params, ply + 1);
+        score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
         posHistory.pop_back();
-
-        // Mate backprop
-        const GameState childState = bestChild.state.load();
-        if (childState.state() == LOSS)
-            node.state = GameState(WIN, childState.distance() + 1);
-        else if (childState.state() == WIN) {
-            bool isLoss = true;
-            u16 maxLen = childState.distance();
-
-            const Node* firstChild = &tree[node.firstChild.load()];
-            const Node* end = firstChild + node.numChildren;
-            for (const Node* child = firstChild; child != end; child++) {
-                if (child->state.load().state() == WIN) {
-                    maxLen = std::max(maxLen, child->state.load().distance());
-                }
-                else {
-                    isLoss = false;
-                    break;
-                }
-            }
-
-            if (isLoss)
-            node.state = GameState(LOSS, maxLen + 1);
-        }
-    }
-    // Expansion + simulation
-    else {
-        if (node.firstChild.load().half() != tree.activeHalf() && node.numChildren > 0) {
-            if (switchHalves)
-                return 0;
-            copyChildren(tree, node, currentIndex);
-            goto actionBranch;
-        }
-        else if (node.visits == 0)
-            score = cpToWDL(evaluate(board));
-        else {
-            expandNode(tree, board, node, currentIndex, params);
-            score = simulate(board, posHistory, node);
-        }
     }
 
-    if (switchHalves)
+    if (tree.switchHalves)
         return 0;
 
-    // Backprop
+    // Backprop as the stack unwinds
     node.totalScore.getUnderlying().fetch_add(score, std::memory_order_relaxed);
     node.visits.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
@@ -306,43 +267,37 @@ actionBranch:
     return score;
 }
 
+// The entry point to the main search
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
-    // Reset searcher
-    this->nodeCount     = 0;
-    this->stopSearching = false;
-
-    tree.root().move            = Move::null();
-    tree.inactiveTree()[0].move = Move::null();
-
-    usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
-
-    u64 currentIndex = 1;
-
-    u64 halfChanges = 0;
-
-    u64 iterations        = 0;
     auto& cumulativeDepth = this->nodeCount;
 
+    tree.activeTree()[0] = Node();
+    tree.inactiveTree()[0] = Node();
+    nodeCount = 0;
+    stopSearching = false;
+
+    u64 currentIndex = 1;
+    u64 iterations = 0;
+    u64 halfChanges = 0;
     usize seldepth = 0;
+
+    usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
 
     // Time management
     i64 timeToSpend = limits.time / 20 + limits.inc / 2;
 
-    if (timeToSpend)
-        timeToSpend -= MOVE_OVERHEAD;
+    if (limits.time != 0 || limits.inc != 0)
+        timeToSpend = std::max<i64>(timeToSpend - static_cast<i64>(MOVE_OVERHEAD), 1);
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        if (tree.root().state.load().state() != ONGOING)
+        if (timeToSpend && tree.root().state.load().state() != ONGOING)
             return true;
         const u64 nodeCount = this->nodeCount.load();
         if (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend))
             return true;
         return (limits.nodes > 0 && nodeCount >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
     };
-
-    // Positions from root to the leaf
-    vector<u64> posHistory;
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
@@ -359,7 +314,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         for (const Node* idx = child; idx != end; idx++)
             children.push_back(*idx);
 
-        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -scoreNode(n); });
+        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -getAdjustedScore(n); });
 
         const u64 time = limits.commandTime.elapsed();
 
@@ -444,13 +399,13 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     // Main search loop
     do {
         // Reset zobrist history
-        posHistory = params.positionHistory;
+        vector<u64> posHistory = params.posHistory;
 
-        searchNode(tree, cumulativeDepth, seldepth, currentIndex, posHistory, rootPos, tree.root(), params, 0);
+        searchNode(tree, tree.root(), rootPos, currentIndex, seldepth, cumulativeDepth, posHistory, params, 0);
 
         // Switch halves
-        if (switchHalves) {
-            switchHalves           = false;
+        if (tree.switchHalves) {
+            tree.switchHalves = false;
             tree.inactiveTree()[0] = tree.root();
             removeRefs(tree, tree.root());
             currentIndex = 1;
@@ -458,6 +413,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             copyChildren(tree, tree.root(), currentIndex);
             halfChanges++;
         }
+
         iterations++;
 
         // Check if UCI should be printed
@@ -508,6 +464,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     return bestMove;
 }
+
+// These two functions provide the capability to instantly move
+// based on the move prediction from either of the two NNs
 
 Move Searcher::searchPolicy(const SearchParameters params) {
     fillRootPolicy(rootPos);

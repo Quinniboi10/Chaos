@@ -312,7 +312,6 @@ void Board::loadFromFEN(string fen) {
 
     castling.fill(NO_SQUARE);
     if (tokens[2].find('-') == string::npos) {
-        // Standard FEN
         // Standard FEN and maybe XFEN later
         if (tokens[2].find('K') != string::npos)
             castling[castleIndex(WHITE, true)] = h1;
@@ -396,10 +395,10 @@ string Board::fen() const {
     else
         ss << " -";
 
-    // Halfmove
+    // Half move
     ss << ' ' << halfMoveClock;
 
-    // Fullmove
+    // Full move
     ss << ' ' << fullMoveClock;
 
     return ss.str();
@@ -419,7 +418,6 @@ PieceType Board::getPiece(int sq) const {
 bool Board::isQuiet(Move m) const { return !isCapture(m) && (m.typeOf() != PROMOTION || m.promo() != QUEEN); }
 
 bool Board::isCapture(Move m) const { return ((1ULL << m.to() & pieces(~stm)) || m.typeOf() == EN_PASSANT); }
-
 
 // Make a move from a string
 void Board::move(string str) { move(Move(str, *this)); }
@@ -533,13 +531,13 @@ bool Board::isDraw(const vector<u64>& posHistory) const {
         return !inCheck();
 
     // Insufficient material
-    if (pieces(PAWN) == 0                                  // No pawns
-        && pieces(QUEEN) == 0                              // No queens
-        && pieces(ROOK) == 0                               // No rooks
-        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0            // No light sq bishops
-            || (pieces(BISHOP) & DARK_SQ_BB) == 0)         // OR no dark sq bishops
+    if (pieces(PAWN) == 0                                     // No pawns
+        && pieces(QUEEN) == 0                                 // No queens
+        && pieces(ROOK) == 0                                  // No rooks
+        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0               // No light sq bishops
+            || (pieces(BISHOP) & DARK_SQ_BB) == 0)            // OR no dark sq bishops
         && (pieces(BISHOP) == 0 || pieces(KNIGHT) == 0)    // Not bishop + knight
-        && popcount(pieces(KNIGHT)) < 2)                   // Under 2 knights
+        && popcount(pieces(KNIGHT)) < 2)                    // Under 2 knights
         return true;
 
     // Threefold

@@ -163,8 +163,8 @@ class GameState {
     u16 underlying;
 
 public:
-    GameState() { underlying = 0; }
-    GameState(const RawGameState state, const u16 distance = 0) {
+    constexpr GameState() { underlying = 0; }
+    constexpr GameState(const RawGameState state, const u16 distance = 0) {
         assert(distance <= 0b0011111111111111);
         underlying = state << 14 | distance;
     }

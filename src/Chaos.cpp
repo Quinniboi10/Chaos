@@ -31,10 +31,10 @@ int main(int argc, char* argv[]) {
     Board    board{};
     Searcher searcher{};
 
-    vector<u64> positionHistory;
-
     string         command;
     vector<string> tokens;
+
+    vector<u64> posHistory;
 
     bool doUci = false;
     bool uciMinimal = false;
@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
             args[i] = argv[i];
 
         if (args[1] == "bench")
-            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 5);
+            searcher.bench(argc > 2 ? std::stoi(argv[2]) : 8);
         else if (args[1] == "perft")
             Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 5, false);
         else if (args[1] == "bulk")
@@ -102,36 +102,26 @@ int main(int argc, char* argv[]) {
         }
         else if (command == "ucinewgame") {
             board.reset();
-            positionHistory.clear();
-            positionHistory.push_back(board.zobrist);
+            posHistory = { board.zobrist };
         }
         else if (command == "isready")
             cout << "readyok" << endl;
         else if (tokens[0] == "position") {
-            positionHistory.clear();
+            board.reset();
 
-            if (tokens[1] == "startpos")
-                board.reset();
-            else if (tokens[1] == "kiwipete")
+            if (tokens[1] == "kiwipete")
                 board.loadFromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
             else if (tokens[1] == "fen")
                 board.loadFromFEN(command.substr(13));
 
-            positionHistory.push_back(board.zobrist);
+            posHistory = { board.zobrist };
 
             if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1) {
                 for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++) {
                     board.move(tokens[mIdx]);
-                    positionHistory.push_back(board.zobrist);
+                    posHistory.push_back(board.zobrist);
                 }
             }
-
-            cout << "info string Attempting tree reuse" << endl;
-            searcher.attemptTreeReuse(board);
-            if (searcher.tree.inactiveTree()[0] != Node())
-                cout << "info string Found subtree!" << endl;
-            else
-                cout << "info string Failed to find subtree" << endl;
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);
@@ -146,7 +136,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(positionHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
+            const SearchParameters params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
             const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
@@ -214,9 +204,9 @@ int main(int argc, char* argv[]) {
             printBitboard(board.checkMask);
 
         else if (command == "debug.isdraw")
-            cout << board.isDraw(positionHistory) << endl;
+            cout << board.isDraw(posHistory) << endl;
         else if (command == "debug.isover")
-            cout << board.isGameOver(positionHistory) << endl;
+            cout << board.isGameOver(posHistory) << endl;
 
         else
             cout << "Unknown command: " << command << endl;

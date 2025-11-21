@@ -1,5 +1,6 @@
 #pragma once
 
+#include "node.h"
 #include "types.h"
 #include "board.h"
 #include "search.h"
@@ -8,7 +9,6 @@
 
 #include "../external/fmt/fmt/format.h"
 
-#include <atomic>
 #include <cstdlib>
 #include <thread>
 
@@ -23,10 +23,9 @@ struct Searcher {
 
     std::thread searchThread;
 
-
     Searcher() {
         setHash(DEFAULT_HASH);
-        searchMode  = FULL_SEARCH;
+        searchMode = FULL_SEARCH;
     }
 
     void setHash(const u64 hash) {
@@ -34,12 +33,10 @@ struct Searcher {
         tree.resize(maxNodes);
     }
 
-    void attemptTreeReuse(const Board& board);
-
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         stop();
 
-        attemptTreeReuse(board);
+        rootPos = board;
 
         switch (searchMode) {
         case POLICY_ONLY:
@@ -254,9 +251,9 @@ struct Searcher {
         const SearchLimits                   limits(stopwatch, depth, 0, 0, 0);
 
         for (auto fen : fens) {
-            posHistory.clear();
             rootPos.loadFromFEN(fen);
-            posHistory.push_back(rootPos.zobrist);
+            posHistory = { rootPos.zobrist };
+
             search(params, limits);
             totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;
