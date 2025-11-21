@@ -36,12 +36,7 @@ struct Searcher {
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         stop();
 
-        // Prepare the searcher for it's next run
         rootPos = board;
-        tree.activeTree()[0] = Node();
-        tree.inactiveTree()[0] = Node();
-        nodeCount = 0;
-        stopSearching = false;
 
         switch (searchMode) {
         case POLICY_ONLY:

@@ -271,6 +271,11 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     auto& cumulativeDepth = this->nodeCount;
 
+    tree.activeTree()[0] = Node();
+    tree.inactiveTree()[0] = Node();
+    nodeCount = 0;
+    stopSearching = false;
+
     u64 currentIndex = 1;
     u64 iterations = 0;
     u64 halfChanges = 0;
