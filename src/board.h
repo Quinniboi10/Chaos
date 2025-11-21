@@ -19,9 +19,6 @@ struct Board {
     // Board zobrist hash
     u64 zobrist;
 
-    // Zobrist history for all previous positions
-    std::vector<u64> posHistory;
-
     bool          doubleCheck;
     u64           checkMask;
     u64           pinned;
@@ -88,8 +85,8 @@ struct Board {
     bool inCheck(Color c) const;
     bool isUnderAttack(Color c, Square square) const;
 
-    bool isDraw() const;
-    bool isGameOver() const;
+    bool isDraw(const vector<u64>& posHistory) const;
+    bool isGameOver(const vector<u64>& posHistory) const;
 
     // If the move isn't move::null(), highlight the move
     std::string asString(const Move m = Move::null()) const;

@@ -298,7 +298,8 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
     const auto                         randBool = [&]() { return dist(engine); };
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    const SearchParameters               params(datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
+    vector<u64>                          posHistory;
+    const SearchParameters               params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
     const SearchLimits                   limits(stopwatch, 0, nodes, 0, 0);
 
     usize localPositions = 0;
@@ -313,12 +314,14 @@ mainLoop:
         board.reset();
         lk.unlock();
 
+        posHistory = { board.zobrist };
 
         for (usize i = 0; i < randomMoves; i++) {
             lk.lock();
             makeRandomMove(board);
             lk.unlock();
-            if (board.isGameOver())
+            posHistory.push_back(board.zobrist);
+            if (board.isGameOver(posHistory))
                 goto mainLoop;
         }
 
@@ -326,7 +329,7 @@ mainLoop:
 
         bool isFirstMove = true;
 
-        while (!board.isGameOver()) {
+        while (!board.isGameOver(posHistory)) {
             Node& root       = searcher.tree.root();
             root             = Node();
             searcher.rootPos = board;
@@ -341,6 +344,7 @@ mainLoop:
             lk.lock();
             board.move(m);
             lk.unlock();
+            posHistory.push_back(board.zobrist);
 
             isFirstMove = false;
 
@@ -556,7 +560,8 @@ void datagen::genFens(const string& params) {
 
     const auto isValidPosition = [](const Board& board) {
         const Stopwatch<std::chrono::milliseconds> stopwatch;
-        const SearchParameters                     params(datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
+        vector<u64>                                posHistory;
+        const SearchParameters                     params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
         const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
 
         static Searcher searcher{};
@@ -575,17 +580,20 @@ void datagen::genFens(const string& params) {
     auto                               randBool = [&]() { return dist(eng); };
 
 
-    u64               fens = 0;
+    vector<u64> posHistory;
+    u64         fens = 0;
     while (fens < numFens) {
 startLoop:
-        Board board{};
+        Board board;
         board.reset();
+        posHistory = { board.zobrist };
         const usize randomMoves = datagen::RAND_MOVES + randBool();
         for (usize i = 0; i < randomMoves; i++) {
             MoveList                           moves = Movegen::generateMoves(board);
             std::uniform_int_distribution<int> dist(0, moves.length - 1);
             board.move(moves.moves[dist(eng)]);
-            if (board.isGameOver())
+            posHistory.push_back(board.zobrist);
+            if (board.isGameOver(posHistory))
                 goto startLoop;
         }
 

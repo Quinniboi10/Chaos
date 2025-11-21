@@ -21,6 +21,7 @@ class NodeIndex {
 };
 
 struct SearchParameters {
+    const vector<u64>& posHistory;
     float              rootCpuct;
     float              cpuct;
     float              policyTemp;
@@ -30,11 +31,12 @@ struct SearchParameters {
     bool doUci;
     bool minimalUci;
 
-    SearchParameters(const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
+    SearchParameters(const vector<u64>& posHistory, const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
+        posHistory(posHistory),
         rootCpuct(rootCpuct),
         cpuct(cpuct),
-        policyTemp(policyTemp),
         rootPolicyTemp(rootPolicyTemp),
+        policyTemp(policyTemp),
         doReporting(doReporting),
         doUci(doUci),
         minimalUci(minimalUci) {}

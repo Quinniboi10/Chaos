@@ -263,8 +263,6 @@ void Board::reset() {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
-
-    posHistory = { zobrist };
 }
 
 // Load a board from the FEN
@@ -349,8 +347,6 @@ void Board::loadFromFEN(string fen) {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
-
-    posHistory = { zobrist };
 }
 
 string Board::fen() const {
@@ -517,8 +513,6 @@ void Board::move(Move m) {
 
     fullMoveClock += stm == WHITE;
 
-    posHistory.push_back(zobrist);
-
     updateCheckPinAttack();
 }
 
@@ -531,7 +525,7 @@ bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
 
 
-bool Board::isDraw() const {
+bool Board::isDraw(const vector<u64>& posHistory) const {
     // 50 move rule
     if (halfMoveClock >= 100)
         return !inCheck();
@@ -560,8 +554,8 @@ bool Board::isDraw() const {
     return false;
 }
 
-bool Board::isGameOver() const {
-    if (isDraw())
+bool Board::isGameOver(const vector<u64>& posHistory) const {
+    if (isDraw(posHistory))
         return true;
 
     return Movegen::generateMoves(*this).length == 0;

@@ -34,6 +34,8 @@ int main(int argc, char* argv[]) {
     string         command;
     vector<string> tokens;
 
+    vector<u64> posHistory;
+
     bool doUci = false;
     bool uciMinimal = false;
 
@@ -98,8 +100,10 @@ int main(int argc, char* argv[]) {
             cout << "option name SearchMode type string default full" << endl;
             cout << "uciok" << endl;
         }
-        else if (command == "ucinewgame")
+        else if (command == "ucinewgame") {
             board.reset();
+            posHistory = { board.zobrist };
+        }
         else if (command == "isready")
             cout << "readyok" << endl;
         else if (tokens[0] == "position") {
@@ -110,9 +114,12 @@ int main(int argc, char* argv[]) {
             else if (tokens[1] == "fen")
                 board.loadFromFEN(command.substr(13));
 
+            posHistory = { board.zobrist };
+
             if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1) {
                 for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++) {
                     board.move(tokens[mIdx]);
+                    posHistory.push_back(board.zobrist);
                 }
             }
         }
@@ -129,7 +136,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
+            const SearchParameters params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
             const SearchLimits     limits(commandTime, depth, nodes, time, inc);
             searcher.start(board, params, limits);
         }
@@ -197,9 +204,9 @@ int main(int argc, char* argv[]) {
             printBitboard(board.checkMask);
 
         else if (command == "debug.isdraw")
-            cout << board.isDraw() << endl;
+            cout << board.isDraw(posHistory) << endl;
         else if (command == "debug.isover")
-            cout << board.isGameOver() << endl;
+            cout << board.isGameOver(posHistory) << endl;
 
         else
             cout << "Unknown command: " << command << endl;

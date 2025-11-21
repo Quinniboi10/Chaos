@@ -13,8 +13,8 @@
 
 // ======================== HELPERS ========================
 // Get the state of a position
-RawGameState stateOf(const Board& board) {
-    if (board.isDraw())
+RawGameState stateOf(const Board& board, const vector<u64>& posHistory) {
+    if (board.isDraw(posHistory))
         return DRAW;
     if (Movegen::generateMoves(board).length == 0) {
         if (board.inCheck())
@@ -213,7 +213,7 @@ void removeRefs(Tree& tree, Node& node) {
 
 // A recursive implementation of the MCTS algorithm
 // based on implementations from Monty and Jackal
-float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, const SearchParameters& params, const usize ply) {
+float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away
@@ -222,7 +222,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
     // Otherwise if the node is being visited for the first time, set the state, then backprop
     // either the state's score or the NN's score
     else if (node.visits == 0) {
-        node.state.store(stateOf(board));
+        node.state.store(stateOf(board, posHistory));
         score = evaluateNode(node, board);
     }
     else {
@@ -249,7 +249,9 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         Board newBoard = board;
         newBoard.move(bestChild.move);
 
-        score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, params, ply + 1);
+        posHistory.push_back(newBoard.zobrist);
+        score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
+        posHistory.pop_back();
     }
 
     if (tree.switchHalves)
@@ -391,7 +393,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Main search loop
     do {
-        searchNode(tree, tree.root(), rootPos, currentIndex, seldepth, cumulativeDepth, params, 0);
+        // Reset zobrist history
+        vector<u64> posHistory = params.posHistory;
+
+        searchNode(tree, tree.root(), rootPos, currentIndex, seldepth, cumulativeDepth, posHistory, params, 0);
 
         // Switch halves
         if (tree.switchHalves) {
