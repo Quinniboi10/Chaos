@@ -263,6 +263,8 @@ void Board::reset() {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
+
+    posHistory = { zobrist };
 }
 
 // Load a board from the FEN
@@ -312,7 +314,6 @@ void Board::loadFromFEN(string fen) {
 
     castling.fill(NO_SQUARE);
     if (tokens[2].find('-') == string::npos) {
-        // Standard FEN
         // Standard FEN and maybe XFEN later
         if (tokens[2].find('K') != string::npos)
             castling[castleIndex(WHITE, true)] = h1;
@@ -348,6 +349,8 @@ void Board::loadFromFEN(string fen) {
     resetMailbox();
     resetZobrist();
     updateCheckPinAttack();
+
+    posHistory = { zobrist };
 }
 
 string Board::fen() const {
@@ -396,10 +399,10 @@ string Board::fen() const {
     else
         ss << " -";
 
-    // Halfmove
+    // Half move
     ss << ' ' << halfMoveClock;
 
-    // Fullmove
+    // Full move
     ss << ' ' << fullMoveClock;
 
     return ss.str();
@@ -419,7 +422,6 @@ PieceType Board::getPiece(int sq) const {
 bool Board::isQuiet(Move m) const { return !isCapture(m) && (m.typeOf() != PROMOTION || m.promo() != QUEEN); }
 
 bool Board::isCapture(Move m) const { return ((1ULL << m.to() & pieces(~stm)) || m.typeOf() == EN_PASSANT); }
-
 
 // Make a move from a string
 void Board::move(string str) { move(Move(str, *this)); }
@@ -515,6 +517,8 @@ void Board::move(Move m) {
 
     fullMoveClock += stm == WHITE;
 
+    posHistory.push_back(zobrist);
+
     updateCheckPinAttack();
 }
 
@@ -527,19 +531,19 @@ bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
 bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
 
 
-bool Board::isDraw(const vector<u64>& posHistory) const {
+bool Board::isDraw() const {
     // 50 move rule
     if (halfMoveClock >= 100)
         return !inCheck();
 
     // Insufficient material
-    if (pieces(PAWN) == 0                                  // No pawns
-        && pieces(QUEEN) == 0                              // No queens
-        && pieces(ROOK) == 0                               // No rooks
-        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0            // No light sq bishops
-            || (pieces(BISHOP) & DARK_SQ_BB) == 0)         // OR no dark sq bishops
+    if (pieces(PAWN) == 0                                     // No pawns
+        && pieces(QUEEN) == 0                                 // No queens
+        && pieces(ROOK) == 0                                  // No rooks
+        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0               // No light sq bishops
+            || (pieces(BISHOP) & DARK_SQ_BB) == 0)            // OR no dark sq bishops
         && (pieces(BISHOP) == 0 || pieces(KNIGHT) == 0)    // Not bishop + knight
-        && popcount(pieces(KNIGHT)) < 2)                   // Under 2 knights
+        && popcount(pieces(KNIGHT)) < 2)                    // Under 2 knights
         return true;
 
     // Threefold
@@ -556,8 +560,8 @@ bool Board::isDraw(const vector<u64>& posHistory) const {
     return false;
 }
 
-bool Board::isGameOver(const vector<u64>& posHistory) const {
-    if (isDraw(posHistory))
+bool Board::isGameOver() const {
+    if (isDraw())
         return true;
 
     return Movegen::generateMoves(*this).length == 0;

@@ -298,8 +298,7 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
     const auto                         randBool = [&]() { return dist(engine); };
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<u64>                          posHistory;
-    const SearchParameters               params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
+    const SearchParameters               params(datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
     const SearchLimits                   limits(stopwatch, 0, nodes, 0, 0);
 
     usize localPositions = 0;
@@ -319,16 +318,15 @@ mainLoop:
             lk.lock();
             makeRandomMove(board);
             lk.unlock();
-            if (board.isGameOver(posHistory))
+            if (board.isGameOver())
                 goto mainLoop;
         }
 
         fileWriter.setStartpos(board);
-        posHistory = { board.zobrist };
 
         bool isFirstMove = true;
 
-        while (!board.isGameOver(posHistory)) {
+        while (!board.isGameOver()) {
             Node& root       = searcher.tree.root();
             root             = Node();
             searcher.rootPos = board;
@@ -343,7 +341,6 @@ mainLoop:
             lk.lock();
             board.move(m);
             lk.unlock();
-            posHistory.push_back(board.zobrist);
 
             isFirstMove = false;
 
@@ -351,7 +348,7 @@ mainLoop:
         }
 
         usize wdl;
-        if (board.isDraw(posHistory) || !board.inCheck())
+        if (!board.inCheck())
             wdl = 1;
         else if (board.stm == WHITE)
             wdl = 0;
@@ -359,7 +356,6 @@ mainLoop:
             wdl = 2;
 
         fileWriter.writeGame(wdl);
-        posHistory.clear();
 
         if (localPositions >= datagen::POSITION_COUNT_BUFFER) {
             positions.fetch_add(localPositions, std::memory_order_relaxed);
@@ -560,8 +556,7 @@ void datagen::genFens(const string& params) {
 
     const auto isValidPosition = [](const Board& board) {
         const Stopwatch<std::chrono::milliseconds> stopwatch;
-        const vector<u64>                          posHistory;
-        const SearchParameters                     params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
+        const SearchParameters                     params(datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
         const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
 
         static Searcher searcher{};
@@ -580,7 +575,6 @@ void datagen::genFens(const string& params) {
     auto                               randBool = [&]() { return dist(eng); };
 
 
-    const vector<u64> posHistory;
     u64               fens = 0;
     while (fens < numFens) {
 startLoop:
@@ -591,7 +585,7 @@ startLoop:
             MoveList                           moves = Movegen::generateMoves(board);
             std::uniform_int_distribution<int> dist(0, moves.length - 1);
             board.move(moves.moves[dist(eng)]);
-            if (board.isGameOver(posHistory))
+            if (board.isGameOver())
                 goto startLoop;
         }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "node.h"
 #include "types.h"
 #include "board.h"
 #include "search.h"
@@ -8,7 +9,6 @@
 
 #include "../external/fmt/fmt/format.h"
 
-#include <atomic>
 #include <cstdlib>
 #include <thread>
 
@@ -23,10 +23,9 @@ struct Searcher {
 
     std::thread searchThread;
 
-
     Searcher() {
         setHash(DEFAULT_HASH);
-        searchMode  = FULL_SEARCH;
+        searchMode = FULL_SEARCH;
     }
 
     void setHash(const u64 hash) {
@@ -34,12 +33,15 @@ struct Searcher {
         tree.resize(maxNodes);
     }
 
-    void attemptTreeReuse(const Board& board);
-
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {
         stop();
 
-        attemptTreeReuse(board);
+        // Prepare the searcher for it's next run
+        rootPos = board;
+        tree.activeTree()[0] = Node();
+        tree.inactiveTree()[0] = Node();
+        nodeCount = 0;
+        stopSearching = false;
 
         switch (searchMode) {
         case POLICY_ONLY:
@@ -170,8 +172,7 @@ struct Searcher {
         tree.root() = Node();
 
         const Stopwatch<std::chrono::milliseconds> stopwatch;
-        const vector<u64>                          posHistory;
-        const SearchParameters                     params(posHistory, ROOT_CPUCT, CPUCT, 1.0, 1.0, false, false, true);
+        const SearchParameters                     params(ROOT_CPUCT, CPUCT, 1.0, 1.0, false, false, true);
         const SearchLimits                         limits(stopwatch, 0, 1, 0, 0);
 
         search(params, limits);
@@ -249,14 +250,11 @@ struct Searcher {
         setHash(256);
 
         Stopwatch<std::chrono::milliseconds> stopwatch;
-        vector<u64>                          posHistory;
-        const SearchParameters               params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, false, false, true);
+        const SearchParameters               params(ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, false, false, true);
         const SearchLimits                   limits(stopwatch, depth, 0, 0, 0);
 
         for (auto fen : fens) {
-            posHistory.clear();
             rootPos.loadFromFEN(fen);
-            posHistory.push_back(rootPos.zobrist);
             search(params, limits);
             totalNodes += nodeCount.load();
             cout << "Pos: " << fen << endl;

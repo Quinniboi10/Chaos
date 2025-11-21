@@ -1,7 +1,7 @@
 #pragma once
 
 #include "board.h"
-#include "search.h"
+#include "node.h"
 
 // ************ POLICY NETWORK CONFIG ************
 constexpr i16   Q_P       = 128;
