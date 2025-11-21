@@ -279,12 +279,12 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     // Time management
     i64 timeToSpend = limits.time / 20 + limits.inc / 2;
 
-    if (timeToSpend)
-        timeToSpend -= MOVE_OVERHEAD;
+    if (limits.time != 0 || limits.inc != 0)
+        timeToSpend = std::max<i64>(timeToSpend - static_cast<i64>(MOVE_OVERHEAD), 1);
 
     // Returns true if search has met a limit
     const auto stopSearching = [&]() {
-        if (tree.root().state.load().state() != ONGOING)
+        if (timeToSpend && tree.root().state.load().state() != ONGOING)
             return true;
         const u64 nodeCount = this->nodeCount.load();
         if (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend))
