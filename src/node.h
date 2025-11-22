@@ -1,6 +1,7 @@
 #pragma once
 
 #include "search.h"
+#include "ttable.h"
 
 struct Node {
     RelaxedAtomic<float>     totalScore;
@@ -63,16 +64,32 @@ class Tree {
 
 public:
     array<vector<Node>, 2> nodes;
+    TranspositionTable tt;
     RelaxedAtomic<bool> switchHalves;
 
     Tree() {
         resize(DEFAULT_HASH);
         currentHalf = 0;
+        switchHalves = false;
     }
 
-    void resize(const u64 size) {
-        nodes[0].resize(size / 2);
-        nodes[1].resize(size / 2);
+    void reset() {
+        nodes[0][0] = Node();
+        nodes[1][0] = Node();
+        tt.clear(std::thread::hardware_concurrency());
+    }
+
+    void resize(const u64 newMB) {
+        // The TT gets 1/16th of the hash
+        // and the main tree gets the other
+        // 15/16ths
+        const u64 treeAllocSize = newMB * 1024 * 1024 * 15 / sizeof(Node) / 16;
+
+        nodes[0].resize(treeAllocSize / 2);
+        nodes[1].resize(treeAllocSize / 2);
+
+        tt.reserve(newMB / 16);
+        tt.clear(std::thread::hardware_concurrency());
     }
 
     u8 activeHalf() const { return currentHalf; }

@@ -186,7 +186,7 @@ void copyChildren(Tree& tree, Node& node, u64& currentIndex) {
 
 // ======================== SIMULATION ========================
 // Evaluate a position
-float evaluateNode(const Node& node, const Board& board) {
+float evaluateNode(const Tree& tree, const Node& node, const Board& board) {
     const RawGameState s = node.state.load().state();
 
     if (s == DRAW)
@@ -195,6 +195,11 @@ float evaluateNode(const Node& node, const Board& board) {
         return 1;
     if (s == LOSS)
         return -1;
+
+    const HashTableEntry& entry = tree.tt.getEntry(board.zobrist);
+    if (entry.key == board.zobrist)
+        return entry.q;
+
     return cpToWDL(evaluate(board));
 }
 
@@ -218,12 +223,12 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
 
     // If the node is terminal (W/D/L) then return the score right away
     if (node.isTerminal())
-        score = evaluateNode(node, board);
+        score = evaluateNode(tree, node, board);
     // Otherwise if the node is being visited for the first time, set the state, then backprop
     // either the state's score or the NN's score
     else if (node.visits == 0) {
         node.state.store(stateOf(board, posHistory));
-        score = evaluateNode(node, board);
+        score = evaluateNode(tree, node, board);
     }
     else {
         const bool inCurrentHalf = node.firstChild.load().half() == tree.activeHalf();
@@ -264,6 +269,8 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
     cumulativeDepth.getUnderlying().fetch_add(1, std::memory_order_relaxed);
     seldepth = std::max(seldepth, ply);
 
+    tree.tt.update(board.zobrist, node.visits, node.getScore());
+
     return score;
 }
 
@@ -273,6 +280,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     tree.activeTree()[0] = Node();
     tree.inactiveTree()[0] = Node();
+    tree.switchHalves = false;
+
     nodeCount = 0;
     stopSearching = false;
 

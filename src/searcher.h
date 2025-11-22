@@ -28,9 +28,12 @@ struct Searcher {
         searchMode = FULL_SEARCH;
     }
 
+    void reset() {
+        tree.reset();
+    }
+
     void setHash(const u64 hash) {
-        const u64 maxNodes = hash * 1024 * 1024 / sizeof(Node);
-        tree.resize(maxNodes);
+        tree.resize(hash);
     }
 
     void start(const Board& board, const SearchParameters& params, const SearchLimits& limits) {

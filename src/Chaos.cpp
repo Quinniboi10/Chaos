@@ -101,6 +101,7 @@ int main(int argc, char* argv[]) {
             cout << "uciok" << endl;
         }
         else if (command == "ucinewgame") {
+            searcher.reset();
             board.reset();
             posHistory = { board.zobrist };
         }
