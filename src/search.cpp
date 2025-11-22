@@ -27,6 +27,7 @@ RawGameState stateOf(const Board& board, const vector<u64>& posHistory) {
     return ONGOING;
 }
 
+// Get the WDL adjusted for game end states
 float getAdjustedScore(const Node& node) {
     const RawGameState s = node.state.load().state();
 
@@ -41,14 +42,29 @@ float getAdjustedScore(const Node& node) {
     return 0;
 }
 
+// Get the CENTIPAWN adjusted for game end states AND MATE DISTANCES
+i32 getAdjustedScoreCP(const Node& node) {
+    const GameState s = node.state.load();
+
+    if (s.state() == DRAW)
+        return 0;
+    if (s.state() == WIN)
+        return MATE_SCORE - s.distance();
+    if (s.state() == LOSS)
+        return -MATE_SCORE + s.distance();
+    if (node.visits.load() > 0)
+        return wdlToCP(node.getScore());
+    return 0;
+}
+
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& tree, const Node& node) {
     const Node* child = &tree[node.firstChild.load()];
 
-    float bestScore = -getAdjustedScore(*child);
-    Move  bestMove  = child->move;
+    i32  bestScore = -getAdjustedScoreCP(*child);
+    Move bestMove  = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const float score = -getAdjustedScore(child[idx]);
+        const i32 score = -getAdjustedScoreCP(child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestMove  = child[idx].move;
@@ -75,9 +91,9 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
         const NodeIndex startIdx  = node->firstChild.load();
         const Node*     child     = &tree[startIdx];
         const Node*     bestChild = child;
-        float           bestScore = -getAdjustedScore(*child);
+        i32             bestScore = -getAdjustedScoreCP(*child);
         for (usize idx = 1; idx < node->numChildren; idx++) {
-            const float score = -getAdjustedScore(child[idx]);
+            const i32 score = -getAdjustedScoreCP(child[idx]);
             if (score > bestScore) {
                 bestScore = score;
                 bestChild = child + idx;
@@ -262,6 +278,30 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         posHistory.push_back(newBoard.zobrist);
         score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
         posHistory.pop_back();
+
+        // Game state backpropagation
+        const GameState childState = bestChild.state.load();
+        if (childState.state() == LOSS)
+            node.state = GameState(WIN, childState.distance() + 1);
+        else if (childState.state() == WIN) {
+            bool isLoss = true;
+            u16 maxLen = childState.distance();
+
+            const Node* firstChild = &tree[node.firstChild.load()];
+            const Node* end = firstChild + node.numChildren;
+            for (const Node* child = firstChild; child != end; child++) {
+                if (child->state.load().state() == WIN) {
+                    maxLen = std::max(maxLen, child->state.load().distance());
+                }
+                else {
+                    isLoss = false;
+                    break;
+                }
+            }
+
+            if (isLoss)
+                node.state = GameState(LOSS, maxLen + 1);
+        }
     }
 
     if (tree.switchHalves)

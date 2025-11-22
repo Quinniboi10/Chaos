@@ -107,14 +107,12 @@ struct Searcher {
                 for (usize i = 0; i < parents.size() + 1; i++)
                     cout << "    ";
                 cout << "├─> " << childString(tree.activeTree()[idx]) << endl;
-                // assert(*nodes[{ idx, currentHalf }].parent == node);
             }
 
             for (usize i = 0; i < parents.size() + 1; i++)
                 cout << "    ";
             const Node& child = tree.activeTree()[node.firstChild.load().index() + node.numChildren - 1];
             cout << "└─> " << childString(child) << endl;
-            // assert(*nodes[{ node.firstChild.load().index + node.numChildren - 1, currentHalf }].parent == node);
         };
 
         while (true) {
