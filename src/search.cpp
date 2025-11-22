@@ -373,7 +373,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << Colors::GREY << " Max depth: " << Colors::WHITE << seldepth << "\n\n";
 
         cursor::clear();
-        const float rootWdl = tree.root().getScore();
+        const float rootWdl = getAdjustedScore(tree.root());
         cout << Colors::GREY << " Score:   ";
         if (tree.root().state.load().state() == ONGOING || tree.root().state.load().state() == DRAW)
             printColoredScore(rootWdl);
