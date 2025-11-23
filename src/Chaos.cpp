@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 
     const auto exists            = [&](const string& sub) { return command.find(" " + sub + " ") != string::npos; };
     const auto index             = [&](const string& sub) { return findIndexOf(tokens, sub); };
-    const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value) + 1]) : defaultValue; };
+    const auto getValueFollowing = [&](const string& value, const i64 defaultValue) { return exists(value) ? std::stoll(tokens[index(value) + 1]) : defaultValue; };
 
     // *********** ./Chaos <ARGS> ************
     if (argc > 1) {
@@ -130,14 +130,16 @@ int main(int argc, char* argv[]) {
             const usize depth = getValueFollowing("depth", 0);
             const u64   nodes = exists("nodes") ? parseSuffixedNum(tokens[index("nodes") + 1]) : 0;
 
-            const usize mtime = getValueFollowing("movetime", 0);
-            const usize wtime = getValueFollowing("wtime", 0);
-            const usize btime = getValueFollowing("btime", 0);
+            const i64 mtime = getValueFollowing("movetime", 0);
+            const i64 wtime = getValueFollowing("wtime", 0);
+            const i64 btime = getValueFollowing("btime", 0);
 
-            const usize winc = getValueFollowing("winc", 0);
-            const usize binc = getValueFollowing("binc", 0);
+            const i64 winc = getValueFollowing("winc", 0);
+            const i64 binc = getValueFollowing("binc", 0);
 
-            const bool mate = exists("mate");
+            const bool mate = command.find(" mate") != string::npos;
+
+            fmt::println("Identified mate: {}", mate);
 
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;

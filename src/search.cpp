@@ -243,7 +243,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away
-    if (node.isTerminal())
+    if (node.isTerminal() && node.state.load().distance() == 0)
         score = evaluateNode(tree, node, board);
     // Otherwise if the node is being visited for the first time, set the state, then backprop
     // either the state's score or the NN's score
@@ -280,8 +280,9 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         posHistory.pop_back();
 
         // Game state backpropagation
+        const GameState nodeState = node.state.load();
         const GameState childState = bestChild.state.load();
-        if (childState.state() == LOSS)
+        if (childState.state() == LOSS && (nodeState.state() != WIN || childState.distance() + 1 < nodeState.distance()))
             node.state = GameState(WIN, childState.distance() + 1);
         else if (childState.state() == WIN) {
             bool isLoss = true;
