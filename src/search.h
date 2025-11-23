@@ -44,15 +44,19 @@ struct SearchParameters {
 
 struct SearchLimits {
     Stopwatch<std::chrono::milliseconds> commandTime;
+    bool                                 mate;
     u64                                  nodes;
+    i64                                  mtime;
     i64                                  time;
     i64                                  inc;
     usize                                depth;
 
-    SearchLimits(const Stopwatch<std::chrono::milliseconds>& commandTime, const usize depth, const u64 nodes, const i64 time, const i64 inc) {
+    SearchLimits(const Stopwatch<std::chrono::milliseconds>& commandTime, const bool mate, const usize depth, const u64 nodes, const i64 mtime, const i64 time, const i64 inc) {
         this->commandTime = commandTime;
+        this->mate        = mate;
         this->depth       = depth;
         this->nodes       = nodes;
+        this->mtime       = mtime;
         this->time        = time;
         this->inc         = inc;
     }

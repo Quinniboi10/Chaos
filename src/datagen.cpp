@@ -300,7 +300,7 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
     Stopwatch<std::chrono::milliseconds> stopwatch;
     vector<u64>                          posHistory;
     const SearchParameters               params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
-    const SearchLimits                   limits(stopwatch, 0, nodes, 0, 0);
+    const SearchLimits                   limits(stopwatch, false, 0, nodes, 0, 0, 0);
 
     usize localPositions = 0;
 
@@ -562,7 +562,7 @@ void datagen::genFens(const string& params) {
         const Stopwatch<std::chrono::milliseconds> stopwatch;
         vector<u64>                                posHistory;
         const SearchParameters                     params(posHistory, datagen::ROOT_CPUCT, datagen::CPUCT, datagen::ROOT_POLICY_TEMPERATURE, datagen::POLICY_TEMPERATURE, false, false, true);
-        const SearchLimits                         limits(stopwatch, 0, datagen::GENFENS_VERIF_NODES, 0, 0);
+        const SearchLimits                         limits(stopwatch, false, 0, datagen::GENFENS_VERIF_NODES, 0, 0, 0);
 
         static Searcher searcher{};
         searcher.rootPos                            = board;

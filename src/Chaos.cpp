@@ -128,17 +128,20 @@ int main(int argc, char* argv[]) {
             const usize depth = getValueFollowing("depth", 0);
             const u64   nodes = getValueFollowing("nodes", 0);
 
+            const usize mtime = getValueFollowing("movetime", 0);
             const usize wtime = getValueFollowing("wtime", 0);
             const usize btime = getValueFollowing("btime", 0);
 
             const usize winc = getValueFollowing("winc", 0);
             const usize binc = getValueFollowing("binc", 0);
 
+            const bool mate = exists("mate");
+
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
             const SearchParameters params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
-            const SearchLimits     limits(commandTime, depth, nodes, time, inc);
+            const SearchLimits     limits(commandTime, mate, depth, nodes, mtime, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
