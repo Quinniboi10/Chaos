@@ -11,37 +11,41 @@ struct Node {
     RelaxedAtomic<Move>      move;
     RelaxedAtomic<GameState> state;
     RelaxedAtomic<u8>        numChildren;
+    RelaxedAtomic<float>     giniImpurity;
 
     Node() {
-        totalScore  = 0;
-        visits      = 0;
-        firstChild  = { 0, 0 };
-        policy      = 0;
-        state       = ONGOING;
-        move        = Move::null();
-        numChildren = 0;
+        totalScore   = 0;
+        visits       = 0;
+        firstChild   = { 0, 0 };
+        policy       = 0;
+        state        = ONGOING;
+        move         = Move::null();
+        numChildren  = 0;
+        giniImpurity = 0;
     }
 
     Node(const Node& other) {
-        totalScore  = other.totalScore.load();
-        visits      = other.visits.load();
-        firstChild  = other.firstChild.load();
-        policy      = other.policy.load();
-        state       = other.state.load();
-        move        = other.move.load();
-        numChildren = other.numChildren.load();
+        totalScore   = other.totalScore.load();
+        visits       = other.visits.load();
+        firstChild   = other.firstChild.load();
+        policy       = other.policy.load();
+        state        = other.state.load();
+        move         = other.move.load();
+        numChildren  = other.numChildren.load();
+        giniImpurity = other.giniImpurity.load();
     }
 
     Node& operator=(const Node& other) {
         if (this != &other) {
-            totalScore  = other.totalScore.load();
-            firstChild  = other.firstChild.load();
-            visits      = other.visits.load();
-            state       = other.state.load();
-            policy      = other.policy.load();
-            move        = other.move.load();
-            state       = other.state.load();
-            numChildren = other.numChildren.load();
+            totalScore   = other.totalScore.load();
+            firstChild   = other.firstChild.load();
+            visits       = other.visits.load();
+            state        = other.state.load();
+            policy       = other.policy.load();
+            move         = other.move.load();
+            state        = other.state.load();
+            numChildren  = other.numChildren.load();
+            giniImpurity = other.giniImpurity.load();
         }
         return *this;
     }

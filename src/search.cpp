@@ -4,6 +4,8 @@
 #include "policy.h"
 #include "eval.h"
 
+#include <cmath>
+
 // This file aims to implement the 4 main steps to MCTS search
 // 1 - SELECTION  - Select a node to expand
 // 2 - EXPANSION  - Expand the node and add its children to the tree
@@ -108,6 +110,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
 float computeCpuct(const Node& node, const SearchParameters& params) {
     float cpuct = node.move.load().isNull() ? params.rootCpuct : params.cpuct;
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
+    cpuct *= std::min<float>(GINI_MAX, GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f));
     return cpuct;
 }
 
@@ -151,11 +154,12 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
     Node* child = &tree.activeTree()[currentIndex];
 
     for (usize i = 0; i < moves.length; i++) {
-        child[i].totalScore  = 0;
-        child[i].visits      = 0;
-        child[i].move        = moves[i];
-        child[i].state       = ONGOING;
-        child[i].numChildren = 0;
+        child[i].totalScore   = 0;
+        child[i].visits       = 0;
+        child[i].move         = moves[i];
+        child[i].state        = ONGOING;
+        child[i].numChildren  = 0;
+        child[i].giniImpurity = 0;
     }
 
     fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);

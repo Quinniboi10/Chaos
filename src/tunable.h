@@ -9,4 +9,8 @@ constexpr float ROOT_POLICY_TEMPERATURE = 1.3;
 constexpr float EVAL_DIVISOR            = 400;
 constexpr float CPUCT_VISIT_SCALE       = 8192;
 
+constexpr float GINI_BASE = 0.5;
+constexpr float GINI_SCALAR = 1.5;
+constexpr float GINI_MAX = 2.25;
+
 constexpr array<int, 7> PIECE_VALUES = { 100, 316, 328, 493, 982, 0, 0 };
