@@ -90,13 +90,11 @@ class TranspositionTable {
             entry = HashTableEntry(key, entry.visits, q);
     }
 
-    usize hashfull() const {
+    float hashfull() const {
         const usize samples = std::min<u64>(1000, size);
         usize hits = 0;
         for (usize sample = 0; sample < samples; sample++)
             hits += table[sample].key != 0;
-        const usize hash = hits / (samples * 1000.0);
-        assert(hash <= 1000);
-        return hash;
+        return static_cast<float>(hits) / samples;
     }
 };

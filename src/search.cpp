@@ -361,6 +361,12 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << Colors::GREY << " Half Usage:   " << Colors::WHITE;
         coloredProgBar(50, static_cast<float>(currentIndex) / tree.activeTree().size());
         cout << "  \n";
+
+        cout << Colors::GREY << " TT Size:      " << Colors::WHITE << (tree.tt.size + 1) * sizeof(HashTableEntry) / 1024 / 1024 << "MB\n";
+        cout << Colors::GREY << " TT Usage:     " << Colors::WHITE;
+        coloredProgBar(50, tree.tt.hashfull());
+        cout << "  \n";
+
         cout << Colors::GREY << " Half Changes: " << Colors::WHITE << formatNum(halfChanges) << "\n\n";
 
         cout << Colors::GREY << " Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "   \n";
