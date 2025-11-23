@@ -139,8 +139,6 @@ int main(int argc, char* argv[]) {
 
             const bool mate = command.find(" mate") != string::npos;
 
-            fmt::println("Identified mate: {}", mate);
-
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 

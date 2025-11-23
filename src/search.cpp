@@ -121,7 +121,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore() : parentQ) + child.policy * parentScore / (v + 1);
+    return (v > 0 ? -getAdjustedScore(child): parentQ) + child.policy * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
@@ -135,7 +135,7 @@ float computeCpuct(const Node& node, const SearchParameters& params) {
 Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params) {
     const float cpuct       = computeCpuct(node, params);
     const float parentScore = parentPuct(node, cpuct);
-    const float parentQ     = node.getScore();
+    const float parentQ     = getAdjustedScore(node);
     Node*       bestChild   = &tree[node.firstChild];
     Node*       child       = bestChild;
     float       bestScore   = puct(parentScore, parentQ, *child);
@@ -315,7 +315,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
     cumulativeDepth.getUnderlying().fetch_add(1, std::memory_order_relaxed);
     seldepth = std::max(seldepth, ply);
 
-    tree.tt.update(board.zobrist, node.visits, node.getScore());
+    tree.tt.update(board.zobrist, node.visits, getAdjustedScore(node));
 
     return score;
 }
