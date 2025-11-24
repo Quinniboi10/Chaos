@@ -87,7 +87,7 @@ class TranspositionTable {
     void update(const u64 key, const u64 visits, const double q) {
         HashTableEntry& entry = getEntry(key);
         if (key != entry.key || visits > entry.visits)
-            entry = HashTableEntry(key, entry.visits, q);
+            entry = HashTableEntry(key, visits, q);
     }
 
     float hashfull() const {
