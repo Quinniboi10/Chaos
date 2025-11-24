@@ -9,8 +9,8 @@ constexpr usize HASH_PER_T          = 128;
 
 constexpr float CPUCT                   = 1.25;
 constexpr float ROOT_CPUCT              = 3.75;
-constexpr float POLICY_TEMPERATURE      = 1.05;
-constexpr float ROOT_POLICY_TEMPERATURE = 1.25;
+constexpr float POLICY_TEMPERATURE      = 1.35;
+constexpr float ROOT_POLICY_TEMPERATURE = 3.75;
 
 constexpr i32 MAX_STARTPOS_SCORE = 400;
 
