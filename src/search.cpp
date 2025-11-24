@@ -160,9 +160,8 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
         child[i].state        = ONGOING;
         child[i].numChildren  = 0;
         child[i].giniImpurity = 0;
+        child[i].policy       = 1.0 / moves.length;
     }
-
-    fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
 
     currentIndex += moves.length;
 }
