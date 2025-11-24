@@ -197,10 +197,10 @@ void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temper
     const float sumMult = 1 / sum;
     for (usize idx = 0; idx < scores.size(); idx++) {
         const float score = scores[idx] * sumMult;
-        (firstChild + idx)->policy.store(score);
+        (firstChild + idx)->setPolicy(score);
 
         sumOfSquares += score * score;
     }
 
-    parent.giniImpurity = std::clamp<float>(1 - sumOfSquares, 0, 1);
+    parent.setGiniImpurity(std::clamp<float>(1 - sumOfSquares, 0, 1));
 }

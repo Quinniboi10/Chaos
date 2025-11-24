@@ -138,7 +138,7 @@ struct MontyFormatMove {
         visits.reserve(root.numChildren);
 
         bestMove = asMontyMove(searcher.rootPos, m);
-        rootQ    = root.getScore();
+        rootQ    = root.q();
 
         for (u64 idx = firstIdx; idx < firstIdx + root.numChildren; idx++) {
             const Node& node = searcher.tree.activeTree()[idx];
@@ -336,7 +336,7 @@ mainLoop:
             const Move m     = searcher.search(params, limits);
             assert(!m.isNull());
 
-            if (isFirstMove && std::abs(wdlToCP(root.getScore())) > datagen::MAX_STARTPOS_SCORE)
+            if (isFirstMove && std::abs(wdlToCP(root.q())) > datagen::MAX_STARTPOS_SCORE)
                 goto mainLoop;
 
             fileWriter.addMove(searcher, m);
@@ -569,7 +569,7 @@ void datagen::genFens(const string& params) {
         searcher.tree.root() = Node();
         searcher.search(params, limits);
 
-        return std::abs(wdlToCP(searcher.tree.root().getScore())) <= MAX_STARTPOS_SCORE;
+        return std::abs(wdlToCP(searcher.tree.root().q())) <= MAX_STARTPOS_SCORE;
     };
 
     const u64 numFens = std::stoull(getValueFollowing("genfens", 1));

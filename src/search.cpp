@@ -36,7 +36,7 @@ float getAdjustedScore(const Node& node) {
     if (s == LOSS)
         return -1;
     if (node.visits.load() > 0)
-        return node.getScore();
+        return node.q();
     return 0;
 }
 
@@ -104,13 +104,13 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore() : parentQ) + child.policy * parentScore / (v + 1);
+    return (v > 0 ? -child.q() : parentQ) + child.policy() * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
     float cpuct = node.move.load().isNull() ? params.rootCpuct : params.cpuct;
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
-    cpuct *= std::clamp<float>(GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f), GINI_MIN, GINI_MAX);
+    cpuct *= std::clamp<float>(GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity() + 0.001f), GINI_MIN, GINI_MAX);
     return cpuct;
 }
 
@@ -118,7 +118,7 @@ float computeCpuct(const Node& node, const SearchParameters& params) {
 Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params) {
     const float cpuct       = computeCpuct(node, params);
     const float parentScore = parentPuct(node, cpuct);
-    const float parentQ     = node.getScore();
+    const float parentQ     = node.q();
     Node*       bestChild   = &tree[node.firstChild];
     Node*       child       = bestChild;
     float       bestScore   = puct(parentScore, parentQ, *child);
@@ -154,12 +154,11 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
     Node* child = &tree.activeTree()[currentIndex];
 
     for (usize i = 0; i < moves.length; i++) {
-        child[i].totalScore   = 0;
-        child[i].visits       = 0;
-        child[i].move         = moves[i];
-        child[i].state        = ONGOING;
-        child[i].numChildren  = 0;
-        child[i].giniImpurity = 0;
+        child[i].setTotalScore(0);
+        child[i].visits      = 0;
+        child[i].move        = moves[i];
+        child[i].state       = ONGOING;
+        child[i].numChildren = 0;
     }
 
     fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
@@ -267,13 +266,13 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         return 0;
 
     // Backprop as the stack unwinds
-    node.totalScore.getUnderlying().fetch_add(score, std::memory_order_relaxed);
+    node.incrementTotalScore(score);
     node.visits.getUnderlying().fetch_add(1, std::memory_order_relaxed);
 
     cumulativeDepth.getUnderlying().fetch_add(1, std::memory_order_relaxed);
     seldepth = std::max(seldepth, ply);
 
-    tree.tt.update(board.zobrist, node.visits, node.getScore());
+    tree.tt.update(board.zobrist, node.visits, node.q());
 
     return score;
 }
@@ -345,7 +344,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << " hswitches " << halfChanges;
             cout << " multipv " << i;
             if (n.state.load().state() == ONGOING || n.state.load().state() == DRAW)
-                cout << " score cp " << wdlToCP(-n.getScore());
+                cout << " score cp " << wdlToCP(-n.q());
             else
                 cout << " score mate " << (n.state.load().distance() + 1) / 2 * (n.state.load().state() == WIN ? 1 : -1);
             cout << " pv";
@@ -497,7 +496,7 @@ Move Searcher::searchPolicy(const SearchParameters params) {
     const Node* bestNode = child;
 
     for (const Node* idx = child + 1; idx != end; idx++)
-        if (idx->policy > bestNode->policy)
+        if (idx->policy() > bestNode->policy())
             bestNode = idx;
 
     if (params.doReporting)
