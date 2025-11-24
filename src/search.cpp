@@ -110,7 +110,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
 float computeCpuct(const Node& node, const SearchParameters& params) {
     float cpuct = node.move.load().isNull() ? params.rootCpuct : params.cpuct;
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
-    cpuct *= std::min<float>(GINI_MAX, GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f));
+    cpuct *= std::clamp<float>(GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f), GINI_MIN, GINI_MAX);
     return cpuct;
 }
 
