@@ -178,7 +178,7 @@ void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temper
     const Node* end = firstChild + parent.numChildren.load();
 
     // Get raw scores and find max
-    for (const Node* node = firstChild; firstChild != end; firstChild++) {
+    for (const Node* node = firstChild; node != end; node++) {
         const float score = policyScore(board.stm, accum, node->move);
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
@@ -202,5 +202,5 @@ void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temper
         sumOfSquares += score * score;
     }
 
-    parent.giniImpurity = std::clamp<float>(1 - sumOfSquares, 1, 0);
+    parent.giniImpurity = std::clamp<float>(1 - sumOfSquares, 0, 1);
 }
