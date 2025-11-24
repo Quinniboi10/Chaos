@@ -11,4 +11,4 @@ constexpr int ACTIVATION_P = CReLU;
 
 void initPolicy();
 
-void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float temperature);
+void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temperature);

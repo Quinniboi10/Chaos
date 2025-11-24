@@ -165,38 +165,42 @@ float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, c
     return static_cast<float>(reduce_ep<i32>(outputAccumulator) + nn.outputBiases[idx]) / (Q_P * Q_P);
 }
 
-void fillPolicy(const Board& board, Tree& tree, const Node& parent, const float temperature) {
+void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temperature) {
     const PolicyAccumulator accum(board);
 
     float maxScore = -std::numeric_limits<float>::infinity();
     float sum      = 0;
 
-    const u8    half        = parent.firstChild.load().half();
-    const usize firstIdx    = parent.firstChild.load().index();
-    const u8    numChildren = parent.numChildren.load();
-
     vector<float> scores;
     scores.reserve(parent.numChildren);
 
+    Node* firstChild = &tree[parent.firstChild.load()];
+    const Node* end = firstChild + parent.numChildren.load();
+
     // Get raw scores and find max
-    for (usize idx = firstIdx; idx < firstIdx + numChildren; idx++) {
-        Node&       child = tree[{ idx, half }];
-        const float score = policyScore(board.stm, accum, child.move);
+    for (const Node* node = firstChild; node != end; node++) {
+        const float score = policyScore(board.stm, accum, node->move);
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }
 
     // Exponentiate and sum
     const float tempMult = 1 / temperature;
-    for (usize idx = 0; idx < numChildren; idx++) {
-        scores[idx] = std::exp((scores[idx] - maxScore) * tempMult);
-        sum += scores[idx];
+    for (float& score : scores) {
+        score = std::exp((score - maxScore) * tempMult);
+        sum += score;
     }
 
+    float sumOfSquares = 0;
+
     // Normalize
-    for (usize idx = 0; idx < numChildren; idx++) {
-        RelaxedAtomic<float>& score = tree[{ idx + firstIdx, half }].policy;
-        const float           exp   = scores[idx];
-        score.store(exp / sum);
+    const float sumMult = 1 / sum;
+    for (usize idx = 0; idx < scores.size(); idx++) {
+        const float score = scores[idx] * sumMult;
+        (firstChild + idx)->policy.store(score);
+
+        sumOfSquares += score * score;
     }
+
+    parent.giniImpurity = std::clamp<float>(1 - sumOfSquares, 0, 1);
 }
