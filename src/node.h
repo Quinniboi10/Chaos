@@ -66,14 +66,14 @@ struct Node {
 class Tree {
     u8 currentHalf;
 
-public:
+   public:
     array<vector<Node>, 2> nodes;
-    TranspositionTable tt;
-    RelaxedAtomic<bool> switchHalves;
+    TranspositionTable     tt;
+    RelaxedAtomic<bool>    switchHalves;
 
     Tree() {
         resize(DEFAULT_HASH);
-        currentHalf = 0;
+        currentHalf  = 0;
         switchHalves = false;
     }
 
@@ -96,15 +96,15 @@ public:
         tt.clear(std::thread::hardware_concurrency());
     }
 
-    u8 activeHalf() const { return currentHalf; }
+    u8   activeHalf() const { return currentHalf; }
     void switchHalf() { currentHalf ^= 1; }
 
     Node&       root() { return nodes[currentHalf][0]; }
     const Node& root() const { return nodes[currentHalf][0]; }
 
-    vector<Node>& activeTree() { return nodes[currentHalf]; }
+    vector<Node>&       activeTree() { return nodes[currentHalf]; }
     const vector<Node>& activeTree() const { return nodes[currentHalf]; }
-    vector<Node>& inactiveTree() { return nodes[currentHalf ^ 1]; }
+    vector<Node>&       inactiveTree() { return nodes[currentHalf ^ 1]; }
     const vector<Node>& inactiveTree() const { return nodes[currentHalf ^ 1]; }
 
     const Node& operator[](const NodeIndex& idx) const {

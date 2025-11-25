@@ -236,7 +236,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
     }
     else {
         const bool inCurrentHalf = node.firstChild.load().half() == tree.activeHalf();
-        const u8 numChildren = node.numChildren.load();
+        const u8   numChildren   = node.numChildren.load();
 
         // If the node has no children, expand it
         if (numChildren == 0)
@@ -255,7 +255,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         // Now that the children are either expanded or in the current half,
         // travel deeper into the tree
         Node& bestChild = findBestChild(tree, node, params);
-        Board newBoard = board;
+        Board newBoard  = board;
         newBoard.move(bestChild.move);
 
         posHistory.push_back(newBoard.zobrist);
@@ -282,17 +282,17 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
 Move Searcher::search(const SearchParameters params, const SearchLimits limits) {
     auto& cumulativeDepth = this->nodeCount;
 
-    tree.activeTree()[0] = Node();
+    tree.activeTree()[0]   = Node();
     tree.inactiveTree()[0] = Node();
-    tree.switchHalves = false;
+    tree.switchHalves      = false;
 
-    nodeCount = 0;
+    nodeCount     = 0;
     stopSearching = false;
 
-    u64 currentIndex = 1;
-    u64 iterations = 0;
-    u64 halfChanges = 0;
-    usize seldepth = 0;
+    u64   currentIndex = 1;
+    u64   iterations   = 0;
+    u64   halfChanges  = 0;
+    usize seldepth     = 0;
 
     const usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
 
@@ -314,7 +314,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 28 - multiPV, 1));
+    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 32 - multiPV, 1));
     usize                                lastDepth    = 0;
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
@@ -424,7 +424,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
         // Switch halves
         if (tree.switchHalves) {
-            tree.switchHalves = false;
+            tree.switchHalves      = false;
             tree.inactiveTree()[0] = tree.root();
             removeRefs(tree, tree.root());
             currentIndex = 1;
@@ -438,7 +438,8 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         // Check if UCI should be printed
         if (params.doReporting) {
             const Move bestMove = findPvMove(tree, tree.root());
-            if (params.doUci && !params.minimalUci && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
+            if (params.doUci && !params.minimalUci
+                && (lastDepth != cumulativeDepth / iterations || lastSeldepth != seldepth || bestMove != lastMove || stopwatch.elapsed() >= UCI_REPORTING_FREQUENCY)) {
                 const Move bestMove = findPvMove(tree, tree.root());
                 printUCI();
 

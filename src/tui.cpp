@@ -4,19 +4,21 @@
 
 #ifdef ENABLE_TUI
 
-#include "board.h"
-#include "movegen.h"
-#include "searcher.h"
+    #include "board.h"
+    #include "movegen.h"
+    #include "searcher.h"
 
 struct Coordinate {
     int x;
     int y;
 
     Coordinate() = default;
-    Coordinate(int x, int y) : x(x), y(y) {}
+    Coordinate(int x, int y) :
+        x(x),
+        y(y) {}
 };
 
-#include <ncursesw/ncurses.h>
+    #include <ncursesw/ncurses.h>
 
 enum class CursorLocation {
     BOARD,
@@ -41,8 +43,8 @@ void printTuiBoard(const Board& board, const Move bestMove, const Square from, c
     for (i32 r = 0; r < 8; r++) {
         mvaddwstr(r + 1, 0, L"│");
         for (int f = 0; f < 8; f++) {
-            const auto sq = static_cast<Square>((board.stm == WHITE ? 7 - r : r) * 8 + f);
-            wchar_t piece = board.getPieceAt(sq);
+            const auto sq    = static_cast<Square>((board.stm == WHITE ? 7 - r : r) * 8 + f);
+            wchar_t    piece = board.getPieceAt(sq);
 
             int color = ((1ULL << sq) & board.pieces(WHITE)) ? 1 : 2;
             if (sq == from || sq == to)
@@ -71,7 +73,7 @@ void printMenu(const CursorLocation cursorLoc) {
 #endif
 
 void launchTui() {
-    #ifdef ENABLE_TUI
+#ifdef ENABLE_TUI
     // Set up ncurses
     initscr();
     cbreak();
@@ -80,14 +82,14 @@ void launchTui() {
     keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
 
-    setlocale(LC_ALL, ""); // Enable Unicode
+    setlocale(LC_ALL, "");  // Enable Unicode
     start_color();
     init_pair(1, COLOR_YELLOW, COLOR_BLACK);
-    init_pair(2, COLOR_BLUE,   COLOR_BLACK);
+    init_pair(2, COLOR_BLUE, COLOR_BLACK);
     init_pair(3, COLOR_YELLOW, COLOR_WHITE);
-    init_pair(4, COLOR_BLUE,   COLOR_WHITE);
+    init_pair(4, COLOR_BLUE, COLOR_WHITE);
     init_pair(5, COLOR_YELLOW, COLOR_CYAN);
-    init_pair(6, COLOR_BLUE,   COLOR_CYAN);
+    init_pair(6, COLOR_BLUE, COLOR_CYAN);
 
     init_pair(8, COLOR_BLACK, COLOR_WHITE);
 
@@ -122,8 +124,8 @@ void launchTui() {
     };
 
     while (true) {
-        const Rank cursorRank = static_cast<Rank>(cursorPos.y);
-        const Square cursorSq = cursorLoc == CursorLocation::BOARD ? flipRank(toSquare(cursorRank, static_cast<File>(cursorPos.x))) : NO_SQUARE;
+        const Rank   cursorRank       = static_cast<Rank>(cursorPos.y);
+        const Square cursorSq         = cursorLoc == CursorLocation::BOARD ? flipRank(toSquare(cursorRank, static_cast<File>(cursorPos.x))) : NO_SQUARE;
         const Square relativeCursorSq = board.stm == WHITE ? cursorSq : flipRank(cursorSq);
 
         printTuiBoard(board, searcher.currentMove.load(), fromSq, relativeCursorSq);
@@ -158,7 +160,7 @@ void launchTui() {
                     fromSq = relativeCursorSq;
                 else {
                     const Square toSq = relativeCursorSq;
-                    const Move m(squareToAlgebraic(fromSq) + squareToAlgebraic(toSq), board);
+                    const Move   m(squareToAlgebraic(fromSq) + squareToAlgebraic(toSq), board);
 
                     if (moves.has(m)) {
                         board.move(m);
@@ -216,7 +218,7 @@ void launchTui() {
     searcher.stop();
 
     endwin();
-    #else
+#else
     cout << "This build of Chaos can't run the TUI. Try building with `make tui`" << endl;
-    #endif
+#endif
 }

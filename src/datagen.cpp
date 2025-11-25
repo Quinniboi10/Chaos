@@ -562,7 +562,7 @@ void datagen::genFens(const string& params) {
         const SearchLimits                         limits(stopwatch, false, 0, datagen::GENFENS_VERIF_NODES, 0, 0, 0);
 
         static Searcher searcher{};
-        searcher.rootPos                            = board;
+        searcher.rootPos     = board;
         searcher.tree.root() = Node();
         searcher.search(params, limits);
 
@@ -583,7 +583,7 @@ void datagen::genFens(const string& params) {
 startLoop:
         Board board;
         board.reset();
-        posHistory = { board.zobrist };
+        posHistory              = { board.zobrist };
         const usize randomMoves = datagen::RAND_MOVES + randBool();
         for (usize i = 0; i < randomMoves; i++) {
             MoveList                           moves = Movegen::generateMoves(board);

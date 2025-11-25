@@ -216,7 +216,7 @@ inline u64 parseSuffixedNum(string text) {
     assert(!text.empty());
 
     // Trim leading/trailing whitespace
-    auto is_space = [](unsigned char c){ return std::isspace(c); };
+    auto is_space = [](unsigned char c) { return std::isspace(c); };
     while (!text.empty() && is_space(text.front()))
         text.erase(0, 1);
     while (!text.empty() && is_space(text.back()))
@@ -233,11 +233,19 @@ inline u64 parseSuffixedNum(string text) {
         text.erase(text.size() - 1);
 
         switch (suffix) {
-        case 'k': multiplier = 1'000.0; break;
-        case 'm': multiplier = 1'000'000.0; break;
+        case 'k':
+            multiplier = 1'000.0;
+            break;
+        case 'm':
+            multiplier = 1'000'000.0;
+            break;
         case 'b':
-        case 'g': multiplier = 1'000'000'000.0; break;
-        case 't': multiplier = 1'000'000'000'000.0; break;
+        case 'g':
+            multiplier = 1'000'000'000.0;
+            break;
+        case 't':
+            multiplier = 1'000'000'000'000.0;
+            break;
         default:
             cerr << "Unknown number suffix" << endl;
             std::abort();

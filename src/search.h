@@ -31,7 +31,8 @@ struct SearchParameters {
     bool doUci;
     bool minimalUci;
 
-    SearchParameters(const vector<u64>& posHistory, const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
+    SearchParameters(
+      const vector<u64>& posHistory, const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
         posHistory(posHistory),
         rootCpuct(rootCpuct),
         cpuct(cpuct),

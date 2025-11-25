@@ -174,8 +174,8 @@ void fillPolicy(const Board& board, Tree& tree, Node& parent, const float temper
     vector<float> scores;
     scores.reserve(parent.numChildren);
 
-    Node* firstChild = &tree[parent.firstChild.load()];
-    const Node* end = firstChild + parent.numChildren.load();
+    Node*       firstChild = &tree[parent.firstChild.load()];
+    const Node* end        = firstChild + parent.numChildren.load();
 
     // Get raw scores and find max
     for (const Node* node = firstChild; node != end; node++) {

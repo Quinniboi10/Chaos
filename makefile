@@ -1,18 +1,18 @@
 DEFAULT_VALUE_NET = Chaos_10.value
 DEFAULT_POLICY_NET = Chaos_09.policy
 
-# Detect Operating System
+#Detect Operating System
 ifeq ($(OS),Windows_NT)
-    # Windows settings
+#Windows settings
     RM := del /F /Q
     EXE_EXT := .exe
 else
-    # Unix/Linux settings
+#Unix / Linux settings
     RM := rm -f
     EXE_EXT :=
 endif
 
-# Short commit id of HEAD (thanks to Weiss for this!)
+#Short commit id of HEAD(thanks to Weiss for this !)
 GIT_HEAD_COMMIT_ID_RAW := $(shell git rev-parse --short HEAD)
 ifneq ($(GIT_HEAD_COMMIT_ID_RAW),)
 GIT_HEAD_COMMIT_ID_DEF := -DGIT_HEAD_COMMIT_ID=\""$(GIT_HEAD_COMMIT_ID_RAW)"\"
@@ -20,7 +20,7 @@ else
 GIT_HEAD_COMMIT_ID_DEF :=
 endif
 
-# Compiler and flags
+#Compiler and flags
 CXX      := clang++
 CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++20 -DNDEBUG
 
@@ -41,10 +41,10 @@ else
 endif
 
 
-# Default target executable name and evaluation file path
+#Default target executable name and evaluation file path
 EXE      ?= Chaos$(EXE_EXT)
 
-# Source and object files
+#Source and object files
 SRCS     := $(wildcard ./src/*.cpp)
 SRCS     += ./external/fmt/format.cpp
 OBJS     := $(SRCS:.cpp=.o)

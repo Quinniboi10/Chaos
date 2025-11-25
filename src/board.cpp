@@ -531,13 +531,13 @@ bool Board::isDraw(const vector<u64>& posHistory) const {
         return !inCheck();
 
     // Insufficient material
-    if (pieces(PAWN) == 0                                     // No pawns
-        && pieces(QUEEN) == 0                                 // No queens
-        && pieces(ROOK) == 0                                  // No rooks
-        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0               // No light sq bishops
-            || (pieces(BISHOP) & DARK_SQ_BB) == 0)            // OR no dark sq bishops
-        && (pieces(BISHOP) == 0 || pieces(KNIGHT) == 0)    // Not bishop + knight
-        && popcount(pieces(KNIGHT)) < 2)                    // Under 2 knights
+    if (pieces(PAWN) == 0                                // No pawns
+        && pieces(QUEEN) == 0                            // No queens
+        && pieces(ROOK) == 0                             // No rooks
+        && ((pieces(BISHOP) & LIGHT_SQ_BB) == 0          // No light sq bishops
+            || (pieces(BISHOP) & DARK_SQ_BB) == 0)       // OR no dark sq bishops
+        && (pieces(BISHOP) == 0 || pieces(KNIGHT) == 0)  // Not bishop + knight
+        && popcount(pieces(KNIGHT)) < 2)                 // Under 2 knights
         return true;
 
     // Threefold
@@ -563,7 +563,7 @@ bool Board::isGameOver(const vector<u64>& posHistory) const {
 
 std::string Board::asString(const Move m) const {
     std::ostringstream os;
-    const auto printInfo = [&](const usize line) {
+    const auto         printInfo = [&](const usize line) {
         std::ostringstream ss;
         if (line == 1)
             ss << "FEN: " << fen();
@@ -587,8 +587,8 @@ std::string Board::asString(const Move m) const {
     usize line = 1;
     for (i32 rank = (stm == WHITE) * 7; (stm == WHITE) ? rank >= 0 : rank < 8; (stm == WHITE) ? rank-- : rank++) {
         os << "\u2502 ";
-        for (usize file = 0; file < 8; file++) {
-            const auto sq    = static_cast<Square>(rank * 8 + file);
+        for (i32 file = (stm != WHITE) * 7; (stm != WHITE) ? file >= 0 : file < 8; (stm != WHITE) ? file-- : file++) {
+            const auto sq      = static_cast<Square>(rank * 8 + file);
             const auto fgColor = ((1ULL << sq) & pieces(WHITE)) ? fmt::color::orange : fmt::color::dark_blue;
             const auto bgColor = sq == to ? toColor : fromColor;
 
@@ -600,7 +600,10 @@ std::string Board::asString(const Move m) const {
         os << "\u2502 " << rank + 1 << "    " << printInfo(line++) << "\n";
     }
     os << "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n";
-    os << "  a b c d e f g h\n";
+    if (stm == WHITE)
+        os << "  a b c d e f g h\n";
+    else
+        os << "  h g f e d c b a\n";
     return os.str();
 }
 

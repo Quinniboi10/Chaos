@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
 
     vector<u64> posHistory;
 
-    bool doUci = false;
+    bool doUci      = false;
     bool uciMinimal = false;
 
     board.reset();
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);
-            const u64   nodes = parseSuffixedNum(tokens[index("nodes") + 1]);
+            const u64   nodes = exists("nodes") ? parseSuffixedNum(tokens[index("nodes") + 1]) : 0;
 
             const usize mtime = getValueFollowing("movetime", 0);
             const usize wtime = getValueFollowing("wtime", 0);

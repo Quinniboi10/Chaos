@@ -7,19 +7,19 @@
 #include <cstring>
 
 struct HashTableEntry {
-    u64 key;
-    u64 visits;
+    u64   key;
+    u64   visits;
     float q;
 
     HashTableEntry() {
-        key = 0;
+        key    = 0;
         visits = 0;
-        q = 0;
+        q      = 0;
     }
     HashTableEntry(const u64 key, const u64 visits, const float q) {
-        this->key = key;
+        this->key    = key;
         this->visits = visits;
-        this->q = q;
+        this->q      = q;
     }
 };
 
@@ -31,7 +31,7 @@ class TranspositionTable {
 
     explicit TranspositionTable(const usize sizeInMB = 16) {
         table = nullptr;
-        size = 0;
+        size  = 0;
         reserve(sizeInMB);
     }
 
@@ -76,9 +76,7 @@ class TranspositionTable {
         table = static_cast<HashTableEntry*>(std::malloc(size * sizeof(HashTableEntry)));
     }
 
-    u64 index(const u64 key) const {
-        return static_cast<u64>((static_cast<u128>(key) * static_cast<u128>(size)) >> 64);
-    }
+    u64 index(const u64 key) const { return static_cast<u64>((static_cast<u128>(key) * static_cast<u128>(size)) >> 64); }
 
     void prefetch(const u64 key) const { __builtin_prefetch(&this->getEntry(key)); }
 
@@ -92,7 +90,7 @@ class TranspositionTable {
 
     float hashfull() const {
         const usize samples = std::min<u64>(1000, size);
-        usize hits = 0;
+        usize       hits    = 0;
         for (usize sample = 0; sample < samples; sample++)
             hits += table[sample].key != 0;
         return static_cast<float>(hits) / samples;
