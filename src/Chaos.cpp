@@ -178,8 +178,10 @@ int main(int argc, char* argv[]) {
             searcher.launchInteractiveTree();
         else if (tokens[0] == "move")
             board.move(tokens[1]);
-        else if (command == "eval")
-            cout << evaluate(board) << endl;
+        else if (command == "eval") {
+            fmt::println("Network:  {}", rawEval(board));
+            fmt::println("Material: {}", evaluate(board));
+        }
         else if (command == "policy")
             searcher.printRootPolicy(board);
         else if (tokens[0] == "perft")

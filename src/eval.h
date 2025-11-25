@@ -10,4 +10,5 @@ constexpr usize HL_SIZE_V    = 512;
 
 constexpr int ACTIVATION_V = SCReLU;
 
+i32 rawEval(const Board& board);
 i32 evaluate(const Board& board);

@@ -217,7 +217,7 @@ usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType 
     return enemy * 64 * 6 + piece * 64 + squareIndex;
 }
 
-i32 evaluate(const Board& board) {
+i32 rawEval(const Board& board) {
     const ValueAccumulator accum(board);
     i32                    eval = 0;
 
@@ -242,4 +242,18 @@ i32 evaluate(const Board& board) {
 
     // Apply output bias and scale the result
     return (eval * EVAL_SCALE_V) / (QA_V * QB_V);
+}
+
+i32 evaluate(const Board& board) {
+    const i32 netEval = rawEval(board);
+
+    // clang-format off
+    const i32 phase =
+        PIECE_VALUES[KNIGHT] * board.pieces(KNIGHT) +
+        PIECE_VALUES[BISHOP] * board.pieces(BISHOP) +
+        PIECE_VALUES[ROOK] * board.pieces(ROOK) +
+        PIECE_VALUES[QUEEN] * board.pieces(QUEEN);
+    // clang-format on
+
+    return netEval * (MATERIAL_PHASE_OFFSET + phase) / MATERIAL_SCALE_DIVISOR;
 }

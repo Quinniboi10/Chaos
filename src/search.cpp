@@ -223,7 +223,8 @@ void removeRefs(Tree& tree, Node& node) {
 
 // A recursive implementation of the MCTS algorithm
 // based on implementations from Monty and Jackal
-float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
+float searchNode(
+  Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away

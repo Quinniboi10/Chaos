@@ -14,4 +14,7 @@ constexpr float GINI_SCALAR = 1.6;
 constexpr float GINI_MIN    = 1.0;
 constexpr float GINI_MAX    = 1.5;
 
+constexpr i32 MATERIAL_PHASE_OFFSET  = 26500;
+constexpr i32 MATERIAL_SCALE_DIVISOR = 32768;
+
 constexpr array<int, 7> PIECE_VALUES = { 100, 316, 328, 493, 982, 0, 0 };
