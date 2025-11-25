@@ -1,3 +1,4 @@
+#include "datagen.h"
 #include "searcher.h"
 #include "globals.h"
 #include "movegen.h"
@@ -108,7 +109,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
-    float cpuct = node.move.load().isNull() ? params.rootCpuct : params.cpuct;
+    float cpuct = node.move.load().isNull() ? (inDatagen ? datagen::ROOT_CPUCT : ROOT_CPUCT) : (inDatagen ? datagen::CPUCT : CPUCT);
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
     cpuct *= std::clamp<float>(GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f), GINI_MIN, GINI_MAX);
     return cpuct;
@@ -162,7 +163,7 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);
+    fillPolicy(board, tree, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
 
     currentIndex += moves.length;
 }

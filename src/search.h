@@ -22,22 +22,14 @@ class NodeIndex {
 
 struct SearchParameters {
     const vector<u64>& posHistory;
-    float              rootCpuct;
-    float              cpuct;
-    float              policyTemp;
-    float              rootPolicyTemp;
 
     bool doReporting;
     bool doUci;
     bool minimalUci;
 
     SearchParameters(
-      const vector<u64>& posHistory, const float rootCpuct, const float cpuct, const float rootPolicyTemp, const float policyTemp, const bool doReporting, const bool doUci, const bool minimalUci) :
+      const vector<u64>& posHistory, const bool doReporting, const bool doUci, const bool minimalUci) :
         posHistory(posHistory),
-        rootCpuct(rootCpuct),
-        cpuct(cpuct),
-        rootPolicyTemp(rootPolicyTemp),
-        policyTemp(policyTemp),
         doReporting(doReporting),
         doUci(doUci),
         minimalUci(minimalUci) {}

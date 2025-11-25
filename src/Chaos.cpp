@@ -16,8 +16,9 @@
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
 
-bool  chess960 = false;
-usize multiPV  = 1;
+bool  chess960  = false;
+bool  inDatagen = false;
+usize multiPV   = 1;
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
@@ -60,6 +61,7 @@ int main(int argc, char* argv[]) {
         else if (args[1] == "bulk")
             Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
         else if (args[1] == "datagen") {
+            inDatagen = true;
             std::ostringstream ss{};
             for (usize idx = 2; idx < argc; idx++) {
                 ss << args[idx];
@@ -140,7 +142,7 @@ int main(int argc, char* argv[]) {
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
-            const SearchParameters params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, true, doUci, uciMinimal);
+            const SearchParameters params(posHistory, true, doUci, uciMinimal);
             const SearchLimits     limits(commandTime, mate, depth, nodes, mtime, time, inc);
             searcher.start(board, params, limits);
         }
