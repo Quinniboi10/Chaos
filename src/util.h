@@ -9,8 +9,10 @@
 #include <sstream>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <algorithm>
 #include <string_view>
+#include <limits>
 
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -208,6 +210,50 @@ inline string suffixNum(double num) {
 
     return fmt::format("{:.2f}{}", num, suffix);
 }
+
+// Parses human-readable numbers
+inline u64 parseSuffixedNum(string text) {
+    assert(!text.empty());
+
+    // Trim leading/trailing whitespace
+    auto is_space = [](unsigned char c){ return std::isspace(c); };
+    while (!text.empty() && is_space(text.front()))
+        text.erase(0, 1);
+    while (!text.empty() && is_space(text.back()))
+        text.erase(text.size() - 1);
+
+    assert(!text.empty());
+
+    double multiplier = 1.0;
+
+    // Handle optional suffix
+    const unsigned char last = static_cast<unsigned char>(text.back());
+    if (std::isalpha(last)) {
+        const char suffix = static_cast<char>(std::tolower(last));
+        text.erase(text.size() - 1);
+
+        switch (suffix) {
+        case 'k': multiplier = 1'000.0; break;
+        case 'm': multiplier = 1'000'000.0; break;
+        case 'b':
+        case 'g': multiplier = 1'000'000'000.0; break;
+        case 't': multiplier = 1'000'000'000'000.0; break;
+        default:
+            cerr << "Unknown number suffix" << endl;
+            std::abort();
+        }
+    }
+
+    assert(!text.empty());
+
+    std::erase(text, ',');
+
+    const string numeric(text);
+    const double value = std::stod(numeric);
+
+    return std::round(value * multiplier);
+}
+
 
 inline string padStr(string str, i64 target, u64 minPadding = 2) {
     i64 padding = std::max<i64>(target - static_cast<i64>(str.length()), minPadding);

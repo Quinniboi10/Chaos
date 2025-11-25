@@ -42,8 +42,8 @@ int main(int argc, char* argv[]) {
     board.reset();
 
     const auto exists            = [&](const string& sub) { return command.find(" " + sub + " ") != string::npos; };
-    const auto index             = [&](const string& sub, const int offset = 0) { return findIndexOf(tokens, sub) + offset; };
-    const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value, 1)]) : defaultValue; };
+    const auto index             = [&](const string& sub) { return findIndexOf(tokens, sub); };
+    const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value) + 1]) : defaultValue; };
 
     // *********** ./Chaos <ARGS> ************
     if (argc > 1) {
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);
-            const u64   nodes = getValueFollowing("nodes", 0);
+            const u64   nodes = parseSuffixedNum(tokens[index("nodes") + 1]);
 
             const usize mtime = getValueFollowing("movetime", 0);
             const usize wtime = getValueFollowing("wtime", 0);

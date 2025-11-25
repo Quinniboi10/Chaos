@@ -380,7 +380,7 @@ void datagen::run(const string& params) {
     vector<string> tokens = split(params, ' ');
 
     const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
-        const auto  loc = std::find(tokens.begin(), tokens.end(), value);
+        const auto  loc = std::ranges::find(tokens, value);
         const usize idx = std::distance(tokens.begin(), loc) + 1;
         if (loc == tokens.end() || idx >= tokens.size()) {
             std::ostringstream ss;
@@ -390,9 +390,9 @@ void datagen::run(const string& params) {
         return tokens[idx];
     };
 
-    const usize threadCount  = std::stoul(getValueFollowing("threads", 1));
-    const u64   numPositions = std::stoull(getValueFollowing("positions", 100'000'000));
-    const u64   nodes        = std::stoull(getValueFollowing("nodes", 2'000));
+    const usize threadCount  = parseSuffixedNum(getValueFollowing("threads", 1));
+    const u64   numPositions = parseSuffixedNum(getValueFollowing("positions", 100'000'000));
+    const u64   nodes        = parseSuffixedNum(getValueFollowing("nodes", 1'000));
 
     Stopwatch<std::chrono::milliseconds> time;
     vector<std::thread>                  threads;
@@ -414,7 +414,7 @@ void datagen::run(const string& params) {
         for (uint16_t i = 0; i < a.size(); ++i)
             a[i] = static_cast<uint16_t>(i + 1);
         std::mt19937 rng{ static_cast<uint32_t>(std::time(nullptr)) };
-        std::shuffle(a.begin(), a.end(), rng);
+        std::ranges::shuffle(a, rng);
         return a;
     }();
 
@@ -430,10 +430,7 @@ void datagen::run(const string& params) {
         out.resize(finishedText.size());
 
         for (size_t i = 0; i < finishedText.size(); ++i) {
-            const double threshold = static_cast<double>(textFillOrder[i]) / N;
-            const bool   solved    = (t >= threshold);
-
-            if (solved)
+            if (t >= textFillOrder[i] / N)
                 out[i] = finishedText[i];
             else
                 out[i] = allowedChars[randIndex(rng)];
