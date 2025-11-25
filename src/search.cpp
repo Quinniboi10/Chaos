@@ -159,6 +159,8 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
         child[i].move        = moves[i];
         child[i].state       = ONGOING;
         child[i].numChildren = 0;
+
+        // Policy and gini impurity are set in the fillPolicy call
     }
 
     fillPolicy(board, tree, node, currentIndex == 1 ? params.rootPolicyTemp : params.policyTemp);

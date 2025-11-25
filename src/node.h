@@ -5,8 +5,8 @@
 
 class Node {
     RelaxedAtomic<i64> totalScore_;
+    RelaxedAtomic<u16> policy_;
     RelaxedAtomic<u8>  giniImpurity_;
-    RelaxedAtomic<u8>  policy_;
 
    public:
     RelaxedAtomic<NodeIndex> firstChild;
@@ -17,8 +17,8 @@ class Node {
 
     Node() {
         totalScore_   = 0;
-        giniImpurity_ = 0;
         policy_       = 0;
+        giniImpurity_ = 0;
         firstChild    = { 0, 0 };
         visits        = 0;
         move          = Move::null();
@@ -28,8 +28,8 @@ class Node {
 
     Node(const Node& other) {
         totalScore_   = other.totalScore_.load();
-        giniImpurity_ = other.giniImpurity_.load();
         policy_       = other.policy_.load();
+        giniImpurity_ = other.giniImpurity_.load();
         firstChild    = other.firstChild.load();
         visits        = other.visits.load();
         move          = other.move.load();
@@ -40,8 +40,8 @@ class Node {
     Node& operator=(const Node& other) {
         if (this != &other) {
             totalScore_   = other.totalScore_.load();
-            giniImpurity_ = other.giniImpurity_.load();
             policy_       = other.policy_.load();
+            giniImpurity_ = other.giniImpurity_.load();
             firstChild    = other.firstChild.load();
             visits        = other.visits.load();
             move          = other.move.load();
@@ -55,8 +55,8 @@ class Node {
     void  setTotalScore(const float val) { totalScore_.store(val * 32768); }
     void  incrementTotalScore(const float val) { totalScore_.getUnderlying().fetch_add(val * 32768, std::memory_order_relaxed); }
 
-    float policy() const { return policy_.load() / 255.0f; }
-    void  setPolicy(const float val) { policy_.store(val * 255); }
+    float policy() const { return policy_.load() / 65535.0f; }
+    void  setPolicy(const float val) { policy_.store(val * 65535); }
 
     float giniImpurity() const { return giniImpurity_.load() / 255.0f; }
     void  setGiniImpurity(const float val) { giniImpurity_.store(val * 255); }
