@@ -249,10 +249,10 @@ i32 evaluate(const Board& board) {
 
     // clang-format off
     const i32 phase =
-        PIECE_VALUES[KNIGHT] * board.pieces(KNIGHT) +
-        PIECE_VALUES[BISHOP] * board.pieces(BISHOP) +
-        PIECE_VALUES[ROOK] * board.pieces(ROOK) +
-        PIECE_VALUES[QUEEN] * board.pieces(QUEEN);
+        PIECE_VALUES[KNIGHT] * popcount(board.pieces(KNIGHT)) +
+        PIECE_VALUES[BISHOP] * popcount(board.pieces(BISHOP)) +
+        PIECE_VALUES[ROOK] * popcount(board.pieces(ROOK)) +
+        PIECE_VALUES[QUEEN] * popcount(board.pieces(QUEEN));
     // clang-format on
 
     return netEval * (MATERIAL_PHASE_OFFSET + phase) / MATERIAL_SCALE_DIVISOR;
