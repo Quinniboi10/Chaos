@@ -53,7 +53,7 @@ float scoreNodePV(const Node& node) {
     if (state.state() == WIN)
         return std::numeric_limits<float>::max() - state.distance();
     if (state.state() == LOSS)
-        return std::numeric_limits<float>::min() + state.distance();
+        return -std::numeric_limits<float>::max() + state.distance();
     if (state.state() == DRAW)
         return 0;
     return node.getScore();
