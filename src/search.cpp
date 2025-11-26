@@ -42,14 +42,31 @@ float getAdjustedScore(const Node& node) {
     return 0;
 }
 
+// Score a node in such a method that it can be used, relative to
+// its peers, to find the PV move. The score is not representative
+// of the actual node's WDL
+float scoreNodePV(const Node& node) {
+    if (node.visits == 0)
+        return -std::numeric_limits<float>::infinity();
+
+    const auto state = node.state.load();
+    if (state.state() == WIN)
+        return 1.0f + state.distance();
+    if (state.state() == LOSS)
+        return state.distance() - std::numeric_limits<float>::min();
+    if (state.state() == DRAW)
+        return 0;
+    return node.getScore();
+}
+
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& tree, const Node& node) {
     const Node* child = &tree[node.firstChild.load()];
 
-    float bestScore = -getAdjustedScore(*child);
+    float bestScore = -scoreNodePV(*child);
     Move  bestMove  = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const float score = -getAdjustedScore(child[idx]);
+        const float score = -scoreNodePV(child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestMove  = child[idx].move;
@@ -76,9 +93,9 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
         const NodeIndex startIdx  = node->firstChild.load();
         const Node*     child     = &tree[startIdx];
         const Node*     bestChild = child;
-        float           bestScore = -getAdjustedScore(*child);
+        float           bestScore = -scoreNodePV(*child);
         for (usize idx = 1; idx < node->numChildren; idx++) {
-            const float score = -getAdjustedScore(child[idx]);
+            const float score = -scoreNodePV(child[idx]);
             if (score > bestScore) {
                 bestScore = score;
                 bestChild = child + idx;
@@ -311,7 +328,7 @@ float searchNode(Tree&                   tree,
         const GameState childState = bestChild.state.load();
         if (childState.state() == LOSS && (nodeState.state() != WIN || childState.distance() + 1 < nodeState.distance()))
             node.state = GameState(WIN, childState.distance() + 1);
-        else if (childState.state() == WIN) {
+        else if (childState.state() == WIN && nodeState.state() != LOSS) {
             bool isLoss = true;
             u16 maxLen = childState.distance();
 
