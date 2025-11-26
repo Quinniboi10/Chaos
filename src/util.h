@@ -2,17 +2,16 @@
 
 #include "search.h"
 
-
 #include <bit>
-#include <numbers>
+#include <cmath>
 #include <vector>
-#include <sstream>
-#include <cstdlib>
-#include <cstring>
+#include <limits>
 #include <cctype>
+#include <numbers>
+#include <sstream>
+#include <cstring>
 #include <algorithm>
 #include <string_view>
-#include <limits>
 
 #ifdef _WIN32
     #ifndef NOMINMAX
@@ -64,14 +63,11 @@ inline u64 shift(const u64 bb) {
 
 inline u64 shift(const int dir, const u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
 
-inline float sigmoid(const float x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
-inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
-
-inline float cpToWDL(const int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
+inline float cpToWDL(const int cp) { return std::tanh((static_cast<float>(cp) / EVAL_DIVISOR)); }
 inline i32   wdlToCP(const float wdl) {
     assert(wdl > -1);
     assert(wdl < 1);
-    return inverseSigmoid(wdl) * EVAL_DIVISOR;
+    return std::atanhf(wdl) * EVAL_DIVISOR;
 }
 
 inline vector<string> split(const string& str, char delim) {
