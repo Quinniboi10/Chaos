@@ -42,29 +42,14 @@ float getAdjustedScore(const Node& node) {
     return 0;
 }
 
-// Get the CENTIPAWN adjusted for game end states AND MATE DISTANCES
-i32 getAdjustedScoreCP(const Node& node) {
-    const GameState s = node.state.load();
-
-    if (s.state() == DRAW)
-        return 0;
-    if (s.state() == WIN)
-        return MATE_SCORE - s.distance();
-    if (s.state() == LOSS)
-        return -MATE_SCORE + s.distance();
-    if (node.visits.load() > 0)
-        return wdlToCP(node.getScore());
-    return 0;
-}
-
 // Find the PV (best Q) move for a node
 Move findPvMove(const Tree& tree, const Node& node) {
     const Node* child = &tree[node.firstChild.load()];
 
-    i32  bestScore = -getAdjustedScoreCP(*child);
-    Move bestMove  = child->move;
+    float bestScore = -getAdjustedScore(*child);
+    Move  bestMove  = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const i32 score = -getAdjustedScoreCP(child[idx]);
+        const float score = -getAdjustedScore(child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestMove  = child[idx].move;
@@ -91,9 +76,9 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
         const NodeIndex startIdx  = node->firstChild.load();
         const Node*     child     = &tree[startIdx];
         const Node*     bestChild = child;
-        i32             bestScore = -getAdjustedScoreCP(*child);
+        float           bestScore = -getAdjustedScore(*child);
         for (usize idx = 1; idx < node->numChildren; idx++) {
-            const i32 score = -getAdjustedScoreCP(child[idx]);
+            const float score = -getAdjustedScore(child[idx]);
             if (score > bestScore) {
                 bestScore = score;
                 bestChild = child + idx;
