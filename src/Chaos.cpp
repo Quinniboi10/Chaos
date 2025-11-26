@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
             const i64 winc = getValueFollowing("winc", 0);
             const i64 binc = getValueFollowing("binc", 0);
 
-            const bool mate = exists("mate");
+            const bool mate = command.find(" mate") != string::npos;
 
             const i64 time = board.stm == WHITE ? wtime : btime;
             const i64 inc  = board.stm == WHITE ? winc : binc;
