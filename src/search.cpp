@@ -278,31 +278,6 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         posHistory.push_back(newBoard.zobrist);
         score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
         posHistory.pop_back();
-
-        // Game state backpropagation
-        const GameState nodeState = node.state.load();
-        const GameState childState = bestChild.state.load();
-        if (childState.state() == LOSS && (nodeState.state() != WIN || childState.distance() + 1 < nodeState.distance()))
-            node.state = GameState(WIN, childState.distance() + 1);
-        else if (childState.state() == WIN) {
-            bool isLoss = true;
-            u16 maxLen = childState.distance();
-
-            const Node* firstChild = &tree[node.firstChild.load()];
-            const Node* end = firstChild + node.numChildren;
-            for (const Node* child = firstChild; child != end; child++) {
-                if (child->state.load().state() == WIN) {
-                    maxLen = std::max(maxLen, child->state.load().distance());
-                }
-                else {
-                    isLoss = false;
-                    break;
-                }
-            }
-
-            if (isLoss)
-                node.state = GameState(LOSS, maxLen + 1);
-        }
     }
 
     if (tree.switchHalves)
