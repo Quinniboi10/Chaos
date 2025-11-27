@@ -4,6 +4,7 @@
 #include "types.h"
 #include "board.h"
 #include "search.h"
+#include "history.h"
 #include "stopwatch.h"
 #include "constants.h"
 
@@ -12,12 +13,21 @@
 #include <cstdlib>
 #include <thread>
 
+// Various large pieces of data used for the
+// searcher that should be put on the heap
+// to prevent stack overflows
+struct SearcherData {
+    ButterflyHistory history{};
+};
+
 struct Searcher {
     Board               rootPos;
     Tree                tree;
     RelaxedAtomic<u64>  nodeCount;
     RelaxedAtomic<bool> stopSearching;
     SearchMode          searchMode;
+
+    std::unique_ptr<SearcherData> searcherData;
 
     RelaxedAtomic<Move> currentMove;
 
@@ -26,9 +36,13 @@ struct Searcher {
     Searcher() {
         setHash(DEFAULT_HASH);
         searchMode = FULL_SEARCH;
+        searcherData = std::make_unique<SearcherData>();
     }
 
-    void reset() { tree.reset(); }
+    void reset() {
+        deepFill(searcherData->history.butterfly, 0);
+        tree.reset();
+    }
 
     void setHash(const u64 hash) { tree.resize(hash); }
 
