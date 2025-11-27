@@ -137,7 +137,7 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
 
 // ======================== EXPANSION ========================
 // Expand a node, adding the new nodes to the tree
-void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
+void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
     MoveList moves = Movegen::generateMoves(board);
 
     // Mates aren't handled until the simulation/rollout stage
@@ -163,7 +163,7 @@ void expandNode(Tree& tree, const Board& board, Node& node, u64& currentIndex, c
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
+    fillPolicy(board, tree, searcherData, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
 
     currentIndex += moves.length;
 }
@@ -223,7 +223,7 @@ void removeRefs(Tree& tree, Node& node) {
 
 // A recursive implementation of the MCTS algorithm
 // based on implementations from Monty and Jackal
-float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
+float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away
@@ -241,7 +241,7 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
 
         // If the node has no children, expand it
         if (numChildren == 0)
-            expandNode(tree, board, node, currentIndex, params);
+            expandNode(tree, searcherData, board, node, currentIndex, params);
         // Otherwise, if the node's children are in the other
         // half, copy them across
         else if (!inCurrentHalf && numChildren > 0)
@@ -256,12 +256,15 @@ float searchNode(Tree& tree, Node& node, const Board& board, u64& currentIndex, 
         // Now that the children are either expanded or in the current half,
         // travel deeper into the tree
         Node& bestChild = findBestChild(tree, node, params);
+        const Move m = bestChild.move.load();
         Board newBoard  = board;
-        newBoard.move(bestChild.move);
+        newBoard.move(m);
 
         posHistory.push_back(newBoard.zobrist);
-        score = -searchNode(tree, bestChild, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
+        score = -searchNode(tree, bestChild, searcherData, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
         posHistory.pop_back();
+
+        searcherData.history.update(board.stm, m, score);
     }
 
     if (tree.switchHalves)
@@ -407,7 +410,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
     // Expand root
-    expandNode(tree, rootPos, tree.root(), currentIndex, params);
+    expandNode(tree, *searcherData, rootPos, tree.root(), currentIndex, params);
 
     // Prepare for pretty printing
     if (params.doReporting && !params.doUci) {
@@ -421,7 +424,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         // Reset zobrist history
         vector<u64> posHistory = params.posHistory;
 
-        searchNode(tree, tree.root(), rootPos, currentIndex, seldepth, cumulativeDepth, posHistory, params, 0);
+        searchNode(tree, tree.root(), *searcherData, rootPos, currentIndex, seldepth, cumulativeDepth, posHistory, params, 0);
 
         // Switch halves
         if (tree.switchHalves) {
