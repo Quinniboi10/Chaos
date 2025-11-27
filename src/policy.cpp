@@ -177,12 +177,16 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData& searcherData
     Node*       firstChild = &tree[parent.firstChild.load()];
     const Node* end        = firstChild + parent.numChildren.load();
 
+    const HashTableEntry& ttEntry = tree.tt.getEntry(board.zobrist);
+    const bool ttHit = ttEntry.key == board.zobrist;
+    const Move ttMove = ttHit ? ttEntry.bestMove : Move::null();
+
     // Get raw scores and find max
     // and add the butterfly history
     // to the raw logits
     for (const Node* node = firstChild; node != end; node++) {
-        const Move move = node->move.load();
-        const float score = policyScore(board.stm, accum, move) + searcherData.history.getEntry(board, move) / BUTTERFLY_POLICY_DIVISOR;
+        const Move move   = node->move.load();
+        const float score = policyScore(board.stm, accum, move) + searcherData.history.getEntry(board, move) / BUTTERFLY_POLICY_DIVISOR + (move == ttMove) * 1024.0f / TT_POLICY_DIVISOR;
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }

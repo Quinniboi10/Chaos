@@ -9,17 +9,20 @@
 struct HashTableEntry {
     u64   key;
     u64   visits;
+    Move  bestMove;
     float q;
 
     HashTableEntry() {
-        key    = 0;
-        visits = 0;
-        q      = 0;
+        key      = 0;
+        visits   = 0;
+        bestMove = Move::null();
+        q        = 0;
     }
-    HashTableEntry(const u64 key, const u64 visits, const float q) {
-        this->key    = key;
-        this->visits = visits;
-        this->q      = q;
+    HashTableEntry(const u64 key, const u64 visits, const Move bestMove, const float q) {
+        this->key      = key;
+        this->visits   = visits;
+        this->bestMove = bestMove;
+        this->q        = q;
     }
 };
 
@@ -82,10 +85,10 @@ class TranspositionTable {
 
     HashTableEntry& getEntry(const u64 key) const { return table[index(key)]; }
 
-    void update(const u64 key, const u64 visits, const double q) {
+    void update(const u64 key, const u64 visits, const Move bestMove, const float q) {
         HashTableEntry& entry = getEntry(key);
         if (key != entry.key || visits > entry.visits)
-            entry = HashTableEntry(key, visits, q);
+            entry = HashTableEntry(key, visits, bestMove, q);
     }
 
     float hashfull() const {

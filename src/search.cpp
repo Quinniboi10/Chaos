@@ -277,7 +277,7 @@ float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board
     cumulativeDepth.getUnderlying().fetch_add(1, std::memory_order_relaxed);
     seldepth = std::max(seldepth, ply);
 
-    tree.tt.update(board.zobrist, node.visits, node.getScore());
+    tree.tt.update(board.zobrist, node.visits, findPvMove(tree, node), node.getScore());
 
     return score;
 }

@@ -12,6 +12,8 @@ constexpr float CPUCT_VISIT_SCALE       = 8192;
 constexpr i32 BUTTERFLY_BONUS_DIVISOR = 8192;
 constexpr float BUTTERFLY_POLICY_DIVISOR = 16384;
 
+constexpr i32 TT_POLICY_DIVISOR = 16384;
+
 constexpr float GINI_BASE   = 0.45;
 constexpr float GINI_SCALAR = 1.6;
 constexpr float GINI_MIN    = 1.0;
