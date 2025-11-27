@@ -363,6 +363,15 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         const MoveList pv = findPV(tree);
         cursor::goTo(1, 1);
 
+        vector<Node> children;
+        const Node   root  = tree.root();
+        const Node*  child = &tree[root.firstChild];
+        const Node*  end   = child + root.numChildren;
+        for (const Node* idx = child; idx != end; idx++)
+            children.push_back(*idx);
+
+        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -getAdjustedScore(n); });
+
         cout << rootPos.asString(pv[0]) << "\n";
 
         cout << Colors::GREY << " Tree Size:    " << Colors::WHITE << (tree.nodes[0].size() + tree.nodes[1].size() + 2) * sizeof(Node) / 1024 / 1024 << "MB\n";
@@ -395,9 +404,20 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << Colors::WHITE << "M in " << (tree.root().state.load().distance() + 1) / 2 * (tree.root().state.load().state() == WIN ? 1 : -1);
         cout << "\n";
         cursor::clear();
-        cout << Colors::GREY << " PV line: ";
-        printPV(pv);
-        cout << "\n";
+        if (multiPV > 1) {
+            for (usize i = 1; i <= multiPV; i++) {
+                const Node&    n  = children[i - 1];
+                const MoveList pv = findPV(tree, &n);
+                cout << Colors::GREY << fmt::format(" PV {}: ", i);
+                printPV(pv);
+                cout << "\n";
+            }
+        }
+        else {
+            cout << Colors::GREY << "PV line: ";
+            printPV(pv);
+            cout << "\n";
+        }
         cout << "\n";
         cout << " Best move history:" << "\n";
         for (const auto& m : bestMoves) {
