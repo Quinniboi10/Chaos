@@ -408,17 +408,19 @@ void datagen::run(const string& params) {
     // List of allowed characters
     constexpr std::string_view allowedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\\|;':\",.<>?/`~";
 
+
+    std::random_device rd;
+    std::mt19937       rng{ rd() };
+
     // Array storing the order in which to fill
-    array<uint16_t, finishedText.size()> textFillOrder = [&] {
-        array<uint16_t, finishedText.size()> a{};
-        for (uint16_t i = 0; i < a.size(); ++i)
-            a[i] = static_cast<uint16_t>(i + 1);
-        std::mt19937 rng{ static_cast<uint32_t>(std::time(nullptr)) };
+    const array<u16, finishedText.size()> textFillOrder = [&] {
+        array<u16, finishedText.size()> a{};
+        for (u16 i = 0; i < a.size(); ++i)
+            a[i] = static_cast<u16>(i + 1);
         std::ranges::shuffle(a, rng);
         return a;
     }();
 
-    std::mt19937                          rng{ static_cast<uint32_t>(std::time(nullptr) ^ 0x9E3779B9) };
     std::uniform_int_distribution<size_t> randIndex(0, allowedChars.size() - 1);
 
     // Returns the string

@@ -323,16 +323,21 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
 
-    const auto printUCI = [&]() {
+    const auto sortedChildren = [&]() {
         vector<Node> children;
         const Node   root  = tree.root();
         const Node*  child = &tree[root.firstChild];
         const Node*  end   = child + root.numChildren;
+        children.reserve(root.numChildren);
         for (const Node* idx = child; idx != end; idx++)
             children.push_back(*idx);
 
         std::ranges::sort(children, std::greater{}, [](const Node& n) { return -getAdjustedScore(n); });
+        return children;
+    };
 
+    const auto printUCI = [&]() {
+        const auto children = sortedChildren();
         const u64 time = limits.commandTime.elapsed();
 
         for (usize i = 1; i <= multiPV; i++) {
@@ -360,35 +365,35 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
     const auto prettyPrint = [&]() {
+        const auto printStat = [&](const string& label, const auto& value, const string& suffix = "") {
+            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "\n";
+        };
+
+        const auto printBar = [&](const string& label, const float progress) {
+            cout << Colors::GREY << label << Colors::WHITE;
+            coloredProgBar(50, progress);
+            cout << "  \n";
+        };
+
         const MoveList pv = findPV(tree);
+        const Node     root = tree.root();
+        const auto     children = sortedChildren();
+        const u64      elapsedMs = limits.commandTime.elapsed() + 1;
+
         cursor::goTo(1, 1);
-
-        vector<Node> children;
-        const Node   root  = tree.root();
-        const Node*  child = &tree[root.firstChild];
-        const Node*  end   = child + root.numChildren;
-        for (const Node* idx = child; idx != end; idx++)
-            children.push_back(*idx);
-
-        std::ranges::sort(children, std::greater{}, [](const Node& n) { return -getAdjustedScore(n); });
 
         cout << rootPos.asString(pv[0]) << "\n";
 
-        cout << Colors::GREY << " Tree Size:    " << Colors::WHITE << (tree.nodes[0].size() + tree.nodes[1].size() + 2) * sizeof(Node) / 1024 / 1024 << "MB\n";
-        cout << Colors::GREY << " Half Usage:   " << Colors::WHITE;
-        coloredProgBar(50, static_cast<float>(currentIndex) / tree.activeTree().size());
-        cout << "  \n";
+        printStat(" Tree Size:    ", (tree.nodes[0].size() + tree.nodes[1].size() + 2) * sizeof(Node) / 1024 / 1024, "MB");
+        printBar( " Half Usage:   ", static_cast<float>(currentIndex) / tree.activeTree().size());
+        printStat(" TT Size:      ", (tree.tt.size + 1) * sizeof(HashTableEntry) / 1024 / 1024, "MB");
+        printBar( " TT Usage:     ", tree.tt.hashfull());
+        printStat(" Half Changes: ", formatNum(halfChanges));
+        cout << "\n";
 
-        cout << Colors::GREY << " TT Size:      " << Colors::WHITE << (tree.tt.size + 1) * sizeof(HashTableEntry) / 1024 / 1024 << "MB\n";
-        cout << Colors::GREY << " TT Usage:     " << Colors::WHITE;
-        coloredProgBar(50, tree.tt.hashfull());
-        cout << "  \n";
-
-        cout << Colors::GREY << " Half Changes: " << Colors::WHITE << formatNum(halfChanges) << "\n\n";
-
-        cout << Colors::GREY << " Nodes:            " << Colors::WHITE << suffixNum(nodeCount.load()) << "   \n";
-        cout << Colors::GREY << " Time:             " << Colors::WHITE << formatTime(limits.commandTime.elapsed() + 1) << "   \n";
-        cout << Colors::GREY << " Nodes per second: " << Colors::WHITE << suffixNum(nodeCount.load() * 1000 / (limits.commandTime.elapsed() + 1)) << "   \n";
+        printStat(" Nodes:            ", suffixNum(nodeCount.load()));
+        printStat(" Time:             ", formatTime(elapsedMs));
+        printStat(" Nodes per second: ", suffixNum(nodeCount.load() * 1000 / elapsedMs));
         cout << "\n";
 
         cursor::clear();
@@ -396,16 +401,16 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << Colors::GREY << " Max depth: " << Colors::WHITE << seldepth << "\n\n";
 
         cursor::clear();
-        const float rootWdl = getAdjustedScore(tree.root());
+        const float rootWdl = getAdjustedScore(root);
         cout << Colors::GREY << " Score:   ";
-        if (tree.root().state.load().state() == ONGOING || tree.root().state.load().state() == DRAW)
+        if (root.state.load().state() == ONGOING || root.state.load().state() == DRAW)
             printColoredScore(rootWdl);
         else
-            cout << Colors::WHITE << "M in " << (tree.root().state.load().distance() + 1) / 2 * (tree.root().state.load().state() == WIN ? 1 : -1);
+            cout << Colors::WHITE << "M in " << (root.state.load().distance() + 1) / 2 * (root.state.load().state() == WIN ? 1 : -1);
         cout << "\n";
-        cursor::clear();
         if (multiPV > 1) {
             for (usize i = 1; i <= multiPV; i++) {
+                cursor::clear();
                 const Node&    n  = children[i - 1];
                 const MoveList pv = findPV(tree, &n);
                 cout << Colors::GREY << fmt::format(" PV {}: ", i);
@@ -414,6 +419,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             }
         }
         else {
+            cursor::clear();
             cout << Colors::GREY << "PV line: ";
             printPV(pv);
             cout << "\n";
