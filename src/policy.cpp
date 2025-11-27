@@ -182,7 +182,7 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData& searcherData
     // to the raw logits
     for (const Node* node = firstChild; node != end; node++) {
         const Move move = node->move.load();
-        const float score = policyScore(board.stm, accum, move) + searcherData.history.getEntry(board.stm, move) / BUTTERFLY_POLICY_DIVISOR;
+        const float score = policyScore(board.stm, accum, move) + searcherData.history.getEntry(board, move) / BUTTERFLY_POLICY_DIVISOR;
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }

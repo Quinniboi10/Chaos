@@ -264,7 +264,7 @@ float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board
         score = -searchNode(tree, bestChild, searcherData, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
         posHistory.pop_back();
 
-        searcherData.history.update(board.stm, m, score);
+        searcherData.history.update(board, m, score);
     }
 
     if (tree.switchHalves)
