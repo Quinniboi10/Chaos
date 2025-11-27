@@ -17,4 +17,8 @@ constexpr float GINI_SCALAR = 1.6;
 constexpr float GINI_MIN    = 1.0;
 constexpr float GINI_MAX    = 1.5;
 
+constexpr float TM_NODE_MIN    = 0.6;
+constexpr float TM_NODE_SCALAR = 2.3;
+constexpr float TM_NODE_MARGIN = 0.45;
+
 constexpr array<int, 7> PIECE_VALUES = { 100, 316, 328, 493, 982, 0, 0 };

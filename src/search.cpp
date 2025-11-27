@@ -307,13 +307,32 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         timeToSpend = std::max<i64>(timeToSpend - static_cast<i64>(MOVE_OVERHEAD), 1);
 
     // Returns true if search has met a limit
-    const auto stopSearching = [&]() {
+    const auto stopSearching = [&](const Move bestMove) {
+        // If told to search for a mate and one has been found
         if (limits.mate && tree.root().state.load().state() != ONGOING)
             return true;
-        const u64 nodeCount = this->nodeCount.load();
-        if (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend))
+        // If the stop flag is set
+        if (this->stopSearching.load())
             return true;
-        return (limits.nodes > 0 && nodeCount >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
+
+        // Node based time management
+        const auto bestMoveVisits = [&]() -> u64 {
+            const Node  root  = tree.root();
+            const Node* child = &tree[root.firstChild];
+            const Node* end   = child + root.numChildren;
+            for (const Node* idx = child; idx != end; idx++)
+                if (idx->move == bestMove)
+                    return idx->visits.load();
+            return 1;
+        }();
+        const auto percentNotBest = 1.0 - bestMoveVisits / tree.root().visits.load();
+        const auto nodeTimeFactor = std::max<double>(TM_NODE_MIN, percentNotBest * TM_NODE_SCALAR + TM_NODE_MARGIN);
+
+        // If enough time has been spent
+        if (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend * nodeTimeFactor)
+            return true;
+
+        return (limits.nodes > 0 && this->nodeCount.load() >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
     };
 
     // Intervals to report on
@@ -366,7 +385,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     const auto prettyPrint = [&]() {
         const auto printStat = [&](const string& label, const auto& value, const string& suffix = "") {
-            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "\n";
+            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "   \n";
         };
 
         const auto printBar = [&](const string& label, const float progress) {
@@ -490,9 +509,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                 stopwatch.reset();
             }
         }
-        if (iterations % 1024)
+        if (iterations % 256)
             currentMove = findPvMove(tree, tree.root());
-    } while (!stopSearching());
+    } while (!stopSearching(currentMove));
 
     const Move bestMove = findPvMove(tree, tree.root());
 
