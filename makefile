@@ -1,5 +1,5 @@
 DEFAULT_VALUE_NET = Chaos_11.value
-DEFAULT_POLICY_NET = Chaos_10.policy
+DEFAULT_POLICY_NET = Chaos_11.policy
 
 #Detect Operating System
 ifeq ($(OS),Windows_NT)
