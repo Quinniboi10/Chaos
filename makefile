@@ -50,12 +50,10 @@ SRCS     += ./external/fmt/format.cpp
 OBJS     := $(SRCS:.cpp=.o)
 
 # Default target
-all: downloadV
-all: downloadP
-all: $(EXE)
+all: downloadV downloadP $(EXE)
 
 # Build the objects
-%.o: %.cpp
+%.o: %.cpp downloadV downloadP
 	$(CXX) $(CXXFLAGS) $(ARCHFLAGS) $(GIT_HEAD_COMMIT_ID_DEF) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" -c $< -o $@
 
 CXXFLAGS += -MMD -MP
