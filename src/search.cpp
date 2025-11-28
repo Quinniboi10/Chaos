@@ -366,7 +366,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     const auto prettyPrint = [&]() {
         const auto printStat = [&](const string& label, const auto& value, const string& suffix = "") {
-            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "\n";
+            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "   \n";
         };
 
         const auto printBar = [&](const string& label, const float progress) {
