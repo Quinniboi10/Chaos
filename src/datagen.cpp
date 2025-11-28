@@ -13,22 +13,6 @@
 #include <thread>
 #include <mutex>
 
-#ifdef _WIN32
-    #include <windows.h>
-
-static volatile bool ctrlCPressed = false;
-
-BOOL WINAPI CtrlHandler(const DWORD fdwCtrlType) {
-    if (fdwCtrlType == CTRL_C_EVENT) {
-        ctrlCPressed = true;
-        return TRUE;  // Signal handled
-    }
-    return FALSE;  // Pass to next handler
-}
-#else
-    #include <pthread.h>
-#endif
-
 using VisitDistribution = vector<std::pair<u16, u32>>;
 
 struct __attribute__((packed)) MontyFormatBoard {
@@ -176,21 +160,15 @@ class FileWriter {
         }
     }
 
+    ~FileWriter() {
+        file.flush();
+    }
+
     void setStartpos(const Board& board) { this->board = board; }
 
     void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
 
     void writeGame(const usize wdl) {
-#ifdef _WIN32
-        SetConsoleCtrlHandler(CtrlHandler, TRUE);
-        ctrlCPressed = false;
-#else
-        sigset_t set, oldset;
-        sigemptyset(&set);
-        sigaddset(&set, SIGINT);
-        pthread_sigmask(SIG_BLOCK, &set, &oldset);
-#endif
-
         write(MontyFormatBoard(board));
 
         const auto getFile = [](const Square sq, const File fallback) { return sq == NO_SQUARE ? fallback : fileOf(sq); };
@@ -223,23 +201,6 @@ class FileWriter {
         }
 
         writeU16(0);
-        file.flush();
-
-#ifdef _WIN32
-        SetConsoleCtrlHandler(CtrlHandler, FALSE);  // Restore default behavior
-        if (ctrlCPressed)
-            raise(SIGINT);
-#else
-        sigset_t pending;
-        sigpending(&pending);
-        const bool hadSigint = sigismember(&pending, SIGINT);
-
-        pthread_sigmask(SIG_SETMASK, &oldset, nullptr);
-
-        if (hadSigint)
-            raise(SIGINT);
-#endif
-
         moves.clear();
     }
 };
@@ -368,7 +329,7 @@ mainLoop:
     }
 }
 
-void datagen::run(const string& params) {
+void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
     if (params.empty())
         return;
 
@@ -400,7 +361,6 @@ void datagen::run(const string& params) {
     vector<atomic<u64>>                  positions(threadCount);
     vector<Board>                        boards(threadCount);
     vector<std::mutex>                   boardMutexes(threadCount);
-    atomic<bool>                         stop(false);
 
     // Order in which to fill the changing text
     constexpr std::string_view finishedText = "Chaos Datagen Complete!";
@@ -446,7 +406,7 @@ void datagen::run(const string& params) {
         b.reset();
 
     for (usize i = 0; i < threadCount; i++)
-        threads.emplace_back(runThread, nodes, std::ref(boards[i]), std::ref(boardMutexes[i]), std::ref(positions[i]), std::cref(stop));
+        threads.emplace_back(runThread, nodes, std::ref(boards[i]), std::ref(boardMutexes[i]), std::ref(positions[i]), std::cref(stopFlag));
 
     cursor::hide();
 
@@ -455,7 +415,7 @@ void datagen::run(const string& params) {
 
     cursor::clearAll();
 
-    while (totalPositions < numPositions) {
+    while (totalPositions < numPositions && !stopFlag.load()) {
         boardMutexes[0].lock();
         Board board = boards[0];
         boardMutexes[0].unlock();
@@ -514,12 +474,13 @@ void datagen::run(const string& params) {
         cout.flush();
     }
 
-    stop.store(true);
+    stopFlag.store(true);
     for (std::thread& thread : threads)
         if (thread.joinable())
             thread.join();
 
     cout << "\n\n";
+    cout << "Datagen complete. Press enter to continue." << endl;
 
     std::string dummy;
     std::getline(std::cin, dummy);

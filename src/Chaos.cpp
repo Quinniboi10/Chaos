@@ -1,12 +1,14 @@
-#include "board.h"
-#include "eval.h"
-#include "movegen.h"
-#include "searcher.h"
-#include "tunable.h"
-#include "constants.h"
-#include "datagen.h"
-#include "policy.h"
 #include "tui.h"
+#include "eval.h"
+#include "board.h"
+#include "policy.h"
+#include "movegen.h"
+#include "datagen.h"
+#include "searcher.h"
+#include "constants.h"
+
+#include <csignal>
+
 #ifdef _WIN32
     #define NOMINMAX
     #include <windows.h>
@@ -44,7 +46,7 @@ int main(int argc, char* argv[]) {
 
     const auto exists            = [&](const string& sub) { return command.find(" " + sub + " ") != string::npos; };
     const auto index             = [&](const string& sub) { return findIndexOf(tokens, sub); };
-    const auto getValueFollowing = [&](const string& value, const int defaultValue) { return exists(value) ? std::stoi(tokens[index(value) + 1]) : defaultValue; };
+    const auto getValueFollowing = [&](const string& value, const i64 defaultValue) { return exists(value) ? std::stoll(tokens[index(value) + 1]) : defaultValue; };
 
     // *********** ./Chaos <ARGS> ************
     if (argc > 1) {
@@ -61,6 +63,9 @@ int main(int argc, char* argv[]) {
         else if (args[1] == "bulk")
             Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
         else if (args[1] == "datagen") {
+            static std::atomic<bool> stopDatagen{false};
+            std::signal(SIGINT, [](int) { stopDatagen.store(true); });
+
             inDatagen = true;
             std::ostringstream ss{};
             for (usize idx = 2; idx < argc; idx++) {
@@ -68,7 +73,7 @@ int main(int argc, char* argv[]) {
                 if (idx < argc - 1)
                     ss << " ";
             }
-            datagen::run(ss.str());
+            datagen::run(ss.str(), stopDatagen);
         }
         else if (args[1].substr(0, 7) == "genfens")
             datagen::genFens(args[1]);
@@ -130,12 +135,12 @@ int main(int argc, char* argv[]) {
             const usize depth = getValueFollowing("depth", 0);
             const u64   nodes = exists("nodes") ? parseSuffixedNum(tokens[index("nodes") + 1]) : 0;
 
-            const usize mtime = getValueFollowing("movetime", 0);
-            const usize wtime = getValueFollowing("wtime", 0);
-            const usize btime = getValueFollowing("btime", 0);
+            const i64 mtime = getValueFollowing("movetime", 0);
+            const i64 wtime = getValueFollowing("wtime", 0);
+            const i64 btime = getValueFollowing("btime", 0);
 
-            const usize winc = getValueFollowing("winc", 0);
-            const usize binc = getValueFollowing("binc", 0);
+            const i64 winc = getValueFollowing("winc", 0);
+            const i64 binc = getValueFollowing("binc", 0);
 
             const bool mate = exists("mate");
 
@@ -217,7 +222,6 @@ int main(int argc, char* argv[]) {
         else
             cout << "Unknown command: " << command << endl;
     }
-
 
     return 0;
 }
