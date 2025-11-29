@@ -347,7 +347,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 32 - multiPV, 1));
+    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 29 - multiPV, 1));
     usize                                lastDepth    = 0;
     usize                                lastSeldepth = 0;
     Move                                 lastMove     = Move::null();
