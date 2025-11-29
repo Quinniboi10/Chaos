@@ -165,7 +165,7 @@ float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, c
     return static_cast<float>(reduce_ep<i32>(outputAccumulator) + nn.outputBiases[idx]) / (Q_P * Q_P);
 }
 
-void fillPolicy(const Board& board, Tree& tree, const SearcherData& searcherData, Node& parent, const float temperature) {
+void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData, Node& parent, const float temperature) {
     const PolicyAccumulator accum(board);
 
     float maxScore = -std::numeric_limits<float>::infinity();
@@ -182,7 +182,8 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData& searcherData
     // to the raw logits
     for (const Node* node = firstChild; node != end; node++) {
         const Move move = node->move.load();
-        const float score = policyScore(board.stm, accum, move) + searcherData.history.getEntry(board.stm, move) / BUTTERFLY_POLICY_DIVISOR;
+        const float historyBonus = searcherData ? (searcherData->history.getEntry(board.stm, move) / BUTTERFLY_POLICY_DIVISOR) : 0;
+        const float score = policyScore(board.stm, accum, move) + historyBonus;
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }

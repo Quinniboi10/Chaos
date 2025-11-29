@@ -137,7 +137,7 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
 
 // ======================== EXPANSION ========================
 // Expand a node, adding the new nodes to the tree
-void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board, Node& node, u64& currentIndex, const SearchParameters& params) {
+void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board, Node& node, u64& currentIndex) {
     MoveList moves = Movegen::generateMoves(board);
 
     // Mates aren't handled until the simulation/rollout stage
@@ -163,9 +163,38 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, searcherData, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
+    fillPolicy(board, tree, &searcherData, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
 
     currentIndex += moves.length;
+}
+
+void expandNodeRaw(Tree& tree, const Board& board, Node& node, u64& currentIndex) {
+    MoveList moves = Movegen::generateMoves(board);
+
+    // Mates aren't handled until the simulation/rollout stage
+    if (moves.length == 0)
+        return;
+
+    if (currentIndex + moves.length >= tree.activeTree().size()) {
+        tree.switchHalves = true;
+        return;
+    }
+
+    node.firstChild  = { currentIndex, tree.activeHalf() };
+    node.numChildren = moves.length;
+
+    Node* child = &tree.activeTree()[currentIndex];
+
+    for (usize i = 0; i < moves.length; i++) {
+        child[i].totalScore   = 0;
+        child[i].visits       = 0;
+        child[i].move         = moves[i];
+        child[i].state        = ONGOING;
+        child[i].numChildren  = 0;
+        child[i].giniImpurity = 0;
+    }
+
+    fillPolicy(board, tree, nullptr, node, 1);
 }
 
 // Copy children from the inactive half to the current one
@@ -241,7 +270,7 @@ float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board
 
         // If the node has no children, expand it
         if (numChildren == 0)
-            expandNode(tree, searcherData, board, node, currentIndex, params);
+            expandNode(tree, searcherData, board, node, currentIndex);
         // Otherwise, if the node's children are in the other
         // half, copy them across
         else if (!inCurrentHalf && numChildren > 0)
@@ -436,7 +465,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
     // Expand root
-    expandNode(tree, *searcherData, rootPos, tree.root(), currentIndex, params);
+    expandNode(tree, *searcherData, rootPos, tree.root(), currentIndex);
 
     // Prepare for pretty printing
     if (params.doReporting && !params.doUci) {
@@ -519,6 +548,11 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 // based on the move prediction from either of the two NNs
 
 Move Searcher::searchPolicy(const SearchParameters params) {
+    tree.activeTree()[0]   = Node();
+    tree.inactiveTree()[0] = Node();
+
+    stopSearching = false;
+
     fillRootPolicy(rootPos);
 
     const Node  root  = tree.root();

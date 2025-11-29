@@ -10,8 +10,9 @@
 
 #include "../external/fmt/fmt/format.h"
 
-#include <cstdlib>
 #include <thread>
+#include <cstdlib>
+#include <algorithm>
 
 // Various large pieces of data used for the
 // searcher that should be put on the heap
@@ -19,6 +20,9 @@
 struct SearcherData {
     ButterflyHistory history{};
 };
+
+// Small search functions that are used outside of just the search
+void expandNodeRaw(Tree& tree, const Board& board, Node& node, u64& currentIndex);
 
 struct Searcher {
     Board               rootPos;
@@ -176,25 +180,31 @@ struct Searcher {
         if (rootPos == board && tree.root().visits > 0)
             return;
 
-        rootPos     = board;
-        tree.root() = Node();
+        rootPos                = board;
+        tree.activeTree()[0]   = Node();
+        tree.inactiveTree()[0] = Node();
 
-        const Stopwatch<std::chrono::milliseconds> stopwatch;
-        const vector<u64>                          posHistory;
-        const SearchParameters                     params(posHistory, false, false, true);
-        const SearchLimits                         limits(stopwatch, false, 1, 0, 0, 0, 0);
+        u64 idx = 1;
 
-        search(params, limits);
+        expandNodeRaw(tree, board, tree.root(), idx);
     }
 
     void printRootPolicy(const Board& board) {
         fillRootPolicy(board);
 
         const Node root = tree.root();
+
+        std::vector<std::pair<Move, float>> pairs;
+
         for (usize idx = root.firstChild.load().index(); idx < root.firstChild.load().index() + root.numChildren; idx++) {
             const Node& node = tree.activeTree()[idx];
-            cout << fmt::format("{}: {:.2f}%", node.move.load().toString(), node.policy * 100) << endl;
+            pairs.emplace_back(node.move.load(), node.policy * 100);
         }
+
+        std::ranges::sort(pairs, std::greater<float>{}, [](const std::pair<Move, float>& pair){ return pair.second; });
+
+        for (const auto& [move, policy] : pairs)
+            cout << fmt::format("{}: {:.2f}%", move.toString(), policy) << endl;
     }
 
     Move search(const SearchParameters params, const SearchLimits limits);
