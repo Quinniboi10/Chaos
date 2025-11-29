@@ -1,4 +1,4 @@
-DEFAULT_VALUE_NET = Chaos_11.value
+DEFAULT_VALUE_NET = Chaos_12.value
 DEFAULT_POLICY_NET = Chaos_12.policy
 
 #Detect Operating System

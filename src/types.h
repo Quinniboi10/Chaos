@@ -34,7 +34,7 @@
             std::terminate(); \
         }
 #else
-    #define assert(x) ASSUME(x)
+    #define assert(x) ;
 #endif
 
 using u64 = uint64_t;
