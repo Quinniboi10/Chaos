@@ -528,7 +528,7 @@ bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] &
 bool Board::isDraw(const vector<u64>& posHistory) const {
     // 50 move rule
     if (halfMoveClock >= 100)
-        return !inCheck();
+        return Movegen::generateMoves(*this).length != 0;
 
     // Insufficient material
     if (pieces(PAWN) == 0                                // No pawns
