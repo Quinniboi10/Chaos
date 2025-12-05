@@ -492,7 +492,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         }
         else {
             cursor::clear();
-            cout << Colors::GREY << "PV line: ";
+            cout << Colors::GREY << " PV line: ";
             printPV(pv);
             cout << "\n";
         }
