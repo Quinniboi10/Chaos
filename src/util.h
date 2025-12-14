@@ -1,7 +1,7 @@
 #pragma once
 
 #include "search.h"
-
+#include "move.h"
 
 #include <bit>
 #include <numbers>
@@ -34,10 +34,10 @@
 
 #define ctzll(x) std::countr_zero(x)
 
-inline bool readBit(u64 bb, int sq) { return (1ULL << sq) & bb; }
+inline bool readBit(const u64 bb, const int sq) { return (1ULL << sq) & bb; }
 
 template<bool value>
-inline void setBit(auto& bitboard, usize index) {
+inline void setBit(auto& bitboard, const usize index) {
     assert(index <= sizeof(bitboard) * 8);
     if constexpr (value)
         bitboard |= (1ULL << index);
@@ -45,14 +45,14 @@ inline void setBit(auto& bitboard, usize index) {
         bitboard &= ~(1ULL << index);
 }
 
-inline Square getLSB(auto bb) {
+inline Square getLSB(const auto bb) {
     assert(bb > 0);
     return static_cast<Square>(ctzll(bb));
 }
 
 inline Square popLSB(auto& bb) {
     assert(bb > 0);
-    Square sq = getLSB(bb);
+    const Square sq = getLSB(bb);
     bb &= bb - 1;
     return sq;
 }
@@ -74,7 +74,7 @@ inline i32   wdlToCP(const float wdl) {
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
 }
 
-inline vector<string> split(const string& str, char delim) {
+inline vector<string> split(const string& str, const char delim) {
     vector<std::string> result;
 
     std::istringstream stream(str);
@@ -89,7 +89,7 @@ inline vector<string> split(const string& str, char delim) {
     return result;
 }
 
-// Function from stockfish
+// Function from Stockfish
 template<typename IntType>
 inline IntType readLittleEndian(std::istream& stream) {
     IntType result;
@@ -122,39 +122,40 @@ inline void deepFill(std::array<T, N>& arr, const U& value) {
     }
 }
 
-constexpr Rank rankOf(Square s) { return Rank(s >> 3); }
-constexpr File fileOf(Square s) { return File(s & 0b111); }
+constexpr Rank rankOf(const Square s) { return static_cast<Rank>(s >> 3); }
+constexpr File fileOf(const Square s) { return static_cast<File>(s & 0b111); }
 
-constexpr Square flipRank(Square s) { return Square(s ^ 0b111000); }
-constexpr Square flipFile(Square s) { return Square(s ^ 0b000111); }
+constexpr Square flipRank(const Square s) { return static_cast<Square>(s ^ 0b111000); }
+constexpr Square flipFile(const Square s) { return static_cast<Square>(s ^ 0b000111); }
 
-constexpr Square toSquare(Rank rank, File file) { return static_cast<Square>((static_cast<int>(rank) << 3) | file); }
+constexpr Square toSquare(const Rank rank, const File file) { return static_cast<Square>((static_cast<int>(rank) << 3) | file); }
 
 // Takes square (h8) and converts it into a bitboard index (64)
 constexpr Square parseSquare(const std::string_view square) { return static_cast<Square>((square.at(1) - '1') * 8 + (square.at(0) - 'a')); }
 
 // Takes a square (64) and converts into algebraic notation (h8)
-inline string squareToAlgebraic(int sq) { return fmt::format("{}{}", static_cast<char>('a' + (sq % 8)), static_cast<char>('1' + (sq / 8))); }
+inline string squareToAlgebraic(const int sq) { return fmt::format("{}{}", static_cast<char>('a' + (sq % 8)), static_cast<char>('1' + (sq / 8))); }
 
-constexpr u8 castleIndex(Color c, bool kingside) { return c == WHITE ? (kingside ? 3 : 2) : (kingside ? 1 : 0); }
+constexpr u8 castleIndex(const Color c, const bool kingside) { return c == WHITE ? (kingside ? 3 : 2) : (kingside ? 1 : 0); }
 
 // Print a bitboard (for debugging individual bitboards)
-inline void printBitboard(u64 bitboard) {
+inline void printBitboard(const u64 bitboard) {
+    cout << "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n";
     for (int rank = 7; rank >= 0; --rank) {
-        cout << "+---+---+---+---+---+---+---+---+" << endl;
+        cout << "\u2502 ";
         for (int file = 0; file < 8; ++file) {
-            int  i            = rank * 8 + file;  // Map rank and file to bitboard index
-            char currentPiece = readBit(bitboard, i) ? '1' : ' ';
+            const u8 idx = rank * 8 + file;  // Map rank and file to bitboard index
 
-            cout << "| " << currentPiece << " ";
+            cout << (readBit(bitboard, idx) ? "\u2588\u2588" : "  ");
         }
-        cout << "|" << endl;
+        cout << " \u2502\n";
     }
-    cout << "+---+---+---+---+---+---+---+---+" << endl;
+    cout << "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n";
+    cout.flush();
 }
 
 // Formats a number with commas
-inline string formatNum(i64 v) {
+inline string formatNum(const i64 v) {
     auto s = std::to_string(v);
 
     int n = s.length() - 3;
@@ -195,15 +196,15 @@ inline string formatTime(const u64 timeInMS) {
 
 inline string suffixNum(double num) {
     char suffix = '\0';
-    if (num >= static_cast<double>(1'000'000'000) * 10) {
+    if (num >= 1'000'000'000 * 10.0) {
         num /= 1'000'000'000;
         suffix = 'G';
     }
-    else if (num >= 1'000'000 * 10) {
+    else if (num >= 1'000'000 * 10.0) {
         num /= 1'000'000;
         suffix = 'M';
     }
-    else if (num >= 1'000 * 10) {
+    else if (num >= 1'000 * 10.0) {
         num /= 1'000;
         suffix = 'K';
     }
@@ -227,7 +228,7 @@ inline u64 parseSuffixedNum(string text) {
     double multiplier = 1.0;
 
     // Handle optional suffix
-    const unsigned char last = static_cast<unsigned char>(text.back());
+    const auto last = static_cast<unsigned char>(text.back());
     if (std::isalpha(last)) {
         const char suffix = static_cast<char>(std::tolower(last));
         text.erase(text.size() - 1);
@@ -263,7 +264,7 @@ inline u64 parseSuffixedNum(string text) {
 }
 
 
-inline string padStr(string str, i64 target, u64 minPadding = 2) {
+inline string padStr(string str, const i64 target, const u64 minPadding = 2) {
     i64 padding = std::max<i64>(target - static_cast<i64>(str.length()), minPadding);
     for (i64 i = 0; i < padding; i++)
         str += " ";
@@ -271,23 +272,23 @@ inline string padStr(string str, i64 target, u64 minPadding = 2) {
 }
 
 // Score color
-inline void printColoredScore(double wdl) {
-    double colorWdl = std::clamp(wdl * 1.5f, -1.0, 1.0);
-    int    r, g, b;
+inline void printColoredScore(const double wdl) {
+    const double colorWdl = std::clamp(wdl * 1.5f, -1.0, 1.0);
+    u8           r, g, b;
 
     const auto lerp = [](const double a, const double b, const double t) { return a + t * (b - a); };
 
     if (colorWdl < 0) {
-        double t = colorWdl + 1.0;
-        r        = static_cast<int>(lerp(255, 255, t));  // red stays max
-        g        = static_cast<int>(lerp(0, 255, t));    // green rises
-        b        = static_cast<int>(lerp(0, 255, t));    // blue rises
+        const double t = colorWdl + 1.0;
+        r              = static_cast<u8>(lerp(255, 255, t));  // red stays max
+        g              = static_cast<u8>(lerp(0, 255, t));    // green rises
+        b              = static_cast<u8>(lerp(0, 255, t));    // blue rises
     }
     else {
-        double t = colorWdl;                             // maps 0 -> 1
-        r        = static_cast<int>(lerp(255, 0, t));    // red drops
-        g        = static_cast<int>(lerp(255, 255, t));  // green stays max
-        b        = static_cast<int>(lerp(255, 0, t));    // blue drops
+        const double t = colorWdl;                            // maps 0 -> 1
+        r              = static_cast<u8>(lerp(255, 0, t));    // red drops
+        g              = static_cast<u8>(lerp(255, 255, t));  // green stays max
+        b              = static_cast<u8>(lerp(255, 0, t));    // blue drops
     }
 
     fmt::print(fmt::fg(fmt::rgb(r, g, b)), "{:.2f}", wdlToCP(wdl) / 100.0f);
@@ -296,15 +297,15 @@ inline void printColoredScore(double wdl) {
 // Heat color
 inline void heatColor(float t, const string& text) {
     t = std::clamp(t, 0.0f, 1.0f);
-    int r, g, b = 0;
+    u8 r, g, b = 0;
     if (t < 0.5f) {
         const float ratio = t / 0.5f;
         r                 = 255;
-        g                 = static_cast<int>(ratio * 255);
+        g                 = static_cast<u8>(ratio * 255);
     }
     else {
         const float ratio = (t - 0.5f) / 0.5f;
-        r                 = static_cast<int>(255 * (1.0f - ratio));
+        r                 = static_cast<u8>(255 * (1.0f - ratio));
         g                 = 255;
     }
 
@@ -353,12 +354,12 @@ inline int findIndexOf(const auto arr, string entry) {
 }
 
 inline int getTerminalRows() {
-    auto env_lines = []() -> int {
+    auto envLines = []() -> int {
         if (const char* s = std::getenv("LINES")) {
-            char* end = nullptr;
-            long  v   = std::strtol(s, &end, 10);
+            char*      end = nullptr;
+            const long v   = std::strtol(s, &end, 10);
             if (end != s && v > 0 && v < 100000)
-                return static_cast<int>(v);
+                return v;
         }
         return -1;
     };
@@ -377,7 +378,7 @@ inline int getTerminalRows() {
         }
     }
 
-    int r = env_lines();
+    int r = envLines();
     return (r > 0) ? r : 24;
 
 #else
@@ -389,7 +390,7 @@ inline int getTerminalRows() {
     if (isatty(STDIN_FILENO) && ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
         return ws.ws_row;
 
-    int r = env_lines();
+    const int r = envLines();
     return (r > 0) ? r : 24;
 #endif
 }

@@ -9,7 +9,7 @@ constexpr float ROOT_POLICY_TEMPERATURE = 3.3;
 constexpr float EVAL_DIVISOR            = 400;
 constexpr float CPUCT_VISIT_SCALE       = 8192;
 
-constexpr i32 BUTTERFLY_BONUS_DIVISOR = 8192;
+constexpr i32   BUTTERFLY_BONUS_DIVISOR  = 8192;
 constexpr float BUTTERFLY_POLICY_DIVISOR = 16384;
 
 constexpr float GINI_BASE   = 0.45;

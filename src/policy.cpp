@@ -181,9 +181,9 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
     // and add the butterfly history
     // to the raw logits
     for (const Node* node = firstChild; node != end; node++) {
-        const Move move = node->move.load();
+        const Move  move         = node->move.load();
         const float historyBonus = searcherData ? (searcherData->history.getEntry(board.stm, move) / BUTTERFLY_POLICY_DIVISOR) : 0;
-        const float score = policyScore(board.stm, accum, move) + historyBonus;
+        const float score        = policyScore(board.stm, accum, move) + historyBonus;
         scores.push_back(score);
         maxScore = std::max(score, maxScore);
     }

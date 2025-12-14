@@ -160,9 +160,7 @@ class FileWriter {
         }
     }
 
-    ~FileWriter() {
-        file.flush();
-    }
+    ~FileWriter() { file.flush(); }
 
     void setStartpos(const Board& board) { this->board = board; }
 

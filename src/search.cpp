@@ -163,7 +163,8 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, &searcherData, node, currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
+    fillPolicy(board, tree, &searcherData, node,
+               currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
 
     currentIndex += moves.length;
 }
@@ -252,7 +253,16 @@ void removeRefs(Tree& tree, Node& node) {
 
 // A recursive implementation of the MCTS algorithm
 // based on implementations from Monty and Jackal
-float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board& board, u64& currentIndex, u64& seldepth, RelaxedAtomic<u64>& cumulativeDepth, vector<u64>& posHistory, const SearchParameters& params, const usize ply) {
+float searchNode(Tree&                   tree,
+                 Node&                   node,
+                 SearcherData&           searcherData,
+                 const Board&            board,
+                 u64&                    currentIndex,
+                 u64&                    seldepth,
+                 RelaxedAtomic<u64>&     cumulativeDepth,
+                 vector<u64>&            posHistory,
+                 const SearchParameters& params,
+                 const usize             ply) {
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away
@@ -284,9 +294,9 @@ float searchNode(Tree& tree, Node& node, SearcherData& searcherData, const Board
 
         // Now that the children are either expanded or in the current half,
         // travel deeper into the tree
-        Node& bestChild = findBestChild(tree, node, params);
-        const Move m = bestChild.move.load();
-        Board newBoard  = board;
+        Node&      bestChild = findBestChild(tree, node, params);
+        const Move m         = bestChild.move.load();
+        Board      newBoard  = board;
         newBoard.move(m);
 
         posHistory.push_back(newBoard.zobrist);
@@ -367,7 +377,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     const auto printUCI = [&]() {
         const auto children = sortedChildren();
-        const u64 time = limits.commandTime.elapsed();
+        const u64  time     = limits.commandTime.elapsed();
 
         for (usize i = 1; i <= multiPV; i++) {
             const Node&    n  = children[i - 1];
@@ -394,9 +404,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     };
 
     const auto prettyPrint = [&]() {
-        const auto printStat = [&](const string& label, const auto& value, const string& suffix = "") {
-            cout << Colors::GREY << label << Colors::WHITE << value << suffix << "   \n";
-        };
+        const auto printStat = [&](const string& label, const auto& value, const string& suffix = "") { cout << Colors::GREY << label << Colors::WHITE << value << suffix << "   \n"; };
 
         const auto printBar = [&](const string& label, const float progress) {
             cout << Colors::GREY << label << Colors::WHITE;
@@ -404,9 +412,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << "  \n";
         };
 
-        const MoveList pv = findPV(tree);
-        const Node     root = tree.root();
-        const auto     children = sortedChildren();
+        const MoveList pv        = findPV(tree);
+        const Node     root      = tree.root();
+        const auto     children  = sortedChildren();
         const u64      elapsedMs = limits.commandTime.elapsed() + 1;
 
         cursor::goTo(1, 1);
@@ -414,9 +422,9 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         cout << rootPos.asString(pv[0]) << "\n";
 
         printStat(" Tree Size:    ", (tree.nodes[0].size() + tree.nodes[1].size() + 2) * sizeof(Node) / 1024 / 1024, "MB");
-        printBar( " Half Usage:   ", static_cast<float>(currentIndex) / tree.activeTree().size());
+        printBar(" Half Usage:   ", static_cast<float>(currentIndex) / tree.activeTree().size());
         printStat(" TT Size:      ", (tree.tt.size + 1) * sizeof(HashTableEntry) / 1024 / 1024, "MB");
-        printBar( " TT Usage:     ", tree.tt.hashfull());
+        printBar(" TT Usage:     ", tree.tt.hashfull());
         printStat(" Half Changes: ", formatNum(halfChanges));
         cout << "\n";
 
@@ -449,7 +457,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         }
         else {
             cursor::clear();
-            cout << Colors::GREY << "PV line: ";
+            cout << Colors::GREY << " PV line: ";
             printPV(pv);
             cout << "\n";
         }

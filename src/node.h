@@ -1,5 +1,7 @@
 #pragma once
 
+#include "constants.h"
+#include "move.h"
 #include "search.h"
 #include "ttable.h"
 

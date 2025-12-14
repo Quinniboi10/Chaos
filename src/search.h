@@ -1,8 +1,6 @@
 #pragma once
 
-#include "constants.h"
 #include "types.h"
-#include "move.h"
 #include "stopwatch.h"
 
 constexpr i32 MATE_SCORE = 32767;
@@ -27,8 +25,7 @@ struct SearchParameters {
     bool doUci;
     bool minimalUci;
 
-    SearchParameters(
-      const vector<u64>& posHistory, const bool doReporting, const bool doUci, const bool minimalUci) :
+    SearchParameters(const vector<u64>& posHistory, const bool doReporting, const bool doUci, const bool minimalUci) :
         posHistory(posHistory),
         doReporting(doReporting),
         doUci(doUci),

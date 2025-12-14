@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
         else if (args[1] == "bulk")
             Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
         else if (args[1] == "datagen") {
-            static std::atomic<bool> stopDatagen{false};
+            static std::atomic<bool> stopDatagen{ false };
             std::signal(SIGINT, [](int) { stopDatagen.store(true); });
 
             inDatagen = true;
