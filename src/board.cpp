@@ -201,20 +201,19 @@ void Board::fillZobristTable() {
     std::random_device rd;
     std::mt19937_64    engine(rd());
     engine.seed(69420);  // Nice
-    std::uniform_int_distribution<u64> dist(0, ~0ULL);
 
     for (auto& stm : PIECE_ZTABLE)
         for (auto& pt : stm)
             for (auto& piece : pt)
-                piece = dist(engine);
+                piece = engine();
 
     for (auto& ep : EP_ZTABLE)
-        ep = dist(engine);
+        ep = engine();
 
-    STM_ZHASH = dist(engine);
+    STM_ZHASH = engine();
 
     for (auto& right : CASTLING_ZTABLE)
-        right = dist(engine);
+        right = engine();
 
     EP_ZTABLE[NO_SQUARE] = 0;
 }
