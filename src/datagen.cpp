@@ -241,7 +241,7 @@ string makeFileName() {
     return "data-" + fmt::format("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday) + "-" + randomStr + ".chaosdata";
 }
 
-void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64>& positions, const atomic<bool>& stop) {
+void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64>& positions, atomic<u64>& games, const atomic<bool>& stop) {
     string filePath = "./data/" + makeFileName();
 
     if (!std::filesystem::is_directory("./data/"))
@@ -319,6 +319,7 @@ mainLoop:
             wdl = 2;
 
         fileWriter.writeGame(wdl);
+        games.fetch_add(1, std::memory_order_relaxed);
 
         if (localPositions >= datagen::POSITION_COUNT_BUFFER) {
             positions.fetch_add(localPositions, std::memory_order_relaxed);
@@ -357,6 +358,7 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
     vector<std::thread>                  threads;
     vector<atomic<bool>>                 running(threadCount);
     vector<atomic<u64>>                  positions(threadCount);
+    vector<atomic<u64>>                  games(threadCount);
     vector<Board>                        boards(threadCount);
     vector<std::mutex>                   boardMutexes(threadCount);
 
@@ -400,37 +402,51 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
 
     for (auto& p : positions)
         p.store(0, std::memory_order_relaxed);
+    for (auto& g : games)
+        g.store(0, std::memory_order_relaxed);
     for (auto& b : boards)
         b.reset();
 
     for (usize i = 0; i < threadCount; i++)
-        threads.emplace_back(runThread, nodes, std::ref(boards[i]), std::ref(boardMutexes[i]), std::ref(positions[i]), std::cref(stopFlag));
+        threads.emplace_back(runThread, nodes, std::ref(boards[i]), std::ref(boardMutexes[i]), std::ref(positions[i]), std::ref(games[i]), std::cref(stopFlag));
 
     cursor::hide();
 
     u64                  totalPositions = 0;
+    u64                  totalGames     = 0;
     RollingWindow<float> pastNPS(100);
+    RollingWindow<float> pastGPS(100);
 
     cursor::clearAll();
 
+    Board lastDisplayedBoard;
+    lastDisplayedBoard.reset();
+
     while (totalPositions < numPositions && !stopFlag.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
         boardMutexes[0].lock();
         Board board = boards[0];
         boardMutexes[0].unlock();
 
-        if (board.stm == BLACK)
-            continue;
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (board.stm == WHITE)
+            lastDisplayedBoard = board;
 
         totalPositions = 0;
-        for (usize i = 0; i < threadCount; i++)
+        totalGames     = 0;
+        for (usize i = 0; i < threadCount; i++) {
             totalPositions += positions[i].load();
+            totalGames += games[i].load();
+        }
 
         totalPositions = std::max<u64>(1, totalPositions);
+        totalGames     = std::max<u64>(1, totalGames);
 
         pastNPS.push(static_cast<double>(totalPositions) * 1000 / time.elapsed());
         const float nps = std::accumulate(pastNPS.begin(), pastNPS.end(), 0.0f) / pastNPS.size();
+
+        pastGPS.push(static_cast<double>(totalGames) * 1000 / time.elapsed());
+        const float gps = std::accumulate(pastGPS.begin(), pastGPS.end(), 0.0f) / pastGPS.size();
 
         std::ostringstream ss{};
 
@@ -452,7 +468,7 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
         }
         for (usize i = 0; i < 4; i++)
             cursor::up(ss);
-        ss << board << "\n";
+        ss << lastDisplayedBoard << "\n";
         ss << "\n";
         ss << "\n";
         progressBar(50, progress, Colors::GREEN, ss);
@@ -461,6 +477,10 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
         ss << Colors::GREY << "Positions:            " << Colors::RESET << suffixNum(totalPositions) << "\n";
         cursor::clear(ss);
         ss << Colors::GREY << "Positions per second: " << Colors::RESET << suffixNum(nps) << "\n";
+        cursor::clear(ss);
+        ss << Colors::GREY << "Games:                " << Colors::RESET << suffixNum(totalGames) << "\n";
+        cursor::clear(ss);
+        ss << Colors::GREY << "Games per second:     " << Colors::RESET << suffixNum(gps) << "\n";
         ss << "\n";
         cursor::clear(ss);
         ss << Colors::GREY << "Time elapsed:             " << Colors::RESET << formatTime(time.elapsed()) << "\n";
