@@ -49,11 +49,18 @@ SRCS     := $(wildcard ./src/*.cpp)
 SRCS     += ./external/fmt/format.cpp
 OBJS     := $(SRCS:.cpp=.o)
 
+# Net repo URL
+NET_BASE_URL := https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main
+
+# Net file names
+VALUEFILE  ?= $(DEFAULT_VALUE_NET)
+POLICYFILE ?= $(DEFAULT_POLICY_NET)
+
 # Default target
-all: downloadV downloadP $(EXE)
+all: $(EXE)
 
 # Build the objects
-%.o: %.cpp downloadV downloadP
+%.o: %.cpp $(VALUEFILE) $(POLICYFILE)
 	$(CXX) $(CXXFLAGS) $(ARCHFLAGS) $(GIT_HEAD_COMMIT_ID_DEF) -DVALUEFILE="\"$(VALUEFILE)\"" -DPOLICYFILE="\"$(POLICYFILE)\"" -c $< -o $@
 
 CXXFLAGS += -MMD -MP
@@ -64,13 +71,6 @@ DEPS := $(OBJS:.o=.d)
 $(EXE): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) $(LINKFLAGS) -o $@
 
-# Net repo URL
-NET_BASE_URL := https://git.nocturn9x.space/Quinniboi10/Chaos-Nets/raw/branch/main
-
-# Net file names
-VALUEFILE  ?= $(DEFAULT_VALUE_NET)
-POLICYFILE ?= $(DEFAULT_POLICY_NET)
-
 # Files for make clean
 CLEAN_STUFF := $(EXE) Chaos.exp Chaos.lib Chaos.pdb $(OBJS) $(DEPS) $(DEFAULT_POLICY_NET) $(DEFAULT_VALUE_NET)
 ifeq ($(OS),Windows_NT)
@@ -79,25 +79,20 @@ endif
 
 # Downlaod if the net is not specified
 ifeq ($(VALUEFILE),$(DEFAULT_VALUE_NET))
-downloadV: $(DEFAULT_VALUE_NET)
+$(VALUEFILE):
+	curl -L -o $@ $(NET_BASE_URL)/$@
 else
-downloadV:
+$(VALUEFILE):
 	@echo "VALUEFILE is set to '$(VALUEFILE)', skipping download."
 endif
 
 ifeq ($(POLICYFILE),$(DEFAULT_POLICY_NET))
-downloadP: $(DEFAULT_POLICY_NET)
+$(POLICYFILE):
+	curl -L -o $@ $(NET_BASE_URL)/$@
 else
-downloadP:
+$(POLICYFILE):
 	@echo "POLICYFILE is set to '$(POLICYFILE)', skipping download."
 endif
-
-# Rules to create the files if they don't exist
-$(DEFAULT_VALUE_NET):
-	curl -L -o $@ $(NET_BASE_URL)/$@
-
-$(DEFAULT_POLICY_NET):
-	curl -L -o $@ $(NET_BASE_URL)/$@
 
 # Release (static) build
 .PHONY: release
