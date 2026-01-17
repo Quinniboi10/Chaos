@@ -29,6 +29,10 @@ char Board::getPieceAt(int sq) const {
     return blackSymbols[getPiece(sq)];
 }
 
+usize Board::getMaterial() const {
+    return pieces(PAWN) * PIECE_VALUES[PAWN] + pieces(KNIGHT) * PIECE_VALUES[KNIGHT] + pieces(BISHOP) * PIECE_VALUES[BISHOP] + pieces(ROOK) * PIECE_VALUES[ROOK] + pieces(QUEEN) * PIECE_VALUES[QUEEN];
+}
+
 void Board::placePiece(Color c, PieceType pt, int sq) {
     assert(sq >= 0);
     assert(sq < 64);

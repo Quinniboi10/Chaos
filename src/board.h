@@ -6,8 +6,8 @@
 
 #include <vector>
 
-constexpr array<Square, 4> ROOK_CASTLE_END_SQ = { Square(d8), Square(f8), Square(d1), Square(f1) };
-constexpr array<Square, 4> KING_CASTLE_END_SQ = { Square(c8), Square(g8), Square(c1), Square(g1) };
+constexpr array ROOK_CASTLE_END_SQ = { d8, f8, d1, f1 };
+constexpr array KING_CASTLE_END_SQ = { c8, g8, c1, g1 };
 
 struct Board {
     // Index is based on square, returns the piece type
@@ -51,7 +51,7 @@ struct Board {
 
    public:
     static void fillZobristTable();
-    Square      castleSq(Color c, bool kingside) const { return castling[castleIndex(c, kingside)]; }
+    Square      castleSq(const Color c, const bool kingside) const { return castling[castleIndex(c, kingside)]; }
 
     u8 count(PieceType pt) const;
 
@@ -70,6 +70,8 @@ struct Board {
     string fen() const;
 
     char getPieceAt(int i) const;
+
+    usize getMaterial() const;
 
     PieceType getPiece(int sq) const;
     bool      isCapture(Move m) const;

@@ -165,7 +165,7 @@ float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, c
     return static_cast<float>(reduce_ep<i32>(outputAccumulator) + nn.outputBiases[idx]) / (Q_P * Q_P);
 }
 
-void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData, Node& parent, const float temperature) {
+void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData, Node& parent, const float initialTemp, const float endgameTemp) {
     const PolicyAccumulator accum(board);
 
     float maxScore = -std::numeric_limits<float>::infinity();
@@ -188,8 +188,12 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
         maxScore = std::max(score, maxScore);
     }
 
+    // Calculate the material phase
+    const float phase = board.getMaterial() / POLICY_MATERIAL_PHASE_DIVISOR;
+    const float adjustedTemp = std::lerp(initialTemp, endgameTemp, std::clamp(phase, 0.0f, 1.0f));
+
     // Exponentiate and sum
-    const float tempMult = 1 / temperature;
+    const float tempMult = 1 / adjustedTemp;
     for (float& score : scores) {
         score = std::exp((score - maxScore) * tempMult);
         sum += score;

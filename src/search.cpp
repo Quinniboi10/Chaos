@@ -163,8 +163,12 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, &searcherData, node,
-               currentIndex == 1 ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE));
+    const bool isRoot = currentIndex == 1;
+
+    const float mgTemp = isRoot ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE);
+    const float egTemp = isRoot ? (inDatagen ? datagen::EG_ROOT_POLICY_TEMPERATURE : EG_ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::EG_POLICY_TEMPERATURE : EG_POLICY_TEMPERATURE);
+
+    fillPolicy(board, tree, &searcherData, node, mgTemp, egTemp);
 
     currentIndex += moves.length;
 }
@@ -195,7 +199,7 @@ void expandNodeRaw(Tree& tree, const Board& board, Node& node, u64& currentIndex
         child[i].giniImpurity = 0;
     }
 
-    fillPolicy(board, tree, nullptr, node, 1);
+    fillPolicy(board, tree, nullptr, node, 1, 1);
 }
 
 // Copy children from the inactive half to the current one
