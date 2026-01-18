@@ -77,6 +77,11 @@ int main(int argc, char* argv[]) {
         }
         else if (args[1].substr(0, 7) == "genfens")
             datagen::genFens(args[1]);
+        else if (args[1] == "tune-config") {
+            #ifdef TUNE
+            printTuneOB();
+            #endif
+        }
 
         return 0;
     }

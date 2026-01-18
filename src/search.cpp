@@ -109,9 +109,9 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
-    float cpuct = node.move.load().isNull() ? (inDatagen ? datagen::ROOT_CPUCT : ROOT_CPUCT) : (inDatagen ? datagen::CPUCT : CPUCT);
-    cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192);
-    cpuct *= std::clamp<float>(GINI_BASE - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f), GINI_MIN, GINI_MAX);
+    float cpuct = node.move.load().isNull() ? (inDatagen ? datagen::ROOT_CPUCT : ROOT_CPUCT / 10'000.0f) : (inDatagen ? datagen::CPUCT : CPUCT / 10'000.0f);
+    cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192.0f);
+    cpuct *= std::clamp<float>(GINI_BASE / 10'000.0f - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f)  / 10'000.0f, GINI_MIN / 10'000.0f, GINI_MAX / 10'000.0f);
     return cpuct;
 }
 
@@ -165,8 +165,8 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
 
     const bool isRoot = currentIndex == 1;
 
-    const float mgTemp = isRoot ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE);
-    const float egTemp = isRoot ? (inDatagen ? datagen::EG_ROOT_POLICY_TEMPERATURE : EG_ROOT_POLICY_TEMPERATURE) : (inDatagen ? datagen::EG_POLICY_TEMPERATURE : EG_POLICY_TEMPERATURE);
+    const float mgTemp = isRoot ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE / 10'000.0f) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE / 10'000.0f);
+    const float egTemp = isRoot ? (inDatagen ? datagen::EG_ROOT_POLICY_TEMPERATURE : EG_ROOT_POLICY_TEMPERATURE / 10'000.0f) : (inDatagen ? datagen::EG_POLICY_TEMPERATURE : EG_POLICY_TEMPERATURE / 10'000.0f);
 
     fillPolicy(board, tree, &searcherData, node, mgTemp, egTemp);
 
