@@ -2,6 +2,8 @@
 
 #include "types.h"
 
+#define TUNE
+
 #ifdef TUNE
 struct IndividualOption {
     string name;
