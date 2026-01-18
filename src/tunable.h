@@ -12,6 +12,7 @@ constexpr float EVAL_DIVISOR               = 400;
 constexpr float CPUCT_VISIT_SCALE          = 8192;
 
 constexpr i32 POLICY_MATERIAL_PHASE_DIVISOR = 4500;
+constexpr i32 POLICY_EVAL_PHASE_DIVISOR     = 1500;
 
 constexpr i32   BUTTERFLY_BONUS_DIVISOR  = 8192;
 constexpr float BUTTERFLY_POLICY_DIVISOR = 16384;
