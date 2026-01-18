@@ -30,7 +30,7 @@ char Board::getPieceAt(int sq) const {
 }
 
 usize Board::getMaterial() const {
-    return pieces(PAWN) * PIECE_VALUES[PAWN] + pieces(KNIGHT) * PIECE_VALUES[KNIGHT] + pieces(BISHOP) * PIECE_VALUES[BISHOP] + pieces(ROOK) * PIECE_VALUES[ROOK] + pieces(QUEEN) * PIECE_VALUES[QUEEN];
+    return popcount(pieces(PAWN)) * PIECE_VALUES[PAWN] + popcount(pieces(KNIGHT)) * PIECE_VALUES[KNIGHT] + popcount(pieces(BISHOP)) * PIECE_VALUES[BISHOP] + popcount(pieces(ROOK)) * PIECE_VALUES[ROOK] + popcount(pieces(QUEEN)) * PIECE_VALUES[QUEEN];
 }
 
 void Board::placePiece(Color c, PieceType pt, int sq) {

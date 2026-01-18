@@ -189,8 +189,8 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
     }
 
     // Calculate the material phase
-    const float phase = board.getMaterial() / POLICY_MATERIAL_PHASE_DIVISOR;
-    const float adjustedTemp = std::lerp(initialTemp, endgameTemp, std::clamp(phase, 0.0f, 1.0f));
+    const float phase = 1.0f - std::clamp(board.getMaterial() / static_cast<float>(POLICY_MATERIAL_PHASE_DIVISOR), 0.0f, 1.0f);
+    const float adjustedTemp = std::lerp(initialTemp, endgameTemp, phase);
 
     // Exponentiate and sum
     const float tempMult = 1 / adjustedTemp;
