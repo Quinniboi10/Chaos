@@ -77,6 +77,11 @@ int main(int argc, char* argv[]) {
         }
         else if (args[1].substr(0, 7) == "genfens")
             datagen::genFens(args[1]);
+        else if (args[1] == "tune-config") {
+            #ifdef TUNE
+            printTuneOB();
+            #endif
+        }
 
         return 0;
     }
@@ -105,6 +110,9 @@ int main(int argc, char* argv[]) {
             cout << "option name MultiPV type spin default 1 min 1 max 255" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "option name SearchMode type string default full" << endl;
+            #ifdef TUNE
+            printTuneUCI();
+            #endif
             cout << "uciok" << endl;
         }
         else if (command == "ucinewgame") {
@@ -169,6 +177,10 @@ int main(int argc, char* argv[]) {
                 else
                     searcher.searchMode = FULL_SEARCH;
             }
+            #ifdef TUNE
+            else
+                setTunable(tokens[2], std::stoi(tokens[findIndexOf(tokens, "value") + 1]));
+            #endif
         }
         else if (command == "stop")
             searcher.stop();
