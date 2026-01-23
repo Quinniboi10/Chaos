@@ -105,7 +105,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore() : parentQ) + child.policy * parentScore / (v + 1);
+    return (v > 0 ? -child.getScore() : parentQ - FPU_SHARPNESS_MARGIN / 10'000.0f) + child.policy * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
