@@ -97,7 +97,7 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
 float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
 
 // Return the PUCT score of a node
-float puct(const float parentScore, const float parentQ, const Node& child) {
+float puct(const float parentScore, const float fpu, const Node& child) {
     // V + C * P * (N.max(1).sqrt() / (n + 1))
     // V = Q = total score / visits
     // C = CPUCT
@@ -105,7 +105,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore() : parentQ) + child.policy * parentScore / (v + 1);
+    return (v > 0 ? -child.getScore() : fpu) + child.policy * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
@@ -116,15 +116,18 @@ float computeCpuct(const Node& node, const SearchParameters& params) {
 }
 
 // Find the best child node from a parent
-Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params) {
+Node& findBestChild(Tree& tree, const Board& board, const Node& node, const SearchParameters& params) {
     const float cpuct       = computeCpuct(node, params);
     const float parentScore = parentPuct(node, cpuct);
-    const float parentQ     = node.getScore();
+
+    const HashTableEntry& entry = tree.tt.getEntry(board.zobrist);
+    const float fpu = entry.key == board.zobrist ? entry.q : node.getScore();
+
     Node*       bestChild   = &tree[node.firstChild];
     Node*       child       = bestChild;
-    float       bestScore   = puct(parentScore, parentQ, *child);
+    float       bestScore   = puct(parentScore, fpu, *child);
     for (usize idx = 1; idx < node.numChildren; idx++) {
-        const float score = puct(parentScore, parentQ, child[idx]);
+        const float score = puct(parentScore, fpu, child[idx]);
         if (score > bestScore) {
             bestScore = score;
             bestChild = child + idx;
@@ -298,7 +301,7 @@ float searchNode(Tree&                   tree,
 
         // Now that the children are either expanded or in the current half,
         // travel deeper into the tree
-        Node&      bestChild = findBestChild(tree, node, params);
+        Node&      bestChild = findBestChild(tree, board, node, params);
         const Move m         = bestChild.move.load();
         Board      newBoard  = board;
         newBoard.move(m);
