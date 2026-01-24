@@ -94,7 +94,7 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
 
 // ======================== SELECTION ========================
 // Return the parent portion of the PUCT score
-float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
+    float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::pow(static_cast<float>(parent.visits + 1), 10'000.0f / PUCT_PARENT_VISIT_EXP); }
 
 // Return the PUCT score of a node
 float puct(const float parentScore, const float parentQ, const Node& child) {
