@@ -356,11 +356,13 @@ void Movegen::perft(Board& board, usize depth, bool bulk) {
         cout << m << ": " << nodesThisMove << endl;
     }
 
-    u64 elapsedTime = stopwatch.elapsed();
+    const u64 elapsedTime = stopwatch.elapsed();
+    const u64 nps = nodes * 1000 / std::max<u64>(elapsedTime, 1);
 
     cout << "Total nodes: " << formatNum(nodes) << endl;
     cout << "Time spent (ms): " << elapsedTime << endl;
-    cout << "Nodes per second: " << formatNum(nodes * 1000 / std::max<u64>(elapsedTime, 1)) << endl;
+    cout << "Nodes per second: " << formatNum(nps) << endl;
+    cout << nodes << " nodes " << nps << " nps" << endl;
 }
 
 void Movegen::perftSuite(const string filePath) {
