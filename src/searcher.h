@@ -90,12 +90,12 @@ struct Searcher {
         };
 
         const auto childString = [&](const Node& node) {
-            return fmt::format(fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.3f} policy  {}"), node.firstChild.load().index(), node.move.load().toString(),
+            return fmt::format(fmt::runtime("{:>10}>  {:<6} {:>+7.2f} {:>10} visits {:>7.2f}% policy  {}"), node.firstChild.load().index(), node.move.load().toString(),
                                (node.state.load().state() == ONGOING || node.state.load().state() == DRAW ? wdlToCP(node.getScore())
                                 : node.state.load().state() == WIN                                        ? MATE_SCORE
                                                                                                           : -MATE_SCORE)
                                  / 100.0f,
-                               node.visits.load(), node.policy.load(), GAME_STATE_STR[node.state.load().state()]);
+                               node.visits.load(), node.policy.load() * 100, GAME_STATE_STR[node.state.load().state()]);
         };
 
         const auto printParents = [&]() {
