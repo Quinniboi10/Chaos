@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stacktrace>
 #include <iostream>
 #include <string_view>
 #include <vector>
@@ -26,11 +27,9 @@
 #endif
 
 #ifndef NDEBUG
-    #include <boost/stacktrace.hpp>
-    #undef assert
     #define assert(x) \
         if (!(x)) { \
-            std::cout << std::endl << std::endl << boost::stacktrace::stacktrace() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
+            std::cout << std::endl << std::endl << std::stacktrace::current() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
             std::terminate(); \
         }
 #else

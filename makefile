@@ -22,7 +22,7 @@ endif
 
 #Compiler and flags
 CXX      := clang++
-CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++20 -DNDEBUG
+CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++23 -DNDEBUG
 
 ifeq ($(OS),Windows_NT)
   ARCH := $(PROCESSOR_ARCHITECTURE)
@@ -112,7 +112,7 @@ debug: all
 
 # Debug build
 .PHONY: profile
-profile: CXXFLAGS = -O3 -g -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -DNDEBUG
+profile: CXXFLAGS = -O3 -g -fno-finite-math-only -funroll-loops -flto -std=c++23 -fno-omit-frame-pointer -DNDEBUG
 profile: all
 
 # Force rebuild
