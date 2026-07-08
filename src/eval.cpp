@@ -175,7 +175,7 @@ using Vectori32 = __m128i;
     #endif
 i32 ValueNN::vectorizedSCReLU(const ValueAccumulator& accum) const {
     constexpr usize VECTOR_SIZE = sizeof(Vectori16) / sizeof(i16);
-    static_assert(HL_SIZE_V % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
+    static_traced_assert(HL_SIZE_V % VECTOR_SIZE == 0, "HL size must be divisible by the native register size of your CPU for vectorization to work");
     const Vectori16 VEC_QA_V = set1_epi16(QA_V);
     const Vectori16 VEC_ZERO = set1_epi16(0);
 

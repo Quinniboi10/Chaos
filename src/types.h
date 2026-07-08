@@ -10,6 +10,8 @@
 #include <array>
 #include <bit>
 
+#include "assert.h"
+
 #if defined(_MSC_VER)
     #define ASSUME(cond) __assume(cond)
 #elif defined(__GNUC__) || defined(__clang__)
@@ -24,16 +26,6 @@
             if (!(cond)) \
                 *((int*) 0)(); \
         } while (0)
-#endif
-
-#ifndef NDEBUG
-    #define assert(x) \
-        if (!(x)) { \
-            std::cout << std::endl << std::endl << std::stacktrace::current() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
-            std::terminate(); \
-        }
-#else
-    #define assert(x) ;
 #endif
 
 using u64 = uint64_t;
@@ -166,7 +158,7 @@ class GameState {
 public:
     constexpr GameState() { underlying = 0; }
     constexpr GameState(const RawGameState state, const u16 distance = 0) {
-        assert(distance <= 0b0011111111111111);
+        traced_assert(distance <= 0b0011111111111111);
         underlying = state << 14 | distance;
     }
 
@@ -214,7 +206,7 @@ struct RollingWindow {
     explicit RollingWindow(const usize maxSize) : maxSize(maxSize) {}
 
     void push(const T& x) {
-        assert(maxSize > 0);
+        traced_assert(maxSize > 0);
         if (dq.size() == maxSize)
             dq.pop_front();
         dq.push_back(x);

@@ -43,7 +43,7 @@ namespace simd {
 
     template<typename Data, typename Output>
     inline Vector<Output> load_ep(const void* data) {
-        static_assert(sizeof(Data) <= sizeof(Output));
+        static_traced_assert(sizeof(Data) <= sizeof(Output));
         Output vals[VECTOR_SIZE<Output>];
 
         const Data* src = static_cast<const Data*>(data);

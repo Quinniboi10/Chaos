@@ -258,8 +258,8 @@ void Movegen::initializeAllDatabases() {
 }
 
 u64 Movegen::pawnAttackBB(Color c, int sq) {
-    assert(sq >= a1);
-    assert(sq < NO_SQUARE);
+    traced_assert(sq >= a1);
+    traced_assert(sq < NO_SQUARE);
 
     return pawnAttackBBs[c][sq];
 }
@@ -627,8 +627,8 @@ void Movegen::rookMoves(const Board& board, MoveList& moves) {
 void Movegen::kingMoves(const Board& board, MoveList& moves) {
     const Square kingSq = Square(ctzll(board.pieces(board.stm, KING)));
 
-    assert(kingSq >= a1);
-    assert(kingSq < NO_SQUARE);
+    traced_assert(kingSq >= a1);
+    traced_assert(kingSq < NO_SQUARE);
 
     u64 kingMoves = KING_ATTACKS[kingSq];
     kingMoves &= ~board.pieces(board.stm) & ~board.attacking[~board.stm];

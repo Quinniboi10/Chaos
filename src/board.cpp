@@ -18,8 +18,8 @@ array<u64, 16> CASTLING_ZTABLE;
 
 // Returns the piece on a square as a character
 char Board::getPieceAt(int sq) const {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
     if (getPiece(sq) == NO_PIECE_TYPE)
         return ' ';
     constexpr char whiteSymbols[] = {'P', 'N', 'B', 'R', 'Q', 'K'};
@@ -35,12 +35,12 @@ usize Board::getMaterial() const {
 }
 
 void Board::placePiece(Color c, PieceType pt, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[pt];
 
-    assert(!readBit(BB, sq));
+    traced_assert(!readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][pt][sq];
 
@@ -51,12 +51,12 @@ void Board::placePiece(Color c, PieceType pt, int sq) {
 }
 
 void Board::removePiece(Color c, PieceType pt, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[pt];
 
-    assert(readBit(BB, sq));
+    traced_assert(readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][pt][sq];
 
@@ -67,12 +67,12 @@ void Board::removePiece(Color c, PieceType pt, int sq) {
 }
 
 void Board::removePiece(Color c, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[getPiece(sq)];
 
-    assert(readBit(BB, sq));
+    traced_assert(readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][getPiece(sq)][sq];
 
@@ -428,8 +428,8 @@ string Board::fen() const {
 
 // Return the type of the piece on the square
 PieceType Board::getPiece(int sq) const {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
     return mailbox[sq];
 }
 
@@ -489,7 +489,7 @@ void Board::move(Move m) {
             placePiece(stm, pt, to);
             break;
         case CASTLE:
-            assert(getPiece(to) == ROOK);
+            traced_assert(getPiece(to) == ROOK);
             removePiece(stm, ROOK, to);
             if (stm == WHITE) {
                 if (from < to) {
@@ -517,8 +517,8 @@ void Board::move(Move m) {
             break;
     }
 
-    assert(popcount(pieces(WHITE, KING)) == 1);
-    assert(popcount(pieces(BLACK, KING)) == 1);
+    traced_assert(popcount(pieces(WHITE, KING)) == 1);
+    traced_assert(popcount(pieces(BLACK, KING)) == 1);
 
     if (pt == ROOK) {
         const Square sq = castleSq(stm, from > ctzll(pieces(stm, KING)));

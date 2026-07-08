@@ -149,7 +149,7 @@ usize moveIdx(const Color stm, const Move m) {
 
 float policyScore(const Color stm, const PolicyAccumulator& policyAccumulator, const Move m) {
     using namespace simd;
-    static_assert(HL_SIZE_P % VECTOR_SIZE<i16> == 0, "Policy HL size is not compatible with the size of this CPU's native register");
+    static_traced_assert(HL_SIZE_P % VECTOR_SIZE<i16> == 0, "Policy HL size is not compatible with the size of this CPU's native register");
 
     const usize idx = moveIdx(stm, m);
 

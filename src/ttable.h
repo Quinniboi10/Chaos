@@ -42,7 +42,7 @@ class TranspositionTable {
 
 
     void clear(const usize threadCount = 1) {
-        assert(threadCount > 0);
+        traced_assert(threadCount > 0);
 
         std::vector<std::thread> threads;
 
@@ -68,7 +68,7 @@ class TranspositionTable {
     }
 
     void reserve(const usize newSizeMiB) {
-        assert(newSizeMiB > 0);
+        traced_assert(newSizeMiB > 0);
         // Find number of bytes allowed
         size = newSizeMiB * 1024 * 1024 / sizeof(HashTableEntry);
         if (table != nullptr)

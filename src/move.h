@@ -45,7 +45,7 @@ class Move {
     }
 
     PieceType promo() const {
-        assert(typeOf() == PROMOTION);
+        traced_assert(typeOf() == PROMOTION);
         return PieceType(((move >> 12) & 0b11) + 1);
     }
 
@@ -72,7 +72,7 @@ struct MoveList {
     }
 
     void add(Move m) {
-        assert(length < 256);
+        traced_assert(length < 256);
         moves[length++] = m;
     }
 
@@ -100,7 +100,7 @@ struct MoveList {
         return std::find(begin(), end(), m) != end();
     }
     void remove(Move m) {
-        assert(has(m));
+        traced_assert(has(m));
         auto location = std::find(begin(), end(), m);
         if (location != end())
             *(location) = moves[--length];

@@ -18,7 +18,7 @@ struct ButterflyHistory {
     }
 
     void update(const Color stm, const Move m, float wdl) {
-        assert(std::isfinite(wdl));
+        traced_assert(std::isfinite(wdl));
 
         wdl          = std::clamp<float>(wdl, -0.9999, 0.9999);
         const i32 cp = wdlToCP(wdl);

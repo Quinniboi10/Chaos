@@ -54,7 +54,7 @@ struct Node {
 
     // Get the WDL of a node, adjusted for game end states
     float getScore() const {
-        assert(visits.load());
+        traced_assert(visits.load());
         return totalScore.load() / visits.load();
     }
 
@@ -132,12 +132,12 @@ class Tree {
     }
 
     const Node& operator[](const NodeIndex& idx) const {
-        assert(idx.index() < nodes[0].size());
+        traced_assert(idx.index() < nodes[0].size());
         return nodes[idx.half()][idx.index()];
     }
 
     Node& operator[](const NodeIndex& idx) {
-        assert(idx.index() < nodes[0].size());
+        traced_assert(idx.index() < nodes[0].size());
         return nodes[idx.half()][idx.index()];
     }
 };

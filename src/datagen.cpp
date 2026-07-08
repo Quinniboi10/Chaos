@@ -215,7 +215,7 @@ class FileWriter {
 
 void makeRandomMove(Board& board) {
     const MoveList moves = Movegen::generateMoves(board);
-    assert(moves.length > 0);
+    traced_assert(moves.length > 0);
 
     static std::random_device rd;
     static std::mt19937_64 engine(rd());
@@ -303,7 +303,7 @@ mainLoop:
             root             = Node();
             searcher.rootPos = board;
             const Move m     = searcher.search(params, limits);
-            assert(!m.isNull());
+            traced_assert(!m.isNull());
 
             if (isFirstMove && std::abs(wdlToCP(root.getScore())) > datagen::MAX_STARTPOS_SCORE)
                 goto mainLoop;

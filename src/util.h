@@ -40,7 +40,7 @@ inline bool readBit(const u64 bb, const int sq) {
 
 template<bool value>
 inline void setBit(auto& bitboard, const usize index) {
-    assert(index <= sizeof(bitboard) * 8);
+    traced_assert(index <= sizeof(bitboard) * 8);
     if constexpr (value)
         bitboard |= (1ULL << index);
     else
@@ -48,12 +48,12 @@ inline void setBit(auto& bitboard, const usize index) {
 }
 
 inline Square getLSB(const auto bb) {
-    assert(bb > 0);
+    traced_assert(bb > 0);
     return static_cast<Square>(ctzll(bb));
 }
 
 inline Square popLSB(auto& bb) {
-    assert(bb > 0);
+    traced_assert(bb > 0);
     const Square sq = getLSB(bb);
     bb &= bb - 1;
     return sq;
@@ -79,8 +79,8 @@ inline float cpToWDL(const int cp) {
     return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR));
 }
 inline i32 wdlToCP(const float wdl) {
-    assert(wdl > -1);
-    assert(wdl < 1);
+    traced_assert(wdl > -1);
+    traced_assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
 }
 
@@ -240,7 +240,7 @@ inline string suffixNum(double num) {
 
 // Parses human-readable numbers
 inline u64 parseSuffixedNum(string text) {
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     // Trim leading/trailing whitespace
     auto is_space = [](unsigned char c) { return std::isspace(c); };
@@ -249,7 +249,7 @@ inline u64 parseSuffixedNum(string text) {
     while (!text.empty() && is_space(text.back()))
         text.erase(text.size() - 1);
 
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     double multiplier = 1.0;
 
@@ -279,7 +279,7 @@ inline u64 parseSuffixedNum(string text) {
         }
     }
 
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     std::erase(text, ',');
 
