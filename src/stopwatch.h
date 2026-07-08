@@ -14,7 +14,9 @@ class Stopwatch {
     u64 pausedTime;
 
    public:
-    Stopwatch() { start(); }
+    Stopwatch() {
+        start();
+    }
 
     void start() {
         startTime  = std::chrono::high_resolution_clock::now();
@@ -22,7 +24,9 @@ class Stopwatch {
         paused     = false;
     }
 
-    void reset() { start(); }
+    void reset() {
+        start();
+    }
 
     u64 elapsed() const {
         u64 pausedTime = this->pausedTime;

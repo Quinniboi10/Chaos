@@ -17,17 +17,17 @@ using VisitDistribution = vector<std::pair<u16, u32>>;
 
 struct __attribute__((packed)) MontyFormatBoard {
     array<u64, 4> bbs;
-    u8            stm;
-    u8            epSquare;
-    u8            castleRights;
-    u8            halfMoveClock;
-    u16           fullMoveClock;
+    u8 stm;
+    u8 epSquare;
+    u8 castleRights;
+    u8 halfMoveClock;
+    u16 fullMoveClock;
 
     MontyFormatBoard() = default;
 
     MontyFormatBoard(const Board& board) {
-        const array<u64, 8> raw = { board.pieces(WHITE),  board.pieces(BLACK), board.pieces(PAWN),  board.pieces(KNIGHT),
-                                    board.pieces(BISHOP), board.pieces(ROOK),  board.pieces(QUEEN), board.pieces(KING) };
+        const array<u64, 8> raw = {board.pieces(WHITE),  board.pieces(BLACK), board.pieces(PAWN),  board.pieces(KNIGHT),
+                                   board.pieces(BISHOP), board.pieces(ROOK),  board.pieces(QUEEN), board.pieces(KING)};
 
         constexpr usize blackK = 0b1;
         constexpr usize blackQ = 0b10;
@@ -45,7 +45,7 @@ struct __attribute__((packed)) MontyFormatBoard {
         if (board.castling[castleIndex(BLACK, false)] != NO_SQUARE)
             flags |= blackQ;
 
-        bbs           = { raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6] };
+        bbs           = {raw[1], raw[5] ^ raw[6] ^ raw[7], raw[3] ^ raw[4] ^ raw[7], raw[2] ^ raw[4] ^ raw[6]};
         stm           = board.stm == WHITE ? 0 : 1;
         epSquare      = board.epSquare == NO_SQUARE ? 0 : board.epSquare;
         castleRights  = flags;
@@ -73,7 +73,7 @@ u16 asMontyMove(const Board& board, const Move m) {
     };
 
     const u16 from = m.from();
-    u16       to   = m.to();
+    u16 to         = m.to();
 
     MontyMoveType flag = QUIET;
     if (m.typeOf() == MoveType::CASTLE) {
@@ -86,20 +86,20 @@ u16 asMontyMove(const Board& board, const Move m) {
         const bool capture = board.isCapture(m);
 
         switch (m.promo()) {
-        case KNIGHT:
-            flag = capture ? PROMOC_K : PROMO_K;
-            break;
-        case BISHOP:
-            flag = capture ? PROMOC_B : PROMO_B;
-            break;
-        case ROOK:
-            flag = capture ? PROMOC_R : PROMO_R;
-            break;
-        case QUEEN:
-            flag = capture ? PROMOC_Q : PROMO_Q;
-            break;
-        default:
-            break;
+            case KNIGHT:
+                flag = capture ? PROMOC_K : PROMO_K;
+                break;
+            case BISHOP:
+                flag = capture ? PROMOC_B : PROMO_B;
+                break;
+            case ROOK:
+                flag = capture ? PROMOC_R : PROMO_R;
+                break;
+            case QUEEN:
+                flag = capture ? PROMOC_Q : PROMO_Q;
+                break;
+            default:
+                break;
         }
     }
     else if (board.isCapture(m))
@@ -111,13 +111,13 @@ u16 asMontyMove(const Board& board, const Move m) {
 }
 
 struct MontyFormatMove {
-    u16               bestMove;
-    double            rootQ;
+    u16 bestMove;
+    double rootQ;
     VisitDistribution visits;
 
     explicit MontyFormatMove(const Searcher& searcher, const Move m) {
-        const Node& root     = searcher.tree.root();
-        const u64   firstIdx = root.firstChild.load().index();
+        const Node& root   = searcher.tree.root();
+        const u64 firstIdx = root.firstChild.load().index();
 
         visits.reserve(root.numChildren);
 
@@ -126,7 +126,7 @@ struct MontyFormatMove {
 
         for (u64 idx = firstIdx; idx < firstIdx + root.numChildren; idx++) {
             const Node& node = searcher.tree.activeTree()[idx];
-            const u16   move = asMontyMove(searcher.rootPos, node.move);
+            const u16 move   = asMontyMove(searcher.rootPos, node.move);
 
             visits.emplace_back(move, node.visits);
         }
@@ -134,14 +134,18 @@ struct MontyFormatMove {
 };
 
 class FileWriter {
-    Board                   board;
+    Board board;
     vector<MontyFormatMove> moves;
 
     std::ofstream file;
 
-    void writeU8(const u8 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u8)); }
+    void writeU8(const u8 value) {
+        file.write(reinterpret_cast<const char*>(&value), sizeof(u8));
+    }
 
-    void writeU16(const u16 value) { file.write(reinterpret_cast<const char*>(&value), sizeof(u16)); }
+    void writeU16(const u16 value) {
+        file.write(reinterpret_cast<const char*>(&value), sizeof(u16));
+    }
 
     template<typename T>
     void write(const T& value) {
@@ -160,11 +164,17 @@ class FileWriter {
         }
     }
 
-    ~FileWriter() { file.flush(); }
+    ~FileWriter() {
+        file.flush();
+    }
 
-    void setStartpos(const Board& board) { this->board = board; }
+    void setStartpos(const Board& board) {
+        this->board = board;
+    }
 
-    void addMove(const Searcher& searcher, const Move m) { moves.emplace_back(searcher, m); }
+    void addMove(const Searcher& searcher, const Move m) {
+        moves.emplace_back(searcher, m);
+    }
 
     void writeGame(const usize wdl) {
         write(MontyFormatBoard(board));
@@ -207,8 +217,8 @@ void makeRandomMove(Board& board) {
     const MoveList moves = Movegen::generateMoves(board);
     assert(moves.length > 0);
 
-    static std::random_device          rd;
-    static std::mt19937_64             engine(rd());
+    static std::random_device rd;
+    static std::mt19937_64 engine(rd());
     std::uniform_int_distribution<int> dist(0, moves.length - 1);
 
     board.move(moves.moves[dist(engine)]);
@@ -251,15 +261,15 @@ void runThread(const u64 nodes, Board& board, std::mutex& boardMutex, atomic<u64
 
     Searcher searcher{};
 
-    std::random_device                 rd;
-    std::mt19937_64                    engine(rd());
+    std::random_device rd;
+    std::mt19937_64 engine(rd());
     std::uniform_int_distribution<int> dist(0, 1);
-    const auto                         randBool = [&]() { return dist(engine); };
+    const auto randBool = [&]() { return dist(engine); };
 
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<u64>                          posHistory;
-    const SearchParameters               params(posHistory, false, false, true);
-    const SearchLimits                   limits(stopwatch, false, 0, nodes, 0, 0, 0);
+    vector<u64> posHistory;
+    const SearchParameters params(posHistory, false, false, true);
+    const SearchLimits limits(stopwatch, false, 0, nodes, 0, 0, 0);
 
     usize localPositions = 0;
 
@@ -273,7 +283,7 @@ mainLoop:
         board.reset();
         lk.unlock();
 
-        posHistory = { board.zobrist };
+        posHistory = {board.zobrist};
 
         for (usize i = 0; i < randomMoves; i++) {
             lk.lock();
@@ -340,7 +350,7 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
     vector<string> tokens = split(params, ' ');
 
     const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
-        const auto  loc = std::ranges::find(tokens, value);
+        const auto loc  = std::ranges::find(tokens, value);
         const usize idx = std::distance(tokens.begin(), loc) + 1;
         if (loc == tokens.end() || idx >= tokens.size()) {
             std::ostringstream ss;
@@ -350,17 +360,17 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
         return tokens[idx];
     };
 
-    const usize threadCount  = parseSuffixedNum(getValueFollowing("threads", 1));
-    const u64   numPositions = parseSuffixedNum(getValueFollowing("positions", 100'000'000));
-    const u64   nodes        = parseSuffixedNum(getValueFollowing("nodes", 1'000));
+    const usize threadCount = parseSuffixedNum(getValueFollowing("threads", 1));
+    const u64 numPositions  = parseSuffixedNum(getValueFollowing("positions", 100'000'000));
+    const u64 nodes         = parseSuffixedNum(getValueFollowing("nodes", 1'000));
 
     Stopwatch<std::chrono::milliseconds> time;
-    vector<std::thread>                  threads;
-    vector<atomic<bool>>                 running(threadCount);
-    vector<atomic<u64>>                  positions(threadCount);
-    vector<atomic<u64>>                  games(threadCount);
-    vector<Board>                        boards(threadCount);
-    vector<std::mutex>                   boardMutexes(threadCount);
+    vector<std::thread> threads;
+    vector<atomic<bool>> running(threadCount);
+    vector<atomic<u64>> positions(threadCount);
+    vector<atomic<u64>> games(threadCount);
+    vector<Board> boards(threadCount);
+    vector<std::mutex> boardMutexes(threadCount);
 
     // Order in which to fill the changing text
     constexpr std::string_view finishedText = "Chaos Datagen Complete!";
@@ -370,7 +380,7 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
 
 
     std::random_device rd;
-    std::mt19937       rng{ rd() };
+    std::mt19937 rng{rd()};
 
     // Array storing the order in which to fill
     const array<u16, finishedText.size()> textFillOrder = [&] {
@@ -388,7 +398,7 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
         t = std::clamp(t, 0.0, 1.0);
 
         const double N = static_cast<double>(finishedText.size());
-        string       out;
+        string out;
         out.resize(finishedText.size());
 
         for (size_t i = 0; i < finishedText.size(); ++i) {
@@ -412,8 +422,8 @@ void datagen::run(const string& params, std::atomic<bool>& stopFlag) {
 
     cursor::hide();
 
-    u64                  totalPositions = 0;
-    u64                  totalGames     = 0;
+    u64 totalPositions = 0;
+    u64 totalGames     = 0;
     RollingWindow<float> pastNPS(100);
     RollingWindow<float> pastGPS(100);
 
@@ -526,7 +536,7 @@ void datagen::genFens(const string& params) {
     vector<string> tokens = split(params, ' ');
 
     const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
-        const auto  loc = std::find(tokens.begin(), tokens.end(), value);
+        const auto loc  = std::find(tokens.begin(), tokens.end(), value);
         const usize idx = std::distance(tokens.begin(), loc) + 1;
         if (loc == tokens.end() || idx >= tokens.size()) {
             std::ostringstream ss;
@@ -538,9 +548,9 @@ void datagen::genFens(const string& params) {
 
     const auto isValidPosition = [](const Board& board) {
         const Stopwatch<std::chrono::milliseconds> stopwatch;
-        vector<u64>                                posHistory;
-        const SearchParameters                     params(posHistory, false, false, true);
-        const SearchLimits                         limits(stopwatch, false, 0, datagen::GENFENS_VERIF_NODES, 0, 0, 0);
+        vector<u64> posHistory;
+        const SearchParameters params(posHistory, false, false, true);
+        const SearchLimits limits(stopwatch, false, 0, datagen::GENFENS_VERIF_NODES, 0, 0, 0);
 
         static Searcher searcher{};
         searcher.rootPos     = board;
@@ -553,21 +563,21 @@ void datagen::genFens(const string& params) {
     const u64 numFens = std::stoull(getValueFollowing("genfens", 1));
     const u64 seed    = std::stoull(getValueFollowing("seed", std::time(nullptr)));
 
-    std::mt19937                       eng(seed);
+    std::mt19937 eng(seed);
     std::uniform_int_distribution<int> dist(0, 1);
-    auto                               randBool = [&]() { return dist(eng); };
+    auto randBool = [&]() { return dist(eng); };
 
 
     vector<u64> posHistory;
-    u64         fens = 0;
+    u64 fens = 0;
     while (fens < numFens) {
 startLoop:
         Board board;
         board.reset();
-        posHistory              = { board.zobrist };
+        posHistory              = {board.zobrist};
         const usize randomMoves = datagen::RAND_MOVES + randBool();
         for (usize i = 0; i < randomMoves; i++) {
-            MoveList                           moves = Movegen::generateMoves(board);
+            MoveList moves = Movegen::generateMoves(board);
             std::uniform_int_distribution<int> dist(0, moves.length - 1);
             board.move(moves.moves[dist(eng)]);
             posHistory.push_back(board.zobrist);

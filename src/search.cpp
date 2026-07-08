@@ -46,7 +46,7 @@ Move findPvMove(const Tree& tree, const Node& node) {
     const Node* child = &tree[node.firstChild.load()];
 
     float bestScore = -getAdjustedScore(*child);
-    Move  bestMove  = child->move;
+    Move bestMove   = child->move;
     for (usize idx = 1; idx < node.numChildren; idx++) {
         const float score = -getAdjustedScore(child[idx]);
         if (score > bestScore) {
@@ -72,10 +72,10 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
     }
 
     while (node->numChildren != 0) {
-        const NodeIndex startIdx  = node->firstChild.load();
-        const Node*     child     = &tree[startIdx];
-        const Node*     bestChild = child;
-        float           bestScore = -getAdjustedScore(*child);
+        const NodeIndex startIdx = node->firstChild.load();
+        const Node* child        = &tree[startIdx];
+        const Node* bestChild    = child;
+        float bestScore          = -getAdjustedScore(*child);
         for (usize idx = 1; idx < node->numChildren; idx++) {
             const float score = -getAdjustedScore(child[idx]);
             if (score > bestScore) {
@@ -94,7 +94,9 @@ MoveList findPV(const Tree& tree, const Node* initialNode = nullptr) {
 
 // ======================== SELECTION ========================
 // Return the parent portion of the PUCT score
-float parentPuct(const Node& parent, const float cpuct) { return cpuct * std::sqrt(static_cast<float>(parent.visits + 1)); }
+float parentPuct(const Node& parent, const float cpuct) {
+    return cpuct * std::sqrt(static_cast<float>(parent.visits + 1));
+}
 
 // Return the PUCT score of a node
 float puct(const float parentScore, const float parentQ, const Node& child) {
@@ -111,7 +113,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
 float computeCpuct(const Node& node, const SearchParameters& params) {
     float cpuct = node.move.load().isNull() ? (inDatagen ? datagen::ROOT_CPUCT : ROOT_CPUCT / 10'000.0f) : (inDatagen ? datagen::CPUCT : CPUCT / 10'000.0f);
     cpuct *= 1.0f + std::log((node.visits.load() + CPUCT_VISIT_SCALE) / 8192.0f);
-    cpuct *= std::clamp<float>(GINI_BASE / 10'000.0f - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f)  / 10'000.0f, GINI_MIN / 10'000.0f, GINI_MAX / 10'000.0f);
+    cpuct *= std::clamp<float>(GINI_BASE / 10'000.0f - GINI_SCALAR * std::log(node.giniImpurity.load() + 0.001f) / 10'000.0f, GINI_MIN / 10'000.0f, GINI_MAX / 10'000.0f);
     return cpuct;
 }
 
@@ -120,9 +122,9 @@ Node& findBestChild(Tree& tree, const Node& node, const SearchParameters& params
     const float cpuct       = computeCpuct(node, params);
     const float parentScore = parentPuct(node, cpuct);
     const float parentQ     = node.getScore();
-    Node*       bestChild   = &tree[node.firstChild];
-    Node*       child       = bestChild;
-    float       bestScore   = puct(parentScore, parentQ, *child);
+    Node* bestChild         = &tree[node.firstChild];
+    Node* child             = bestChild;
+    float bestScore         = puct(parentScore, parentQ, *child);
     for (usize idx = 1; idx < node.numChildren; idx++) {
         const float score = puct(parentScore, parentQ, child[idx]);
         if (score > bestScore) {
@@ -149,7 +151,7 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
         return;
     }
 
-    node.firstChild  = { currentIndex, tree.activeHalf() };
+    node.firstChild  = {currentIndex, tree.activeHalf()};
     node.numChildren = moves.length;
 
     Node* child = &tree.activeTree()[currentIndex];
@@ -166,7 +168,8 @@ void expandNode(Tree& tree, const SearcherData& searcherData, const Board& board
     const bool isRoot = currentIndex == 1;
 
     const float mgTemp = isRoot ? (inDatagen ? datagen::ROOT_POLICY_TEMPERATURE : ROOT_POLICY_TEMPERATURE / 10'000.0f) : (inDatagen ? datagen::POLICY_TEMPERATURE : POLICY_TEMPERATURE / 10'000.0f);
-    const float egTemp = isRoot ? (inDatagen ? datagen::EG_ROOT_POLICY_TEMPERATURE : EG_ROOT_POLICY_TEMPERATURE / 10'000.0f) : (inDatagen ? datagen::EG_POLICY_TEMPERATURE : EG_POLICY_TEMPERATURE / 10'000.0f);
+    const float egTemp =
+      isRoot ? (inDatagen ? datagen::EG_ROOT_POLICY_TEMPERATURE : EG_ROOT_POLICY_TEMPERATURE / 10'000.0f) : (inDatagen ? datagen::EG_POLICY_TEMPERATURE : EG_POLICY_TEMPERATURE / 10'000.0f);
 
     fillPolicy(board, tree, &searcherData, node, mgTemp, egTemp);
 
@@ -185,7 +188,7 @@ void expandNodeRaw(Tree& tree, const Board& board, Node& node, u64& currentIndex
         return;
     }
 
-    node.firstChild  = { currentIndex, tree.activeHalf() };
+    node.firstChild  = {currentIndex, tree.activeHalf()};
     node.numChildren = moves.length;
 
     Node* child = &tree.activeTree()[currentIndex];
@@ -212,12 +215,12 @@ void copyChildren(Tree& tree, Node& node, u64& currentIndex) {
     }
 
     const Node* oldChild = &tree[node.firstChild.load()];
-    Node*       newChild = &tree.activeTree()[currentIndex];
+    Node* newChild       = &tree.activeTree()[currentIndex];
 
     for (usize i = 0; i < numChildren; i++)
         newChild[i] = oldChild[i];
 
-    node.firstChild.store({ currentIndex, tree.activeHalf() });
+    node.firstChild.store({currentIndex, tree.activeHalf()});
 
     currentIndex += node.numChildren;
 }
@@ -257,16 +260,16 @@ void removeRefs(Tree& tree, Node& node) {
 
 // A recursive implementation of the MCTS algorithm
 // based on implementations from Monty and Jackal
-float searchNode(Tree&                   tree,
-                 Node&                   node,
-                 SearcherData&           searcherData,
-                 const Board&            board,
-                 u64&                    currentIndex,
-                 u64&                    seldepth,
-                 RelaxedAtomic<u64>&     cumulativeDepth,
-                 vector<u64>&            posHistory,
+float searchNode(Tree& tree,
+                 Node& node,
+                 SearcherData& searcherData,
+                 const Board& board,
+                 u64& currentIndex,
+                 u64& seldepth,
+                 RelaxedAtomic<u64>& cumulativeDepth,
+                 vector<u64>& posHistory,
                  const SearchParameters& params,
-                 const usize             ply) {
+                 const usize ply) {
     float score;
 
     // If the node is terminal (W/D/L) then return the score right away
@@ -280,7 +283,7 @@ float searchNode(Tree&                   tree,
     }
     else {
         const bool inCurrentHalf = node.firstChild.load().half() == tree.activeHalf();
-        const u8   numChildren   = node.numChildren.load();
+        const u8 numChildren     = node.numChildren.load();
 
         // If the node has no children, expand it
         if (numChildren == 0)
@@ -298,9 +301,9 @@ float searchNode(Tree&                   tree,
 
         // Now that the children are either expanded or in the current half,
         // travel deeper into the tree
-        Node&      bestChild = findBestChild(tree, node, params);
-        const Move m         = bestChild.move.load();
-        Board      newBoard  = board;
+        Node& bestChild = findBestChild(tree, node, params);
+        const Move m    = bestChild.move.load();
+        Board newBoard  = board;
         newBoard.move(m);
 
         posHistory.push_back(newBoard.zobrist);
@@ -336,10 +339,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     nodeCount     = 0;
     stopSearching = false;
 
-    u64   currentIndex = 1;
-    u64   iterations   = 0;
-    u64   halfChanges  = 0;
-    usize seldepth     = 0;
+    u64 currentIndex = 1;
+    u64 iterations   = 0;
+    u64 halfChanges  = 0;
+    usize seldepth   = 0;
 
     const usize multiPV = std::min(::multiPV, Movegen::generateMoves(rootPos).length);
 
@@ -361,16 +364,16 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     // Intervals to report on
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    RollingWindow<std::pair<u64, Move>>  bestMoves(std::max<int>(getTerminalRows() - 29 - multiPV, 1));
-    usize                                lastDepth    = 0;
-    usize                                lastSeldepth = 0;
-    Move                                 lastMove     = Move::null();
+    RollingWindow<std::pair<u64, Move>> bestMoves(std::max<int>(getTerminalRows() - 29 - multiPV, 1));
+    usize lastDepth    = 0;
+    usize lastSeldepth = 0;
+    Move lastMove      = Move::null();
 
     const auto sortedChildren = [&]() {
         vector<Node> children;
-        const Node   root  = tree.root();
-        const Node*  child = &tree[root.firstChild];
-        const Node*  end   = child + root.numChildren;
+        const Node root   = tree.root();
+        const Node* child = &tree[root.firstChild];
+        const Node* end   = child + root.numChildren;
         children.reserve(root.numChildren);
         for (const Node* idx = child; idx != end; idx++)
             children.push_back(*idx);
@@ -381,10 +384,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
 
     const auto printUCI = [&]() {
         const auto children = sortedChildren();
-        const u64  time     = limits.commandTime.elapsed();
+        const u64 time      = limits.commandTime.elapsed();
 
         for (usize i = 1; i <= multiPV; i++) {
-            const Node&    n  = children[i - 1];
+            const Node& n     = children[i - 1];
             const MoveList pv = findPV(tree, &n);
 
             cout << "info depth " << cumulativeDepth / iterations;
@@ -416,10 +419,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << "  \n";
         };
 
-        const MoveList pv        = findPV(tree);
-        const Node     root      = tree.root();
-        const auto     children  = sortedChildren();
-        const u64      elapsedMs = limits.commandTime.elapsed() + 1;
+        const MoveList pv   = findPV(tree);
+        const Node root     = tree.root();
+        const auto children = sortedChildren();
+        const u64 elapsedMs = limits.commandTime.elapsed() + 1;
 
         cursor::goTo(1, 1);
 
@@ -452,7 +455,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         if (multiPV > 1) {
             for (usize i = 1; i <= multiPV; i++) {
                 cursor::clear();
-                const Node&    n  = children[i - 1];
+                const Node& n     = children[i - 1];
                 const MoveList pv = findPV(tree, &n);
                 cout << Colors::GREY << fmt::format(" PV {}: ", i);
                 printPV(pv);
@@ -522,7 +525,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             else if (!params.doUci && (iterations == 2 || stopwatch.elapsed() >= 40)) {
                 const Move bestMove = findPvMove(tree, tree.root());
                 if (bestMove != lastMove)
-                    bestMoves.push({ limits.commandTime.elapsed(), bestMove });
+                    bestMoves.push({limits.commandTime.elapsed(), bestMove});
                 prettyPrint();
 
                 lastDepth    = cumulativeDepth / iterations;
@@ -567,7 +570,7 @@ Move Searcher::searchPolicy(const SearchParameters params) {
 
     fillRootPolicy(rootPos);
 
-    const Node  root  = tree.root();
+    const Node root   = tree.root();
     const Node* child = &tree[root.firstChild];
     const Node* end   = child + root.numChildren;
 
@@ -586,12 +589,12 @@ Move Searcher::searchPolicy(const SearchParameters params) {
 Move Searcher::searchValue(const SearchParameters params) {
     struct MoveEvalPair {
         Move move;
-        i32  eval;
+        i32 eval;
 
         MoveEvalPair() = default;
         MoveEvalPair(const Move move, const i32 eval) :
             move(move),
-            eval(eval){};
+            eval(eval) { };
     };
 
     vector<MoveEvalPair> moves;

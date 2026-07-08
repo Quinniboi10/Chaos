@@ -81,10 +81,12 @@ enum SearchMode {
     FULL_SEARCH
 };
 
-constexpr array<std::string_view, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW", "WIN" };
+constexpr array<std::string_view, 4> GAME_STATE_STR = {"ONGOING", "LOSS", "DRAW", "WIN"};
 
 //Inverts the color (WHITE -> BLACK) and (BLACK -> WHITE)
-constexpr Color operator~(Color c) { return Color(c ^ 1); }
+constexpr Color operator~(Color c) {
+    return Color(c ^ 1);
+}
 
 enum PieceType : int {
     PAWN,

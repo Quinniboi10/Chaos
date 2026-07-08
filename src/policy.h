@@ -4,7 +4,7 @@
 #include "searcher.h"
 
 // ************ POLICY NETWORK CONFIG ************
-constexpr i16   Q_P       = 128;
+constexpr i16 Q_P         = 128;
 constexpr usize HL_SIZE_P = 2048;
 
 constexpr int ACTIVATION_P = CReLU;

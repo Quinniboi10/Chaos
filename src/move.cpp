@@ -12,18 +12,18 @@ Move::Move(string strIn, Board& board) {
     // Move must be promotion
     if (strIn.size() > 4) {
         switch (strIn.at(4)) {
-        case 'q':
-            *this = Move(from, to, QUEEN);
-            return;
-        case 'r':
-            *this = Move(from, to, ROOK);
-            return;
-        case 'b':
-            *this = Move(from, to, BISHOP);
-            return;
-        default:
-            *this = Move(from, to, KNIGHT);
-            return;
+            case 'q':
+                *this = Move(from, to, QUEEN);
+                return;
+            case 'r':
+                *this = Move(from, to, ROOK);
+                return;
+            case 'b':
+                *this = Move(from, to, BISHOP);
+                return;
+            default:
+                *this = Move(from, to, KNIGHT);
+                return;
         }
     }
 
@@ -60,20 +60,20 @@ string Move::toString() const {
         return moveStr;
 
     switch (promo()) {
-    case KNIGHT:
-        moveStr += 'n';
-        break;
-    case BISHOP:
-        moveStr += 'b';
-        break;
-    case ROOK:
-        moveStr += 'r';
-        break;
-    case QUEEN:
-        moveStr += 'q';
-        break;
-    default:
-        break;
+        case KNIGHT:
+            moveStr += 'n';
+            break;
+        case BISHOP:
+            moveStr += 'b';
+            break;
+        case ROOK:
+            moveStr += 'r';
+            break;
+        case QUEEN:
+            moveStr += 'q';
+            break;
+        default:
+            break;
     }
 
     return moveStr;
