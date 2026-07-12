@@ -69,7 +69,7 @@ inline u64 shift(const int dir, const u64 bb) {
 }
 
 inline float sigmoid(const float x) {
-    return 2 / (1 + std::exp(-x)) - 1;
+    return 2 / (1 + std::pow(std::numbers::e, -x)) - 1;
 }
 inline float inverseSigmoid(const float x) {
     return std::log((1 + x) / (1 - x));
