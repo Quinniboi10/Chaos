@@ -107,7 +107,7 @@ float puct(const float parentScore, const float parentQ, const Node& child) {
     // N = parent visits
     // n = child visits
     const u64 v = child.visits.load();
-    return (v > 0 ? -child.getScore() : parentQ - FPU_SHARPNESS_MARGIN / 10'000.0f) + child.policy * parentScore / (v + 1);
+    return (v > 0 ? -child.totalScore.load() / v : parentQ - FPU_SHARPNESS_MARGIN / 10'000.0f) + child.policy * parentScore / (v + 1);
 }
 
 float computeCpuct(const Node& node, const SearchParameters& params) {
@@ -305,6 +305,7 @@ float searchNode(Tree& tree,
         const Move m    = bestChild.move.load();
         Board newBoard  = board;
         newBoard.move(m);
+        tree.tt.prefetch(newBoard.zobrist);
 
         posHistory.push_back(newBoard.zobrist);
         score = -searchNode(tree, bestChild, searcherData, newBoard, currentIndex, seldepth, cumulativeDepth, posHistory, params, ply + 1);
