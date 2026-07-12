@@ -354,7 +354,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
         if (limits.mate && tree.root().state.load().state() != ONGOING)
             return true;
         const u64 nodeCount = this->nodeCount.load();
-        if (this->stopSearching.load() || (timeToSpend != 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend))
+        if (this->stopSearching.load() || (timeToSpend != 0 && iterations % 1024 == 0 && static_cast<i64>(limits.commandTime.elapsed()) >= timeToSpend))
             return true;
         return (limits.nodes > 0 && nodeCount >= limits.nodes) || (limits.depth > 0 && cumulativeDepth / iterations >= limits.depth);
     };
@@ -397,7 +397,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
             cout << " hswitches " << halfChanges;
             cout << " multipv " << i;
             if (n.state.load().state() == ONGOING || n.state.load().state() == DRAW)
-                cout << " score cp " << wdlToCP(-n.getScore());
+                cout << " score cp " << wdlToCP(-getAdjustedScore(n));
             else
                 cout << " score mate " << (n.state.load().distance() + 1) / 2 * (n.state.load().state() == WIN ? 1 : -1);
             cout << " pv";
@@ -487,9 +487,10 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
     }
 
     // Main search loop
+    vector<u64> posHistory;
     do {
         // Reset zobrist history
-        vector<u64> posHistory = params.posHistory;
+        posHistory = params.posHistory;
 
         searchNode(tree, tree.root(), *searcherData, rootPos, currentIndex, seldepth, cumulativeDepth, posHistory, params, 0);
 
@@ -531,7 +532,7 @@ Move Searcher::search(const SearchParameters params, const SearchLimits limits) 
                 stopwatch.reset();
             }
         }
-        if (iterations % 1024)
+        if (iterations % 1024 == 0)
             currentMove = findPvMove(tree, tree.root());
     } while (!stopSearching());
 

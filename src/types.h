@@ -87,7 +87,7 @@ constexpr array<std::string_view, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW
 //Inverts the color (WHITE -> BLACK) and (BLACK -> WHITE)
 constexpr Color operator~(Color c) { return Color(c ^ 1); }
 
-enum PieceType : int {
+enum PieceType : u8 {
     PAWN,
     KNIGHT,
     BISHOP,

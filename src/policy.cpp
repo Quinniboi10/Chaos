@@ -171,8 +171,7 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
     float maxScore = -std::numeric_limits<float>::infinity();
     float sum      = 0;
 
-    vector<float> scores;
-    scores.reserve(parent.numChildren);
+    array<float, 256> scores;
 
     Node*       firstChild = &tree[parent.firstChild.load()];
     const Node* end        = firstChild + parent.numChildren.load();
@@ -184,7 +183,7 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
         const Move  move         = node->move.load();
         const float historyBonus = searcherData ? (static_cast<float>(searcherData->history.getEntry(board.stm, move)) / BUTTERFLY_POLICY_DIVISOR) : 0;
         const float score        = policyScore(board.stm, accum, move) + historyBonus;
-        scores.push_back(score);
+        scores[node - firstChild] = score;
         maxScore = std::max(score, maxScore);
     }
 
@@ -194,16 +193,16 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
 
     // Exponentiate and sum
     const float tempMult = 1 / adjustedTemp;
-    for (float& score : scores) {
-        score = std::exp((score - maxScore) * tempMult);
-        sum += score;
+    for (usize idx = 0; idx < parent.numChildren; idx++) {
+        scores[idx] = std::exp((scores[idx] - maxScore) * tempMult);
+        sum += scores[idx];
     }
 
     float sumOfSquares = 0;
 
     // Normalize
     const float sumMult = 1 / sum;
-    for (usize idx = 0; idx < scores.size(); idx++) {
+    for (usize idx = 0; idx < parent.numChildren; idx++) {
         const float score = scores[idx] * sumMult;
         (firstChild + idx)->policy.store(score);
 

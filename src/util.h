@@ -64,7 +64,7 @@ inline u64 shift(const u64 bb) {
 
 inline u64 shift(const int dir, const u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
 
-inline float sigmoid(const float x) { return 2 / (1 + std::pow(std::numbers::e, -x)) - 1; }
+inline float sigmoid(const float x) { return 2 / (1 + std::exp(-x)) - 1; }
 inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
 
 inline float cpToWDL(const int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }

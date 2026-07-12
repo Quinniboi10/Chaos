@@ -41,8 +41,8 @@ class TranspositionTable {
     }
 
 
-    void clear(const usize threadCount = 1) {
-        assert(threadCount > 0);
+    void clear(usize threadCount = 1) {
+        threadCount = std::max<usize>(1, threadCount);
 
         std::vector<std::thread> threads;
 
