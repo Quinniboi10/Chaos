@@ -15,7 +15,8 @@ struct Coordinate {
     Coordinate() = default;
     Coordinate(int x, int y) :
         x(x),
-        y(y) {}
+        y(y) {
+    }
 };
 
     #include <ncursesw/ncurses.h>
@@ -43,8 +44,8 @@ void printTuiBoard(const Board& board, const Move bestMove, const Square from, c
     for (i32 r = 0; r < 8; r++) {
         mvaddwstr(r + 1, 0, L"│");
         for (int f = 0; f < 8; f++) {
-            const auto sq    = static_cast<Square>((board.stm == WHITE ? 7 - r : r) * 8 + f);
-            wchar_t    piece = board.getPieceAt(sq);
+            const auto sq = static_cast<Square>((board.stm == WHITE ? 7 - r : r) * 8 + f);
+            wchar_t piece = board.getPieceAt(sq);
 
             int color = ((1ULL << sq) & board.pieces(WHITE)) ? 1 : 2;
             if (sq == from || sq == to)
@@ -99,9 +100,9 @@ void launchTui() {
 
     // Set up searcher
     Stopwatch<std::chrono::milliseconds> stopwatch;
-    vector<u64>                          posHistory;
-    const SearchParameters               params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, false, false, true);
-    const SearchLimits                   limits(stopwatch, 0, 0, 0, 0);
+    vector<u64> posHistory;
+    const SearchParameters params(posHistory, ROOT_CPUCT, CPUCT, ROOT_POLICY_TEMPERATURE, POLICY_TEMPERATURE, false, false, true);
+    const SearchLimits limits(stopwatch, 0, 0, 0, 0);
 
     Searcher searcher{};
     searcher.setHash(256);
@@ -124,7 +125,7 @@ void launchTui() {
     };
 
     while (true) {
-        const Rank   cursorRank       = static_cast<Rank>(cursorPos.y);
+        const Rank cursorRank         = static_cast<Rank>(cursorPos.y);
         const Square cursorSq         = cursorLoc == CursorLocation::BOARD ? flipRank(toSquare(cursorRank, static_cast<File>(cursorPos.x))) : NO_SQUARE;
         const Square relativeCursorSq = board.stm == WHITE ? cursorSq : flipRank(cursorSq);
 
@@ -160,7 +161,7 @@ void launchTui() {
                     fromSq = relativeCursorSq;
                 else {
                     const Square toSq = relativeCursorSq;
-                    const Move   m(squareToAlgebraic(fromSq) + squareToAlgebraic(toSq), board);
+                    const Move m(squareToAlgebraic(fromSq) + squareToAlgebraic(toSq), board);
 
                     if (moves.has(m)) {
                         board.move(m);

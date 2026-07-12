@@ -6,8 +6,8 @@
 
 #include <vector>
 
-constexpr array ROOK_CASTLE_END_SQ = { d8, f8, d1, f1 };
-constexpr array KING_CASTLE_END_SQ = { c8, g8, c1, g1 };
+constexpr array ROOK_CASTLE_END_SQ = {d8, f8, d1, f1};
+constexpr array KING_CASTLE_END_SQ = {c8, g8, c1, g1};
 
 struct Board {
     // Index is based on square, returns the piece type
@@ -19,10 +19,10 @@ struct Board {
     // Board zobrist hash
     u64 zobrist;
 
-    bool          doubleCheck;
-    u64           checkMask;
-    u64           pinned;
-    u64           checkers;
+    bool doubleCheck;
+    u64 checkMask;
+    u64 pinned;
+    u64 checkers;
     array<u64, 2> attacking;
     array<u64, 2> pinnersPerC;
 
@@ -51,7 +51,9 @@ struct Board {
 
    public:
     static void fillZobristTable();
-    Square      castleSq(const Color c, const bool kingside) const { return castling[castleIndex(c, kingside)]; }
+    Square castleSq(const Color c, const bool kingside) const {
+        return castling[castleIndex(c, kingside)];
+    }
 
     u8 count(PieceType pt) const;
 
@@ -66,7 +68,7 @@ struct Board {
 
     void reset();
 
-    void   loadFromFEN(string fen);
+    void loadFromFEN(string fen);
     string fen() const;
 
     char getPieceAt(int i) const;
@@ -74,8 +76,8 @@ struct Board {
     usize getMaterial() const;
 
     PieceType getPiece(int sq) const;
-    bool      isCapture(Move m) const;
-    bool      isQuiet(Move m) const;
+    bool isCapture(Move m) const;
+    bool isQuiet(Move m) const;
 
     void move(Move m);
     void move(string str);

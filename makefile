@@ -22,7 +22,7 @@ endif
 
 #Compiler and flags
 CXX      := clang++
-CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++20 -DNDEBUG
+CXXFLAGS := -O3 -fno-finite-math-only -funroll-loops -flto -std=c++23 -DNDEBUG
 
 ifeq ($(OS),Windows_NT)
   ARCH := $(PROCESSOR_ARCHITECTURE)
@@ -107,12 +107,12 @@ tui: all
 
 # Debug build
 .PHONY: debug
-debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -rdynamic -DBOOST_STACKTRACE_USE_ADDR2LINE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -Wall -Wextra
+debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -D_CRT_SECURE_NO_WARNINGS -Wall -Wextra
 debug: all
 
 # Debug build
 .PHONY: profile
-profile: CXXFLAGS = -O3 -g -fno-finite-math-only -funroll-loops -flto -std=c++20 -fno-omit-frame-pointer -DNDEBUG
+profile: CXXFLAGS = -O3 -g -fno-finite-math-only -funroll-loops -flto -std=c++23 -fno-omit-frame-pointer -DNDEBUG
 profile: all
 
 # Force rebuild

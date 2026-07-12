@@ -18,8 +18,8 @@
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
 
-bool  chess960    = false;
-bool  inDatagen   = false;
+bool chess960     = false;
+bool inDatagen    = false;
 usize multiPV     = 1;
 usize threadCount = 1;
 
@@ -32,10 +32,10 @@ int main(int argc, char* argv[]) {
     Movegen::initializeAllDatabases();
     initPolicy();
 
-    Board    board{};
+    Board board{};
     Searcher searcher{};
 
-    string         command;
+    string command;
     vector<string> tokens;
 
     vector<u64> posHistory;
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
         else if (args[1] == "bulk")
             Movegen::perft(board, argc > 2 ? std::stoi(argv[2]) : 6, true);
         else if (args[1] == "datagen") {
-            static std::atomic<bool> stopDatagen{ false };
+            static std::atomic<bool> stopDatagen{false};
             std::signal(SIGINT, [](int) { stopDatagen.store(true); });
 
             inDatagen = true;
@@ -79,9 +79,9 @@ int main(int argc, char* argv[]) {
         else if (args[1].substr(0, 7) == "genfens")
             datagen::genFens(args[1]);
         else if (args[1] == "tune-config") {
-            #ifdef TUNE
+#ifdef TUNE
             printTuneOB();
-            #endif
+#endif
         }
 
         return 0;
@@ -111,15 +111,15 @@ int main(int argc, char* argv[]) {
             cout << "option name MultiPV type spin default 1 min 1 max 255" << endl;
             cout << "option name UCI_Chess960 type check default false" << endl;
             cout << "option name SearchMode type string default full" << endl;
-            #ifdef TUNE
+#ifdef TUNE
             printTuneUCI();
-            #endif
+#endif
             cout << "uciok" << endl;
         }
         else if (command == "ucinewgame") {
             searcher.reset();
             board.reset();
-            posHistory = { board.zobrist };
+            posHistory = {board.zobrist};
         }
         else if (command == "isready")
             cout << "readyok" << endl;
@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
             else if (tokens[1] == "fen")
                 board.loadFromFEN(command.substr(13));
 
-            posHistory = { board.zobrist };
+            posHistory = {board.zobrist};
 
             if (const i32 idx = findIndexOf(tokens, "moves"); idx != -1) {
                 for (i32 mIdx = idx + 1; mIdx < tokens.size(); mIdx++) {
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
         }
         else if (tokens[0] == "go") {
             const usize depth = getValueFollowing("depth", 0);
-            const u64   nodes = exists("nodes") ? parseSuffixedNum(tokens[index("nodes") + 1]) : 0;
+            const u64 nodes   = exists("nodes") ? parseSuffixedNum(tokens[index("nodes") + 1]) : 0;
 
             const i64 mtime = getValueFollowing("movetime", 0);
             const i64 wtime = getValueFollowing("wtime", 0);
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
             const i64 inc  = board.stm == WHITE ? winc : binc;
 
             const SearchParameters params(posHistory, true, doUci, uciMinimal);
-            const SearchLimits     limits(commandTime, mate, depth, nodes, mtime, time, inc);
+            const SearchLimits limits(commandTime, mate, depth, nodes, mtime, time, inc);
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
@@ -180,10 +180,10 @@ int main(int argc, char* argv[]) {
                 else
                     searcher.searchMode = FULL_SEARCH;
             }
-            #ifdef TUNE
+#ifdef TUNE
             else
                 setTunable(tokens[2], std::stoi(tokens[findIndexOf(tokens, "value") + 1]));
-            #endif
+#endif
         }
         else if (command == "stop")
             searcher.stop();

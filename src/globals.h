@@ -2,8 +2,8 @@
 
 #include "types.h"
 
-extern bool  chess960;
-extern bool  inDatagen;
+extern bool chess960;
+extern bool inDatagen;
 extern usize multiPV;
 extern usize threadCount;
 

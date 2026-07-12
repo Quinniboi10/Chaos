@@ -7,8 +7,8 @@
 #include <cstring>
 
 struct HashTableEntry {
-    u64   key;
-    u64   visits;
+    u64 key;
+    u64 visits;
     float q;
 
     HashTableEntry() {
@@ -68,7 +68,7 @@ class TranspositionTable {
     }
 
     void reserve(const usize newSizeMiB) {
-        assert(newSizeMiB > 0);
+        traced_assert(newSizeMiB > 0);
         // Find number of bytes allowed
         size = newSizeMiB * 1024 * 1024 / sizeof(HashTableEntry);
         if (table != nullptr)
@@ -76,11 +76,17 @@ class TranspositionTable {
         table = static_cast<HashTableEntry*>(std::malloc(size * sizeof(HashTableEntry)));
     }
 
-    u64 index(const u64 key) const { return static_cast<u64>((static_cast<u128>(key) * static_cast<u128>(size)) >> 64); }
+    u64 index(const u64 key) const {
+        return static_cast<u64>((static_cast<u128>(key) * static_cast<u128>(size)) >> 64);
+    }
 
-    void prefetch(const u64 key) const { __builtin_prefetch(&this->getEntry(key)); }
+    void prefetch(const u64 key) const {
+        __builtin_prefetch(&this->getEntry(key));
+    }
 
-    HashTableEntry& getEntry(const u64 key) const { return table[index(key)]; }
+    HashTableEntry& getEntry(const u64 key) const {
+        return table[index(key)];
+    }
 
     void update(const u64 key, const u64 visits, const double q) {
         HashTableEntry& entry = getEntry(key);
@@ -90,7 +96,7 @@ class TranspositionTable {
 
     float hashfull() const {
         const usize samples = std::min<u64>(1000, size);
-        usize       hits    = 0;
+        usize hits          = 0;
         for (usize sample = 0; sample < samples; sample++)
             hits += table[sample].key != 0;
         return static_cast<float>(hits) / samples;

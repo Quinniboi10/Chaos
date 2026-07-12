@@ -18,28 +18,29 @@ array<u64, 16> CASTLING_ZTABLE;
 
 // Returns the piece on a square as a character
 char Board::getPieceAt(int sq) const {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
     if (getPiece(sq) == NO_PIECE_TYPE)
         return ' ';
-    constexpr char whiteSymbols[] = { 'P', 'N', 'B', 'R', 'Q', 'K' };
-    constexpr char blackSymbols[] = { 'p', 'n', 'b', 'r', 'q', 'k' };
+    constexpr char whiteSymbols[] = {'P', 'N', 'B', 'R', 'Q', 'K'};
+    constexpr char blackSymbols[] = {'p', 'n', 'b', 'r', 'q', 'k'};
     if (((1ULL << sq) & byColor[WHITE]) != 0)
         return whiteSymbols[getPiece(sq)];
     return blackSymbols[getPiece(sq)];
 }
 
 usize Board::getMaterial() const {
-    return popcount(pieces(PAWN)) * PAWN_VALUE + popcount(pieces(KNIGHT)) * KNIGHT_VALUE + popcount(pieces(BISHOP)) * BISHOP_VALUE + popcount(pieces(ROOK)) * ROOK_VALUE + popcount(pieces(QUEEN)) * QUEEN_VALUE;
+    return popcount(pieces(PAWN)) * PAWN_VALUE + popcount(pieces(KNIGHT)) * KNIGHT_VALUE + popcount(pieces(BISHOP)) * BISHOP_VALUE + popcount(pieces(ROOK)) * ROOK_VALUE
+         + popcount(pieces(QUEEN)) * QUEEN_VALUE;
 }
 
 void Board::placePiece(Color c, PieceType pt, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[pt];
 
-    assert(!readBit(BB, sq));
+    traced_assert(!readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][pt][sq];
 
@@ -50,12 +51,12 @@ void Board::placePiece(Color c, PieceType pt, int sq) {
 }
 
 void Board::removePiece(Color c, PieceType pt, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[pt];
 
-    assert(readBit(BB, sq));
+    traced_assert(readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][pt][sq];
 
@@ -66,12 +67,12 @@ void Board::removePiece(Color c, PieceType pt, int sq) {
 }
 
 void Board::removePiece(Color c, int sq) {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
 
     auto& BB = byPieces[getPiece(sq)];
 
-    assert(readBit(BB, sq));
+    traced_assert(readBit(BB, sq));
 
     zobrist ^= PIECE_ZTABLE[c][getPiece(sq)][sq];
 
@@ -84,8 +85,8 @@ void Board::removePiece(Color c, int sq) {
 void Board::resetMailbox() {
     mailbox.fill(NO_PIECE_TYPE);
     for (u8 i = 0; i < 64; i++) {
-        PieceType& sq   = mailbox[i];
-        u64        mask = 1ULL << i;
+        PieceType& sq = mailbox[i];
+        u64 mask      = 1ULL << i;
         if (mask & pieces(PAWN))
             sq = PAWN;
         else if (mask & pieces(KNIGHT))
@@ -127,7 +128,7 @@ void Board::updateCheckPinAttack() {
     attacking[stm]  = Movegen::getAttacks(stm, *this);
     attacking[~stm] = Movegen::getAttacks(~stm, *this);
 
-    const u64    kingBB = pieces(stm, KING);
+    const u64 kingBB    = pieces(stm, KING);
     const Square kingSq = getLSB(kingBB);
 
     const u64 ourPieces         = pieces(stm);
@@ -139,7 +140,7 @@ void Board::updateCheckPinAttack() {
     // *** BISHOP ROOK QUEEN ATTACKS ***
     const u64 rookChecks   = Movegen::getRookAttacks(Square(kingSq), occ) & enemyRookQueens;
     const u64 bishopChecks = Movegen::getBishopAttacks(Square(kingSq), occ) & enemyBishopQueens;
-    u64       checks       = rookChecks | bishopChecks;
+    u64 checks             = rookChecks | bishopChecks;
 
     // *** KNIGHT ATTACKS ***
     const u64 knightAttacks = Movegen::KNIGHT_ATTACKS[kingSq] & pieces(~stm, KNIGHT);
@@ -169,7 +170,7 @@ void Board::updateCheckPinAttack() {
     // ****** PIN STUFF HERE ******
     const u64 rookXrays   = Movegen::getXrayRookAttacks(Square(kingSq), pieces(), ourPieces) & enemyRookQueens;
     const u64 bishopXrays = Movegen::getXrayBishopAttacks(Square(kingSq), pieces(), ourPieces) & enemyBishopQueens;
-    u64       pinners     = rookXrays | bishopXrays;
+    u64 pinners           = rookXrays | bishopXrays;
     pinnersPerC[stm]      = pinners;
 
     pinned = 0;
@@ -177,9 +178,13 @@ void Board::updateCheckPinAttack() {
         pinned |= LINESEG[popLSB(pinners)][kingSq] & ourPieces;
 }
 
-void Board::setCastlingRights(Color c, Square sq, bool value) { castling[castleIndex(c, ctzll(pieces(c, KING)) < sq)] = (value == false ? NO_SQUARE : sq); }
+void Board::setCastlingRights(Color c, Square sq, bool value) {
+    castling[castleIndex(c, ctzll(pieces(c, KING)) < sq)] = (value == false ? NO_SQUARE : sq);
+}
 
-void Board::unsetCastlingRights(Color c) { castling[castleIndex(c, true)] = castling[castleIndex(c, false)] = NO_SQUARE; }
+void Board::unsetCastlingRights(Color c) {
+    castling[castleIndex(c, true)] = castling[castleIndex(c, false)] = NO_SQUARE;
+}
 
 u64 Board::hashCastling() const {
     constexpr usize blackQ = 0b1;
@@ -203,7 +208,7 @@ u64 Board::hashCastling() const {
 
 void Board::fillZobristTable() {
     std::random_device rd;
-    std::mt19937_64    engine(rd());
+    std::mt19937_64 engine(rd());
     engine.seed(69420);  // Nice
 
     for (auto& stm : PIECE_ZTABLE)
@@ -222,14 +227,28 @@ void Board::fillZobristTable() {
     EP_ZTABLE[NO_SQUARE] = 0;
 }
 
-u8 Board::count(PieceType pt) const { return popcount(pieces(pt)); }
+u8 Board::count(PieceType pt) const {
+    return popcount(pieces(pt));
+}
 
-u64 Board::pieces() const { return byColor[WHITE] | byColor[BLACK]; }
-u64 Board::pieces(Color c) const { return byColor[c]; }
-u64 Board::pieces(PieceType pt) const { return byPieces[pt]; }
-u64 Board::pieces(Color c, PieceType pt) const { return byPieces[pt] & byColor[c]; }
-u64 Board::pieces(PieceType pt1, PieceType pt2) const { return byPieces[pt1] | byPieces[pt2]; }
-u64 Board::pieces(Color c, PieceType pt1, PieceType pt2) const { return (byPieces[pt1] | byPieces[pt2]) & byColor[c]; }
+u64 Board::pieces() const {
+    return byColor[WHITE] | byColor[BLACK];
+}
+u64 Board::pieces(Color c) const {
+    return byColor[c];
+}
+u64 Board::pieces(PieceType pt) const {
+    return byPieces[pt];
+}
+u64 Board::pieces(Color c, PieceType pt) const {
+    return byPieces[pt] & byColor[c];
+}
+u64 Board::pieces(PieceType pt1, PieceType pt2) const {
+    return byPieces[pt1] | byPieces[pt2];
+}
+u64 Board::pieces(Color c, PieceType pt1, PieceType pt2) const {
+    return (byPieces[pt1] | byPieces[pt2]) & byColor[c];
+}
 
 u64 Board::attackersTo(Square sq, u64 occ) const {
     return (Movegen::getRookAttacks(sq, occ) & pieces(ROOK, QUEEN)) | (Movegen::getBishopAttacks(sq, occ) & pieces(BISHOP, QUEEN)) | (Movegen::pawnAttackBB(WHITE, sq) & pieces(BLACK, PAWN))
@@ -256,7 +275,7 @@ void Board::reset() {
 
 
     stm      = WHITE;
-    castling = { a8, h8, a1, h1 };
+    castling = {a8, h8, a1, h1};
 
     epSquare = NO_SQUARE;
 
@@ -282,8 +301,8 @@ void Board::loadFromFEN(string fen) {
 
     int currIdx = 56;
 
-    const char whitePieces[6] = { 'P', 'N', 'B', 'R', 'Q', 'K' };
-    const char blackPieces[6] = { 'p', 'n', 'b', 'r', 'q', 'k' };
+    const char whitePieces[6] = {'P', 'N', 'B', 'R', 'Q', 'K'};
+    const char blackPieces[6] = {'p', 'n', 'b', 'r', 'q', 'k'};
 
     for (const string& rank : rankTokens) {
         for (const char c : rank) {
@@ -359,7 +378,7 @@ string Board::fen() const {
     for (i32 rank = 7; rank >= 0; rank--) {
         usize empty = 0;
         for (usize file = 0; file < 8; file++) {
-            i32  sq = rank * 8 + file;
+            i32 sq  = rank * 8 + file;
             char pc = getPieceAt(sq);
             if (pc == ' ')
                 empty++;
@@ -409,8 +428,8 @@ string Board::fen() const {
 
 // Return the type of the piece on the square
 PieceType Board::getPiece(int sq) const {
-    assert(sq >= 0);
-    assert(sq < 64);
+    traced_assert(sq >= 0);
+    traced_assert(sq < 64);
     return mailbox[sq];
 }
 
@@ -418,12 +437,18 @@ PieceType Board::getPiece(int sq) const {
 // Move is a capture of any kind
 // Move is a queen promotion
 // Move is a knight promotion
-bool Board::isQuiet(Move m) const { return !isCapture(m) && (m.typeOf() != PROMOTION || m.promo() != QUEEN); }
+bool Board::isQuiet(Move m) const {
+    return !isCapture(m) && (m.typeOf() != PROMOTION || m.promo() != QUEEN);
+}
 
-bool Board::isCapture(Move m) const { return ((1ULL << m.to() & pieces(~stm)) || m.typeOf() == EN_PASSANT); }
+bool Board::isCapture(Move m) const {
+    return ((1ULL << m.to() & pieces(~stm)) || m.typeOf() == EN_PASSANT);
+}
 
 // Make a move from a string
-void Board::move(string str) { move(Move(str, *this)); }
+void Board::move(string str) {
+    move(Move(str, *this));
+}
 
 // Make a move
 void Board::move(Move m) {
@@ -431,9 +456,9 @@ void Board::move(Move m) {
     zobrist ^= EP_ZTABLE[epSquare];
 
     epSquare       = NO_SQUARE;
-    Square    from = m.from();
-    Square    to   = m.to();
-    MoveType  mt   = m.typeOf();
+    Square from    = m.from();
+    Square to      = m.to();
+    MoveType mt    = m.typeOf();
     PieceType pt   = getPiece(from);
     PieceType toPT = NO_PIECE_TYPE;
 
@@ -453,47 +478,47 @@ void Board::move(Move m) {
     }
 
     switch (mt) {
-    case STANDARD_MOVE:
-        placePiece(stm, pt, to);
-        if (pt == PAWN && (to + 16 == from || to - 16 == from)
-            && (pieces(~stm, PAWN) & (shift<EAST>((1ULL << to) & ~MASK_FILE[FILE_H]) | shift<WEST>((1ULL << to) & ~MASK_FILE[FILE_A]))))  // Only set EP square if it could be taken
-            epSquare = Square(stm == WHITE ? from + NORTH : from + SOUTH);
-        break;
-    case EN_PASSANT:
-        removePiece(~stm, PAWN, to + (stm == WHITE ? SOUTH : NORTH));
-        placePiece(stm, pt, to);
-        break;
-    case CASTLE:
-        assert(getPiece(to) == ROOK);
-        removePiece(stm, ROOK, to);
-        if (stm == WHITE) {
-            if (from < to) {
-                placePiece(stm, KING, g1);
-                placePiece(stm, ROOK, f1);
+        case STANDARD_MOVE:
+            placePiece(stm, pt, to);
+            if (pt == PAWN && (to + 16 == from || to - 16 == from)
+                && (pieces(~stm, PAWN) & (shift<EAST>((1ULL << to) & ~MASK_FILE[FILE_H]) | shift<WEST>((1ULL << to) & ~MASK_FILE[FILE_A]))))  // Only set EP square if it could be taken
+                epSquare = Square(stm == WHITE ? from + NORTH : from + SOUTH);
+            break;
+        case EN_PASSANT:
+            removePiece(~stm, PAWN, to + (stm == WHITE ? SOUTH : NORTH));
+            placePiece(stm, pt, to);
+            break;
+        case CASTLE:
+            traced_assert(getPiece(to) == ROOK);
+            removePiece(stm, ROOK, to);
+            if (stm == WHITE) {
+                if (from < to) {
+                    placePiece(stm, KING, g1);
+                    placePiece(stm, ROOK, f1);
+                }
+                else {
+                    placePiece(stm, KING, c1);
+                    placePiece(stm, ROOK, d1);
+                }
             }
             else {
-                placePiece(stm, KING, c1);
-                placePiece(stm, ROOK, d1);
+                if (from < to) {
+                    placePiece(stm, KING, g8);
+                    placePiece(stm, ROOK, f8);
+                }
+                else {
+                    placePiece(stm, KING, c8);
+                    placePiece(stm, ROOK, d8);
+                }
             }
-        }
-        else {
-            if (from < to) {
-                placePiece(stm, KING, g8);
-                placePiece(stm, ROOK, f8);
-            }
-            else {
-                placePiece(stm, KING, c8);
-                placePiece(stm, ROOK, d8);
-            }
-        }
-        break;
-    case PROMOTION:
-        placePiece(stm, m.promo(), to);
-        break;
+            break;
+        case PROMOTION:
+            placePiece(stm, m.promo(), to);
+            break;
     }
 
-    assert(popcount(pieces(WHITE, KING)) == 1);
-    assert(popcount(pieces(BLACK, KING)) == 1);
+    traced_assert(popcount(pieces(WHITE, KING)) == 1);
+    traced_assert(popcount(pieces(BLACK, KING)) == 1);
 
     if (pt == ROOK) {
         const Square sq = castleSq(stm, from > ctzll(pieces(stm, KING)));
@@ -519,13 +544,23 @@ void Board::move(Move m) {
     updateCheckPinAttack();
 }
 
-bool Board::canCastle(Color c) const { return castleSq(c, true) != NO_SQUARE || castleSq(c, false) != NO_SQUARE; }
-bool Board::canCastle(Color c, bool kingside) const { return castleSq(c, kingside) != NO_SQUARE; }
+bool Board::canCastle(Color c) const {
+    return castleSq(c, true) != NO_SQUARE || castleSq(c, false) != NO_SQUARE;
+}
+bool Board::canCastle(Color c, bool kingside) const {
+    return castleSq(c, kingside) != NO_SQUARE;
+}
 
-bool Board::inCheck() const { return checkers != 0; }
-bool Board::inCheck(Color c) const { return attacking[~c] & pieces(c, KING); }
+bool Board::inCheck() const {
+    return checkers != 0;
+}
+bool Board::inCheck(Color c) const {
+    return attacking[~c] & pieces(c, KING);
+}
 
-bool Board::isUnderAttack(Color c, Square square) const { return attacking[~c] & (1ULL << square); }
+bool Board::isUnderAttack(Color c, Square square) const {
+    return attacking[~c] & (1ULL << square);
+}
 
 
 bool Board::isDraw(const vector<u64>& posHistory) const {
@@ -545,7 +580,7 @@ bool Board::isDraw(const vector<u64>& posHistory) const {
 
     // Threefold
     if (!posHistory.empty()) {
-        usize     reps    = 0;
+        usize reps        = 0;
         const u64 current = posHistory.back();
 
         for (const u64 hash : posHistory)
@@ -566,7 +601,7 @@ bool Board::isGameOver(const vector<u64>& posHistory) const {
 
 std::string Board::asString(const Move m) const {
     std::ostringstream os;
-    const auto         printInfo = [&](const usize line) {
+    const auto printInfo = [&](const usize line) {
         std::ostringstream ss;
         if (line == 1)
             ss << "FEN: " << fen();

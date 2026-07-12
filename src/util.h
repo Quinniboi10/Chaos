@@ -34,11 +34,13 @@
 
 #define ctzll(x) std::countr_zero(x)
 
-inline bool readBit(const u64 bb, const int sq) { return (1ULL << sq) & bb; }
+inline bool readBit(const u64 bb, const int sq) {
+    return (1ULL << sq) & bb;
+}
 
 template<bool value>
 inline void setBit(auto& bitboard, const usize index) {
-    assert(index <= sizeof(bitboard) * 8);
+    traced_assert(index <= sizeof(bitboard) * 8);
     if constexpr (value)
         bitboard |= (1ULL << index);
     else
@@ -46,12 +48,12 @@ inline void setBit(auto& bitboard, const usize index) {
 }
 
 inline Square getLSB(const auto bb) {
-    assert(bb > 0);
+    traced_assert(bb > 0);
     return static_cast<Square>(ctzll(bb));
 }
 
 inline Square popLSB(auto& bb) {
-    assert(bb > 0);
+    traced_assert(bb > 0);
     const Square sq = getLSB(bb);
     bb &= bb - 1;
     return sq;
@@ -62,15 +64,23 @@ inline u64 shift(const u64 bb) {
     return dir > 0 ? bb << dir : bb >> -dir;
 }
 
-inline u64 shift(const int dir, const u64 bb) { return dir > 0 ? bb << dir : bb >> -dir; }
+inline u64 shift(const int dir, const u64 bb) {
+    return dir > 0 ? bb << dir : bb >> -dir;
+}
 
-inline float sigmoid(const float x) { return 2 / (1 + std::exp(-x)) - 1; }
-inline float inverseSigmoid(const float x) { return std::log((1 + x) / (1 - x)); }
+inline float sigmoid(const float x) {
+    return 2 / (1 + std::exp(-x)) - 1;
+}
+inline float inverseSigmoid(const float x) {
+    return std::log((1 + x) / (1 - x));
+}
 
-inline float cpToWDL(const int cp) { return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR)); }
-inline i32   wdlToCP(const float wdl) {
-    assert(wdl > -1);
-    assert(wdl < 1);
+inline float cpToWDL(const int cp) {
+    return sigmoid((static_cast<float>(cp) / EVAL_DIVISOR));
+}
+inline i32 wdlToCP(const float wdl) {
+    traced_assert(wdl > -1);
+    traced_assert(wdl < 1);
     return inverseSigmoid(wdl) * EVAL_DIVISOR;
 }
 
@@ -97,7 +107,7 @@ inline IntType readLittleEndian(std::istream& stream) {
     if (IS_LITTLE_ENDIAN)
         stream.read(reinterpret_cast<char*>(&result), sizeof(IntType));
     else {
-        std::uint8_t                  u[sizeof(IntType)];
+        std::uint8_t u[sizeof(IntType)];
         std::make_unsigned_t<IntType> v = 0;
 
         stream.read(reinterpret_cast<char*>(u), sizeof(IntType));
@@ -122,21 +132,37 @@ inline void deepFill(std::array<T, N>& arr, const U& value) {
     }
 }
 
-constexpr Rank rankOf(const Square s) { return static_cast<Rank>(s >> 3); }
-constexpr File fileOf(const Square s) { return static_cast<File>(s & 0b111); }
+constexpr Rank rankOf(const Square s) {
+    return static_cast<Rank>(s >> 3);
+}
+constexpr File fileOf(const Square s) {
+    return static_cast<File>(s & 0b111);
+}
 
-constexpr Square flipRank(const Square s) { return static_cast<Square>(s ^ 0b111000); }
-constexpr Square flipFile(const Square s) { return static_cast<Square>(s ^ 0b000111); }
+constexpr Square flipRank(const Square s) {
+    return static_cast<Square>(s ^ 0b111000);
+}
+constexpr Square flipFile(const Square s) {
+    return static_cast<Square>(s ^ 0b000111);
+}
 
-constexpr Square toSquare(const Rank rank, const File file) { return static_cast<Square>((static_cast<int>(rank) << 3) | file); }
+constexpr Square toSquare(const Rank rank, const File file) {
+    return static_cast<Square>((static_cast<int>(rank) << 3) | file);
+}
 
 // Takes square (h8) and converts it into a bitboard index (64)
-constexpr Square parseSquare(const std::string_view square) { return static_cast<Square>((square.at(1) - '1') * 8 + (square.at(0) - 'a')); }
+constexpr Square parseSquare(const std::string_view square) {
+    return static_cast<Square>((square.at(1) - '1') * 8 + (square.at(0) - 'a'));
+}
 
 // Takes a square (64) and converts into algebraic notation (h8)
-inline string squareToAlgebraic(const int sq) { return fmt::format("{}{}", static_cast<char>('a' + (sq % 8)), static_cast<char>('1' + (sq / 8))); }
+inline string squareToAlgebraic(const int sq) {
+    return fmt::format("{}{}", static_cast<char>('a' + (sq % 8)), static_cast<char>('1' + (sq / 8)));
+}
 
-constexpr u8 castleIndex(const Color c, const bool kingside) { return c == WHITE ? (kingside ? 3 : 2) : (kingside ? 1 : 0); }
+constexpr u8 castleIndex(const Color c, const bool kingside) {
+    return c == WHITE ? (kingside ? 3 : 2) : (kingside ? 1 : 0);
+}
 
 // Print a bitboard (for debugging individual bitboards)
 inline void printBitboard(const u64 bitboard) {
@@ -171,8 +197,8 @@ inline string formatNum(const i64 v) {
 
 // Fancy formats a time
 inline string formatTime(const u64 timeInMS) {
-    u64       seconds = timeInMS / 1000;
-    const u64 days    = seconds / 60 / 60 / 24;
+    u64 seconds    = timeInMS / 1000;
+    const u64 days = seconds / 60 / 60 / 24;
     seconds %= 60 * 60 * 24;
     const u64 hours = seconds / 3600;
     seconds %= 3600;
@@ -214,7 +240,7 @@ inline string suffixNum(double num) {
 
 // Parses human-readable numbers
 inline u64 parseSuffixedNum(string text) {
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     // Trim leading/trailing whitespace
     auto is_space = [](unsigned char c) { return std::isspace(c); };
@@ -223,7 +249,7 @@ inline u64 parseSuffixedNum(string text) {
     while (!text.empty() && is_space(text.back()))
         text.erase(text.size() - 1);
 
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     double multiplier = 1.0;
 
@@ -234,26 +260,26 @@ inline u64 parseSuffixedNum(string text) {
         text.erase(text.size() - 1);
 
         switch (suffix) {
-        case 'k':
-            multiplier = 1'000.0;
-            break;
-        case 'm':
-            multiplier = 1'000'000.0;
-            break;
-        case 'b':
-        case 'g':
-            multiplier = 1'000'000'000.0;
-            break;
-        case 't':
-            multiplier = 1'000'000'000'000.0;
-            break;
-        default:
-            cerr << "Unknown number suffix" << endl;
-            std::abort();
+            case 'k':
+                multiplier = 1'000.0;
+                break;
+            case 'm':
+                multiplier = 1'000'000.0;
+                break;
+            case 'b':
+            case 'g':
+                multiplier = 1'000'000'000.0;
+                break;
+            case 't':
+                multiplier = 1'000'000'000'000.0;
+                break;
+            default:
+                cerr << "Unknown number suffix" << endl;
+                std::abort();
         }
     }
 
-    assert(!text.empty());
+    traced_assert(!text.empty());
 
     std::erase(text, ',');
 
@@ -274,7 +300,7 @@ inline string padStr(string str, const i64 target, const u64 minPadding = 2) {
 // Score color
 inline void printColoredScore(const double wdl) {
     const double colorWdl = std::clamp(wdl * 1.5f, -1.0, 1.0);
-    u8           r, g, b;
+    u8 r, g, b;
 
     const auto lerp = [](const double a, const double b, const double t) { return a + t * (b - a); };
 
@@ -356,8 +382,8 @@ inline int findIndexOf(const auto arr, string entry) {
 inline int getTerminalRows() {
     auto envLines = []() -> int {
         if (const char* s = std::getenv("LINES")) {
-            char*      end = nullptr;
-            const long v   = std::strtol(s, &end, 10);
+            char* end    = nullptr;
+            const long v = std::strtol(s, &end, 10);
             if (end != s && v > 0 && v < 100000)
                 return v;
         }
@@ -428,15 +454,35 @@ inline void slowPrint(string text, const usize delay = 30, std::ostream& out = c
 }
 
 namespace cursor {
-static void clearAll(std::ostream& out = cout) { out << "\033[2J\033[H"; }
-static void clear(std::ostream& out = cout) { out << "\033[2K\r"; }
-static void clearDown(std::ostream& out = cout) { out << "\x1b[J"; }
-static void home(std::ostream& out = cout) { out << "\033[H"; }
-static void up(std::ostream& out = cout) { out << "\033[A"; }
-static void down(std::ostream& out = cout) { out << "\033[B"; }
-static void begin(std::ostream& out = cout) { out << "\033[1G"; }
-static void goTo(const usize x, const usize y, std::ostream& out = cout) { out << "\033[" << y << ";" << x << "H"; }
+    [[maybe_unused]] static void clearAll(std::ostream& out = cout) {
+        out << "\033[2J\033[H";
+    }
+    [[maybe_unused]] static void clear(std::ostream& out = cout) {
+        out << "\033[2K\r";
+    }
+    [[maybe_unused]] static void clearDown(std::ostream& out = cout) {
+        out << "\x1b[J";
+    }
+    [[maybe_unused]] static void home(std::ostream& out = cout) {
+        out << "\033[H";
+    }
+    [[maybe_unused]] static void up(std::ostream& out = cout) {
+        out << "\033[A";
+    }
+    [[maybe_unused]] static void down(std::ostream& out = cout) {
+        out << "\033[B";
+    }
+    [[maybe_unused]] static void begin(std::ostream& out = cout) {
+        out << "\033[1G";
+    }
+    [[maybe_unused]] static void goTo(const usize x, const usize y, std::ostream& out = cout) {
+        out << "\033[" << y << ";" << x << "H";
+    }
 
-static void hide(std::ostream& out = cout) { out << "\033[?25l"; }
-static void show(std::ostream& out = cout) { out << "\033[?25h"; }
+    [[maybe_unused]] static void hide(std::ostream& out = cout) {
+        out << "\033[?25l";
+    }
+    [[maybe_unused]] static void show(std::ostream& out = cout) {
+        out << "\033[?25h";
+    }
 }

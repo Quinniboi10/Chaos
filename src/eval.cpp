@@ -28,8 +28,12 @@ struct ValueAccumulator {
 
     explicit ValueAccumulator(const Board& board);
 
-    const i16& operator[](const usize& idx) const { return underlying[idx]; }
-    i16&       operator[](const usize& idx) { return underlying[idx]; }
+    const i16& operator[](const usize& idx) const {
+        return underlying[idx];
+    }
+    i16& operator[](const usize& idx) {
+        return underlying[idx];
+    }
 };
 
 struct ValueNN {
@@ -55,7 +59,7 @@ ValueAccumulator::ValueAccumulator(const Board& board) {
     underlying = nn.hiddenLayerBias;
 
     const Square stmKing = getLSB(board.pieces(board.stm, KING));
-    const int    flip    = (fileOf(stmKing) >= FILE_E) * 0b000111;
+    const int flip       = (fileOf(stmKing) >= FILE_E) * 0b000111;
 
     while (whitePieces) {
         const auto rawSq = popLSB(whitePieces);
@@ -211,15 +215,15 @@ i32 NN::vectorizedSCReLU(const ValueAccumulator& accum) const {
 
 // Finds the input feature
 usize ValueNN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
-    const bool enemy       = stm != pieceColor;
-    const int  squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
+    const bool enemy      = stm != pieceColor;
+    const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
 
     return enemy * 64 * 6 + piece * 64 + squareIndex;
 }
 
 i32 evaluate(const Board& board) {
     const ValueAccumulator accum(board);
-    i32                    eval = 0;
+    i32 eval = 0;
 
     if constexpr (ACTIVATION_V != ::SCReLU) {
         for (usize i = 0; i < HL_SIZE_V; i++) {

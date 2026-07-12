@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stacktrace>
 #include <iostream>
 #include <string_view>
 #include <vector>
@@ -8,6 +9,9 @@
 #include <deque>
 #include <array>
 #include <bit>
+
+#include "assert.h"
+#include "numbers.h"
 
 #if defined(_MSC_VER)
     #define ASSUME(cond) __assume(cond)
@@ -24,37 +28,6 @@
                 *((int*) 0)(); \
         } while (0)
 #endif
-
-#ifndef NDEBUG
-    #include <boost/stacktrace.hpp>
-    #undef assert
-    #define assert(x) \
-        if (!(x)) { \
-            std::cout << std::endl << std::endl << boost::stacktrace::stacktrace() << std::endl << "Assertion failed: " << #x << ", file " << __FILE__ << ", line " << __LINE__ << std::endl; \
-            std::terminate(); \
-        }
-#else
-    #define assert(x) ;
-#endif
-
-using u64 = uint64_t;
-using u32 = uint32_t;
-using u16 = uint16_t;
-using u8  = uint8_t;
-
-using i64 = int64_t;
-using i32 = int32_t;
-using i16 = int16_t;
-using i8  = int8_t;
-
-#ifdef _MSC_VER
-    #include <__msvc_int128.hpp>
-using u128 = std::_Unsigned128;
-#else
-using u128 = unsigned __int128;
-#endif
-
-using usize = size_t;
 
 using std::popcount;
 using std::string;
@@ -82,10 +55,12 @@ enum SearchMode {
     FULL_SEARCH
 };
 
-constexpr array<std::string_view, 4> GAME_STATE_STR = { "ONGOING", "LOSS", "DRAW", "WIN" };
+constexpr array<std::string_view, 4> GAME_STATE_STR = {"ONGOING", "LOSS", "DRAW", "WIN"};
 
 //Inverts the color (WHITE -> BLACK) and (BLACK -> WHITE)
-constexpr Color operator~(Color c) { return Color(c ^ 1); }
+constexpr Color operator~(Color c) {
+    return Color(c ^ 1);
+}
 
 enum PieceType : u8 {
     PAWN,
@@ -165,7 +140,7 @@ class GameState {
 public:
     constexpr GameState() { underlying = 0; }
     constexpr GameState(const RawGameState state, const u16 distance = 0) {
-        assert(distance <= 0b0011111111111111);
+        traced_assert(distance <= 0b0011111111111111);
         underlying = state << 14 | distance;
     }
 
@@ -213,7 +188,7 @@ struct RollingWindow {
     explicit RollingWindow(const usize maxSize) : maxSize(maxSize) {}
 
     void push(const T& x) {
-        assert(maxSize > 0);
+        traced_assert(maxSize > 0);
         if (dq.size() == maxSize)
             dq.pop_front();
         dq.push_back(x);

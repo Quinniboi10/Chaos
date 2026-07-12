@@ -30,8 +30,12 @@ struct PolicyAccumulator {
 
     explicit PolicyAccumulator(const Board& board);
 
-    const i16& operator[](const usize& idx) const { return underlying[idx]; }
-    i16&       operator[](const usize& idx) { return underlying[idx]; }
+    const i16& operator[](const usize& idx) const {
+        return underlying[idx];
+    }
+    i16& operator[](const usize& idx) {
+        return underlying[idx];
+    }
 };
 
 struct PolicyNN {
@@ -90,7 +94,9 @@ i16 PolicyNN::ReLU(const i16 x) {
     return x;
 }
 
-i16 PolicyNN::CReLU(const i16 x) { return std::clamp<i16>(x, 0, Q_P); }
+i16 PolicyNN::CReLU(const i16 x) {
+    return std::clamp<i16>(x, 0, Q_P);
+}
 
 i32 PolicyNN::SCReLU(const i16 x) {
     if (x < 0)
@@ -102,14 +108,14 @@ i32 PolicyNN::SCReLU(const i16 x) {
 
 // Finds the input feature
 usize PolicyNN::feature(const Color stm, const Color pieceColor, const PieceType piece, const Square square) {
-    const bool enemy       = stm != pieceColor;
-    const int  squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
+    const bool enemy      = stm != pieceColor;
+    const int squareIndex = (stm == BLACK) ? flipRank(square) : static_cast<int>(square);
 
     return enemy * 64 * 6 + piece * 64 + squareIndex;
 }
 
 // Based on code from Vine
-array<u64, 64>   ALL_DESTINATIONS;
+array<u64, 64> ALL_DESTINATIONS;
 array<usize, 65> OFFSETS;
 
 void initPolicy() {
@@ -129,15 +135,15 @@ usize moveIdx(const Color stm, const Move m) {
     const i32 flipper = stm == Color::BLACK ? 56 : 0;
     if (m.typeOf() == PROMOTION) {
         constexpr usize PROMO_STRIDE = 22;
-        const i32       promoId      = 2 * fileOf(m.from()) + fileOf(m.to());
-        const i32       kind         = m.promo() - 1;
+        const i32 promoId            = 2 * fileOf(m.from()) + fileOf(m.to());
+        const i32 kind               = m.promo() - 1;
         return OFFSETS[64] + kind * PROMO_STRIDE + promoId;
     }
 
-    const Square from  = Square(m.from() ^ flipper);
-    const Square to    = Square(m.to() ^ flipper);
-    const u64    all   = ALL_DESTINATIONS[from];
-    const u64    below = to == 0 ? 0 : all & ((1ULL << to) - 1);
+    const Square from = Square(m.from() ^ flipper);
+    const Square to   = Square(m.to() ^ flipper);
+    const u64 all     = ALL_DESTINATIONS[from];
+    const u64 below   = to == 0 ? 0 : all & ((1ULL << to) - 1);
     return OFFSETS[from] + static_cast<usize>(popcount(below));
 }
 
@@ -173,14 +179,14 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
 
     array<float, 256> scores;
 
-    Node*       firstChild = &tree[parent.firstChild.load()];
-    const Node* end        = firstChild + parent.numChildren.load();
+    Node* firstChild = &tree[parent.firstChild.load()];
+    const Node* end  = firstChild + parent.numChildren.load();
 
     // Get raw scores and find max
     // and add the butterfly history
     // to the raw logits
     for (const Node* node = firstChild; node != end; node++) {
-        const Move  move         = node->move.load();
+        const Move move          = node->move.load();
         const float historyBonus = searcherData ? (static_cast<float>(searcherData->history.getEntry(board.stm, move)) / BUTTERFLY_POLICY_DIVISOR) : 0;
         const float score        = policyScore(board.stm, accum, move) + historyBonus;
         scores[node - firstChild] = score;
@@ -188,7 +194,7 @@ void fillPolicy(const Board& board, Tree& tree, const SearcherData* searcherData
     }
 
     // Calculate the material phase
-    const float phase = 1.0f - std::clamp(board.getMaterial() / static_cast<float>(POLICY_MATERIAL_PHASE_DIVISOR), 0.0f, 1.0f);
+    const float phase        = 1.0f - std::clamp(board.getMaterial() / static_cast<float>(POLICY_MATERIAL_PHASE_DIVISOR), 0.0f, 1.0f);
     const float adjustedTemp = std::lerp(initialTemp, endgameTemp, phase);
 
     // Exponentiate and sum

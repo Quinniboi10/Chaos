@@ -7,19 +7,19 @@
 #include "globals.h"
 
 struct Node {
-    RelaxedAtomic<float>     totalScore;
+    RelaxedAtomic<float> totalScore;
     RelaxedAtomic<NodeIndex> firstChild;
-    RelaxedAtomic<u64>       visits;
-    RelaxedAtomic<float>     policy;
-    RelaxedAtomic<Move>      move;
+    RelaxedAtomic<u64> visits;
+    RelaxedAtomic<float> policy;
+    RelaxedAtomic<Move> move;
     RelaxedAtomic<GameState> state;
-    RelaxedAtomic<u8>        numChildren;
-    RelaxedAtomic<float>     giniImpurity;
+    RelaxedAtomic<u8> numChildren;
+    RelaxedAtomic<float> giniImpurity;
 
     Node() {
         totalScore   = 0;
         visits       = 0;
-        firstChild   = { 0, 0 };
+        firstChild   = {0, 0};
         policy       = 0;
         state        = ONGOING;
         move         = Move::null();
@@ -55,14 +55,20 @@ struct Node {
 
     // Get the WDL of a node, adjusted for game end states
     float getScore() const {
-        assert(visits.load());
+        traced_assert(visits.load());
         return totalScore.load() / visits.load();
     }
 
-    bool isExpanded() const { return numChildren.load() > 0; }
-    bool isTerminal() const { return state.load().state() != ONGOING; }
+    bool isExpanded() const {
+        return numChildren.load() > 0;
+    }
+    bool isTerminal() const {
+        return state.load().state() != ONGOING;
+    }
 
-    bool operator==(const Node& other) const { return visits == other.visits.load() && firstChild.load() == other.firstChild.load(); }
+    bool operator==(const Node& other) const {
+        return visits == other.visits.load() && firstChild.load() == other.firstChild.load();
+    }
 };
 
 
@@ -71,8 +77,8 @@ class Tree {
 
    public:
     array<vector<Node>, 2> nodes;
-    TranspositionTable     tt;
-    RelaxedAtomic<bool>    switchHalves;
+    TranspositionTable tt;
+    RelaxedAtomic<bool> switchHalves;
 
     Tree() {
         resize(DEFAULT_HASH);
@@ -99,24 +105,40 @@ class Tree {
         tt.clear(threadCount);
     }
 
-    u8   activeHalf() const { return currentHalf; }
-    void switchHalf() { currentHalf ^= 1; }
+    u8 activeHalf() const {
+        return currentHalf;
+    }
+    void switchHalf() {
+        currentHalf ^= 1;
+    }
 
-    Node&       root() { return nodes[currentHalf][0]; }
-    const Node& root() const { return nodes[currentHalf][0]; }
+    Node& root() {
+        return nodes[currentHalf][0];
+    }
+    const Node& root() const {
+        return nodes[currentHalf][0];
+    }
 
-    vector<Node>&       activeTree() { return nodes[currentHalf]; }
-    const vector<Node>& activeTree() const { return nodes[currentHalf]; }
-    vector<Node>&       inactiveTree() { return nodes[currentHalf ^ 1]; }
-    const vector<Node>& inactiveTree() const { return nodes[currentHalf ^ 1]; }
+    vector<Node>& activeTree() {
+        return nodes[currentHalf];
+    }
+    const vector<Node>& activeTree() const {
+        return nodes[currentHalf];
+    }
+    vector<Node>& inactiveTree() {
+        return nodes[currentHalf ^ 1];
+    }
+    const vector<Node>& inactiveTree() const {
+        return nodes[currentHalf ^ 1];
+    }
 
     const Node& operator[](const NodeIndex& idx) const {
-        assert(idx.index() < nodes[0].size());
+        traced_assert(idx.index() < nodes[0].size());
         return nodes[idx.half()][idx.index()];
     }
 
     Node& operator[](const NodeIndex& idx) {
-        assert(idx.index() < nodes[0].size());
+        traced_assert(idx.index() < nodes[0].size());
         return nodes[idx.half()][idx.index()];
     }
 };

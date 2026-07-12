@@ -26,24 +26,36 @@ class Move {
 
     Move(string strIn, Board& board);
 
-    constexpr static Move null() { return Move(a1, a1); }
+    constexpr static Move null() {
+        return Move(a1, a1);
+    }
 
 
     string toString() const;
 
-    Square from() const { return Square(move & 0b111111); }
-    Square to() const { return Square((move >> 6) & 0b111111); }
+    Square from() const {
+        return Square(move & 0b111111);
+    }
+    Square to() const {
+        return Square((move >> 6) & 0b111111);
+    }
 
-    MoveType typeOf() const { return MoveType(move & 0xC000); }
+    MoveType typeOf() const {
+        return MoveType(move & 0xC000);
+    }
 
     PieceType promo() const {
-        assert(typeOf() == PROMOTION);
+        traced_assert(typeOf() == PROMOTION);
         return PieceType(((move >> 12) & 0b11) + 1);
     }
 
-    bool isNull() const { return *this == null(); }
+    bool isNull() const {
+        return *this == null();
+    }
 
-    bool operator==(const Move other) const { return move == other.move; }
+    bool operator==(const Move other) const {
+        return move == other.move;
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const Move& m) {
         os << m.toString();
@@ -53,31 +65,51 @@ class Move {
 
 struct MoveList {
     array<Move, 256> moves;
-    usize            length;
+    usize length;
 
-    constexpr MoveList() { length = 0; }
+    constexpr MoveList() {
+        length = 0;
+    }
 
     void add(Move m) {
-        assert(length < 256);
+        traced_assert(length < 256);
         moves[length++] = m;
     }
 
-    void add(u8 from, u8 to, MoveType flags = STANDARD_MOVE) { add(Move(from, to, flags)); }
-    void add(u8 from, u8 to, PieceType promo) { add(Move(from, to, promo)); }
+    void add(u8 from, u8 to, MoveType flags = STANDARD_MOVE) {
+        add(Move(from, to, flags));
+    }
+    void add(u8 from, u8 to, PieceType promo) {
+        add(Move(from, to, promo));
+    }
 
-    auto begin() { return moves.begin(); }
-    auto end() { return moves.begin() + length; }
-    auto begin() const { return moves.begin(); }
-    auto end() const { return moves.begin() + length; }
+    auto begin() {
+        return moves.begin();
+    }
+    auto end() {
+        return moves.begin() + length;
+    }
+    auto begin() const {
+        return moves.begin();
+    }
+    auto end() const {
+        return moves.begin() + length;
+    }
 
-    bool has(Move m) const { return std::find(begin(), end(), m) != end(); }
+    bool has(Move m) const {
+        return std::find(begin(), end(), m) != end();
+    }
     void remove(Move m) {
-        assert(has(m));
+        traced_assert(has(m));
         auto location = std::find(begin(), end(), m);
         if (location != end())
             *(location) = moves[--length];
     }
 
-    Move&       operator[](usize idx) { return moves[idx]; }
-    const Move& operator[](usize idx) const { return moves[idx]; }
+    Move& operator[](usize idx) {
+        return moves[idx];
+    }
+    const Move& operator[](usize idx) const {
+        return moves[idx];
+    }
 };

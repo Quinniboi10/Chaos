@@ -5,10 +5,10 @@
 #ifdef TUNE
 struct IndividualOption {
     string name;
-    i32    value;
-    i32    min;
-    i32    max;
-    i32    step;
+    i32 value;
+    i32 min;
+    i32 max;
+    i32 step;
 
     IndividualOption(const string& name, i32 value);
 
@@ -49,15 +49,16 @@ static void printTuneUCI() {
 
 static void printTuneOB() {
     for (const auto& tunable : tunables)
-        cout << tunable->name << ", int, " << tunable->value << ", " << tunable->min << ", " << tunable->max << ", " << tunable->step << ", " << 0.002 / (std::min<double>(0.5, tunable->step) / 0.5) << endl;
+        cout << tunable->name << ", int, " << tunable->value << ", " << tunable->min << ", " << tunable->max << ", " << tunable->step << ", " << 0.002 / (std::min<double>(0.5, tunable->step) / 0.5)
+             << endl;
 }
 
-#define Tunable(name, value) \
-inline IndividualOption name { \
-#name, value \
-}
+    #define Tunable(name, value) \
+        inline IndividualOption name { \
+            #name, value \
+        }
 #else
-#define Tunable(name, value) constexpr i32 name = value
+    #define Tunable(name, value) constexpr i32 name = value
 #endif
 
 // Floating points are quantized by 10'000
@@ -91,4 +92,4 @@ Tunable(PAWN_VALUE, 100);
 Tunable(KNIGHT_VALUE, 310);
 Tunable(BISHOP_VALUE, 345);
 Tunable(ROOK_VALUE, 516);
-Tunable(QUEEN_VALUE, 917);  
+Tunable(QUEEN_VALUE, 917);
