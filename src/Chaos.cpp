@@ -18,9 +18,10 @@
 // ****** UCI OPTIONS ******
 usize hash = DEFAULT_HASH;
 
-bool  chess960  = false;
-bool  inDatagen = false;
-usize multiPV   = 1;
+bool  chess960    = false;
+bool  inDatagen   = false;
+usize multiPV     = 1;
+usize threadCount = 1;
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
@@ -160,7 +161,9 @@ int main(int argc, char* argv[]) {
             searcher.start(board, params, limits);
         }
         else if (tokens[0] == "setoption") {
-            if (tokens[2] == "Hash")
+            if (tokens[2] == "Threads")
+                threadCount = std::max<usize>(getValueFollowing("value", 1), 1);
+            else if (tokens[2] == "Hash")
                 searcher.setHash(hash = getValueFollowing("value", DEFAULT_HASH));
             else if (tokens[2] == "Minimal")
                 uciMinimal = tokens[findIndexOf(tokens, "value") + 1] == "true";

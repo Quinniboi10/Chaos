@@ -4,6 +4,7 @@
 #include "move.h"
 #include "search.h"
 #include "ttable.h"
+#include "globals.h"
 
 struct Node {
     RelaxedAtomic<float>     totalScore;
@@ -82,7 +83,7 @@ class Tree {
     void reset() {
         nodes[0][0] = Node();
         nodes[1][0] = Node();
-        tt.clear(std::thread::hardware_concurrency());
+        tt.clear(threadCount);
     }
 
     void resize(const u64 newMB) {
@@ -95,7 +96,7 @@ class Tree {
         nodes[1].resize(treeAllocSize / 2);
 
         tt.reserve(newMB / 16);
-        tt.clear(std::thread::hardware_concurrency());
+        tt.clear(threadCount);
     }
 
     u8   activeHalf() const { return currentHalf; }
