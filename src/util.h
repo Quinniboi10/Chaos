@@ -454,35 +454,35 @@ inline void slowPrint(string text, const usize delay = 30, std::ostream& out = c
 }
 
 namespace cursor {
-    static void clearAll(std::ostream& out = cout) {
+    [[maybe_unused]] static void clearAll(std::ostream& out = cout) {
         out << "\033[2J\033[H";
     }
-    static void clear(std::ostream& out = cout) {
+    [[maybe_unused]] static void clear(std::ostream& out = cout) {
         out << "\033[2K\r";
     }
-    static void clearDown(std::ostream& out = cout) {
+    [[maybe_unused]] static void clearDown(std::ostream& out = cout) {
         out << "\x1b[J";
     }
-    static void home(std::ostream& out = cout) {
+    [[maybe_unused]] static void home(std::ostream& out = cout) {
         out << "\033[H";
     }
-    static void up(std::ostream& out = cout) {
+    [[maybe_unused]] static void up(std::ostream& out = cout) {
         out << "\033[A";
     }
-    static void down(std::ostream& out = cout) {
+    [[maybe_unused]] static void down(std::ostream& out = cout) {
         out << "\033[B";
     }
-    static void begin(std::ostream& out = cout) {
+    [[maybe_unused]] static void begin(std::ostream& out = cout) {
         out << "\033[1G";
     }
-    static void goTo(const usize x, const usize y, std::ostream& out = cout) {
+    [[maybe_unused]] static void goTo(const usize x, const usize y, std::ostream& out = cout) {
         out << "\033[" << y << ";" << x << "H";
     }
 
-    static void hide(std::ostream& out = cout) {
+    [[maybe_unused]] static void hide(std::ostream& out = cout) {
         out << "\033[?25l";
     }
-    static void show(std::ostream& out = cout) {
+    [[maybe_unused]] static void show(std::ostream& out = cout) {
         out << "\033[?25h";
     }
 }
