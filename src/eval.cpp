@@ -17,14 +17,8 @@
 INCBIN(EVAL, VALUEFILE);
 #endif
 
-#ifdef __AVX512F__
-constexpr usize ALIGNMENT = 64;
-#else
-constexpr usize ALIGNMENT = 32;
-#endif
-
 struct ValueAccumulator {
-    alignas(ALIGNMENT) array<i16, HL_SIZE_V> underlying;
+    alignas(INCBIN_ALIGNMENT) array<i16, HL_SIZE_V> underlying;
 
     explicit ValueAccumulator(const Board& board);
 
@@ -37,9 +31,9 @@ struct ValueAccumulator {
 };
 
 struct ValueNN {
-    alignas(ALIGNMENT) array<i16, HL_SIZE_V * 768> weightsToHL;
-    alignas(ALIGNMENT) array<i16, HL_SIZE_V> hiddenLayerBias;
-    alignas(ALIGNMENT) array<i16, HL_SIZE_V> weightsToOut;
+    alignas(INCBIN_ALIGNMENT) array<i16, HL_SIZE_V * 768> weightsToHL;
+    alignas(INCBIN_ALIGNMENT) array<i16, HL_SIZE_V> hiddenLayerBias;
+    alignas(INCBIN_ALIGNMENT) array<i16, HL_SIZE_V> weightsToOut;
     i16 outputBias;
 
     static i16 ReLU(const i16 x);

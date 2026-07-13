@@ -19,14 +19,8 @@
 INCBIN(POLICY, POLICYFILE);
 #endif
 
-#ifdef __AVX512F__
-constexpr usize ALIGNMENT = 64;
-#else
-constexpr usize ALIGNMENT = 32;
-#endif
-
 struct PolicyAccumulator {
-    alignas(ALIGNMENT) array<i16, HL_SIZE_P> underlying;
+    alignas(INCBIN_ALIGNMENT) array<i16, HL_SIZE_P> underlying;
 
     explicit PolicyAccumulator(const Board& board);
 
@@ -39,9 +33,9 @@ struct PolicyAccumulator {
 };
 
 struct PolicyNN {
-    alignas(ALIGNMENT) array<i8, HL_SIZE_P * 768> weightsToHL;
-    alignas(ALIGNMENT) array<i8, HL_SIZE_P> hiddenLayerBias;
-    alignas(ALIGNMENT) MultiArray<i8, 1880, HL_SIZE_P> weightsToOut;
+    alignas(INCBIN_ALIGNMENT) array<i8, HL_SIZE_P * 768> weightsToHL;
+    alignas(INCBIN_ALIGNMENT) array<i8, HL_SIZE_P> hiddenLayerBias;
+    alignas(INCBIN_ALIGNMENT) MultiArray<i8, 1880, HL_SIZE_P> weightsToOut;
     array<i8, 1880> outputBiases;
 
     static i16 ReLU(const i16 x);
@@ -52,6 +46,7 @@ struct PolicyNN {
 };
 
 const PolicyNN nn = *reinterpret_cast<const PolicyNN*>(gPOLICYData);
+const bool abc = []() { return true; }();
 
 PolicyAccumulator::PolicyAccumulator(const Board& board) {
     u64 whitePieces = board.pieces(WHITE);

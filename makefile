@@ -107,7 +107,7 @@ tui: all
 
 # Debug build
 .PHONY: debug
-debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -D_CRT_SECURE_NO_WARNINGS -Wall -Wextra
+debug: CXXFLAGS = -std=c++23 -O2 -fno-inline-functions -flto -ggdb -DDEBUG -fsanitize=address -fsanitize=undefined -fno-finite-math-only -fno-omit-frame-pointer -lstdc++_libbacktrace -Wall -Wextra
 debug: all
 
 # Debug build
