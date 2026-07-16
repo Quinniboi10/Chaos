@@ -1,4 +1,4 @@
-#include "datagen.h"
+#include "datagen/datagen.h"
 #include "searcher.h"
 #include "globals.h"
 #include "movegen.h"

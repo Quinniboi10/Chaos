@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include "../types.h"
 
 namespace datagen {
     constexpr usize OUTPUT_BUFFER_GAMES = 50;

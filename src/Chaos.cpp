@@ -3,7 +3,7 @@
 #include "board.h"
 #include "policy.h"
 #include "movegen.h"
-#include "datagen.h"
+#include "datagen/datagen.h"
 #include "searcher.h"
 #include "constants.h"
 

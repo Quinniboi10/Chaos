@@ -45,7 +45,7 @@ endif
 EXE      ?= Chaos$(EXE_EXT)
 
 #Source and object files
-SRCS     := $(wildcard ./src/*.cpp)
+SRCS     := $(wildcard ./src/*.cpp) $(wildcard ./src/*/*.cpp)
 SRCS     += ./external/fmt/format.cpp
 OBJS     := $(SRCS:.cpp=.o)
 

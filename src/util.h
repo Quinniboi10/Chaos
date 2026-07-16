@@ -4,7 +4,9 @@
 #include "move.h"
 
 #include <bit>
+#include <fstream>
 #include <numbers>
+#include <string>
 #include <vector>
 #include <sstream>
 #include <cstdlib>

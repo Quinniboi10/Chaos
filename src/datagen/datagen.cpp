@@ -1,9 +1,10 @@
 #include "datagen.h"
 
-#include "board.h"
-#include "searcher.h"
-#include "stopwatch.h"
-#include "movegen.h"
+#include "../board.h"
+#include "../searcher.h"
+#include "../stopwatch.h"
+#include "../movegen.h"
+#include "book.h"
 
 #include <filesystem>
 #include <fstream>
@@ -535,7 +536,7 @@ void datagen::genFens(const string& params) {
 
     vector<string> tokens = split(params, ' ');
 
-    const auto getValueFollowing = [&](const string& value, const auto& defaultValue) {
+    const auto getValueFollowing = [&](const string& value, const auto& defaultValue) -> std::string {
         const auto loc  = std::find(tokens.begin(), tokens.end(), value);
         const usize idx = std::distance(tokens.begin(), loc) + 1;
         if (loc == tokens.end() || idx >= tokens.size()) {
@@ -563,17 +564,18 @@ void datagen::genFens(const string& params) {
     const u64 numFens = std::stoull(getValueFollowing("genfens", 1));
     const u64 seed    = std::stoull(getValueFollowing("seed", std::time(nullptr)));
 
-    std::mt19937 eng(seed);
-    std::uniform_int_distribution<int> dist(0, 1);
-    auto randBool = [&]() { return dist(eng); };
+    OpeningBook book{getValueFollowing("book", "None")};
 
+    std::mt19937 eng(seed);
+    std::uniform_int_distribution<int> boolDist(0, 1);
+    const auto randBool = [&]() { return boolDist(eng); };
 
     vector<u64> posHistory;
     u64 fens = 0;
     while (fens < numFens) {
 startLoop:
         Board board;
-        board.reset();
+        board.loadFromFEN(book.get());
         posHistory              = {board.zobrist};
         const usize randomMoves = datagen::RAND_MOVES + randBool();
         for (usize i = 0; i < randomMoves; i++) {
